@@ -13,7 +13,7 @@ wasm-bindgen --target web --no-typescript --remove-name-section --out-dir "$OUT/
 if command -v wasm-opt >/dev/null && [ "${OPT:-1}" = 1 ]; then
   wasm-opt -O2 --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext --enable-mutable-globals --enable-reference-types "$OUT/pkg/lemonstudio_bg.wasm" -o "$OUT/pkg/lemonstudio_bg.wasm"
 fi
-cp web/static/* "$OUT/"
+cp web/static/* web/static/.htaccess "$OUT/"
 cp LICENSE "$OUT/LICENSE.txt"
 cp THIRD-PARTY-NOTICES.txt "$OUT/THIRD-PARTY-NOTICES.txt"
 ls -la "$OUT" "$OUT/pkg"
