@@ -183,7 +183,7 @@ mod tests {
         f.extend((body.len() as u32).to_le_bytes());
         f.extend(body);
         let p = std::env::temp_dir().join(format!("openstudio-slicer-{}-{name}.wav", std::process::id()));
-        std::fs::write(&p, f).unwrap();
+        os_web::fs::write(&p, f).unwrap();
         p
     }
 
@@ -226,7 +226,7 @@ mod tests {
         i.note_off(0, 61);
         drop(i);
         assert_eq!(pl.slicer_file_state(99), None);
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// A Fruity Slicer channel added in the app saves the original's new-channel state; one with a loop saves its
@@ -247,14 +247,14 @@ mod tests {
         a.sync_slicer();
         assert!(a.state.hosted_rows.contains(&row));
         a.save_to(file.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&file).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&file).unwrap()).unwrap()).unwrap();
         assert_eq!(saved.channels[row].plugin_state.as_deref(), Some(lemon_slicer::params::default_state().as_slice()));
 
         let fl = state_for(&wav);
         assert!(a.plugins.set_state(row, &plugin_state(&fl)));
         a.state.project.channels[row].plugin = Some("Fruity slicer".into());
         a.save_to(file.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&file).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&file).unwrap()).unwrap()).unwrap();
         assert_eq!(saved.channels[row].plugin.as_deref(), Some("Fruity slicer"));
         assert_eq!(saved.channels[row].plugin_state.as_deref(), Some(fl.as_slice()));
         let mut b = App::new(None);
@@ -263,8 +263,8 @@ mod tests {
         b.sync_slicer();
         assert!(b.state.hosted_rows.contains(&row), "{:?}", b.state.message);
         assert_eq!(b.plugins.slicer_file_state(row), Some(fl.clone()));
-        let _ = std::fs::remove_file(&file);
-        let _ = std::fs::remove_file(wav);
+        let _ = os_web::fs::remove_file(&file);
+        let _ = os_web::fs::remove_file(wav);
     }
 
     /// A file Tesla sends to a new Lemon Slicer channel: a hosted Fruity Slicer channel named after the file, sliced at
@@ -277,7 +277,7 @@ mod tests {
         for (i, (pos, len)) in [(0usize, 11025usize), (11025, 11025), (22050, 22050)].into_iter().enumerate() {
             s.cues.push(Cue { id: i as u32 + 1, name: format!("Part {}", i + 1), pos, len: Some(len) });
         }
-        std::fs::write(&path, tesla::wav::write(&s, tesla::wav::Depth::Own)).unwrap();
+        os_web::fs::write(&path, tesla::wav::write(&s, tesla::wav::Depth::Own)).unwrap();
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.plugins.available = crate::plugins::builtin();
@@ -296,7 +296,7 @@ mod tests {
         assert!(a.state.message.as_deref().is_some_and(|m| m.contains("3 slices")));
         assert_eq!(crate::history::undo(&mut a.state).as_deref(), Some(crate::history::ADD_CHANNEL));
         assert_eq!(a.state.project.channels.len(), before);
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
     }
 
     /// A loop dropped on Lemon Slicer's window, from the system or the browser (Discord feedback 2026-10-30), replaces its
@@ -309,7 +309,7 @@ mod tests {
         let mut s = Sample::from_channels(44100, vec![vec![0.25; 44100]], Format::Int16);
         s.cues.push(Cue { id: 1, name: "Part 1".into(), pos: 0, len: Some(22050) });
         s.cues.push(Cue { id: 2, name: "Part 2".into(), pos: 22050, len: Some(22050) });
-        std::fs::write(&first, tesla::wav::write(&s, tesla::wav::Depth::Own)).unwrap();
+        os_web::fs::write(&first, tesla::wav::write(&s, tesla::wav::Depth::Own)).unwrap();
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.plugins.available = crate::plugins::builtin();
@@ -330,13 +330,13 @@ mod tests {
         assert!(a.state.plugin_edited, "the project counts as changed");
 
         let bad = std::env::temp_dir().join(format!("openstudio-drop-slicer-{}.wav.txt", std::process::id()));
-        std::fs::write(&bad, b"not audio").unwrap();
+        os_web::fs::write(&bad, b"not audio").unwrap();
         assert!(a.loop_to_slicer(row, &bad.to_string_lossy()));
         assert_eq!(loaded(&a).path(), dropped.to_string_lossy(), "the loop stays");
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Lemon Slicer: ")), "{:?}", a.state.message);
         assert!(!a.loop_to_slicer(0, &dropped.to_string_lossy()), "row 0 hosts no Lemon Slicer");
         for p in [first, dropped, bad] {
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
     }
 
@@ -379,17 +379,20 @@ mod tests {
         let Ok(list) = std::env::var("OS_SLICER_FLP") else { return };
         let mut seen = 0;
         for f in list.split(';').filter(|f| !f.is_empty()) {
-            let Ok(p) = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(f).unwrap()).unwrap()) else { eprintln!("{f}: not read"); continue };
+            let Ok(p) = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(f).unwrap()).unwrap()) else { eprintln!("{f}: not read"); continue };
             for ch in p.channels.iter().filter(|c| is_slicer(c)) {
                 let fl = ch.plugin_state.clone().unwrap_or_default();
                 let st = State::parse(&fl).unwrap_or_else(|| panic!("{f}: {:?} does not parse", ch.name));
                 assert_eq!(st.to_bytes(), fl, "{f}: {:?}", ch.name);
                 assert_eq!(lemon_slicer::params::fl_from_plugin_state(&plugin_state(&fl)), Some(fl.clone()));
                 let sample = crate::plugins::resolve_sample(&st.path());
-                eprintln!("{f}: {:?} ({}), {} slices, {:.3} beats at {:.3} BPM, {sample} found: {}", ch.name, ch.plugin.as_deref().unwrap_or(""), st.slices.len(), st.beats(), st.bpm(), std::path::Path::new(&sample).exists());
+                eprintln!("{f}: {:?} ({}), {} slices, {:.3} beats at {:.3} BPM, {sample} found: {}", ch.name, ch.plugin.as_deref().unwrap_or(""), st.slices.len(), st.beats(), st.bpm(), std::path::Path::new(&sample).vexists());
                 seen += 1;
             }
         }
         assert!(seen > 0);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

@@ -1107,7 +1107,7 @@ mod tests {
         l.down(x, y, Btn::Left, Mods::default(), false);
         paint(&mut l);
         assert!(l.hits.iter().any(|h| h.t == Target::Pad(31)) && !l.hits.iter().any(|h| h.t == Target::Pad(0)));
-        let _ = std::fs::remove_file(wav);
+        let _ = os_web::fs::remove_file(wav);
     }
 
     #[test]
@@ -1251,6 +1251,6 @@ mod tests {
         let mut c = os_ui::Canvas::new(view::W * 2, view::H * 2, 2.0).unwrap();
         l.paint(&mut c, &os_plugkit::palette());
         c.pixmap.save_png(std::path::Path::new(&dir).join("lemon_drum_sampler.png")).unwrap();
-        let _ = std::fs::remove_file(wav);
+        let _ = os_web::fs::remove_file(wav);
     }
 }

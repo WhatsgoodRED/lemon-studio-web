@@ -189,7 +189,7 @@ fn load() -> AudioCfg {
     if cfg!(test) {
         return AudioCfg::default();
     }
-    os_paths::user_file("audio.txt").and_then(|f| std::fs::read_to_string(f).ok()).map(|t| AudioCfg::parse(&t)).unwrap_or_default()
+    os_paths::user_file("audio.txt").and_then(|f| os_web::fs::read_to_string(f).ok()).map(|t| AudioCfg::parse(&t)).unwrap_or_default()
 }
 
 fn save(c: &AudioCfg) {
@@ -197,8 +197,8 @@ fn save(c: &AudioCfg) {
         return;
     }
     if let Some(dir) = os_paths::user_dir() {
-        let _ = std::fs::create_dir_all(&dir);
-        let _ = std::fs::write(dir.join("audio.txt"), c.text());
+        let _ = os_web::fs::create_dir_all(&dir);
+        let _ = os_web::fs::write(dir.join("audio.txt"), c.text());
     }
 }
 

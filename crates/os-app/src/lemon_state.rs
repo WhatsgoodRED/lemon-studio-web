@@ -456,8 +456,8 @@ mod tests {
 
     fn dir(name: &str) -> std::path::PathBuf {
         let d = std::env::temp_dir().join(format!("os_lemon_state_{name}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let _ = os_web::fs::remove_dir_all(&d);
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -491,7 +491,7 @@ mod tests {
         let mut app = with_state();
         app.save_to(path.clone());
         assert!(!app.unsaved());
-        let file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         let ids: Vec<u8> = lemon::events(&file).unwrap().iter().map(|e| e.id).collect();
         let mut want = vec![lemon::SAVED_BY, lemon::ICONS, lemon::SLOT_NAMES, lemon::SLOT_COLORS, lemon::PERFORMANCE, lemon::MIXER];
         want.extend([lemon::SCALING, lemon::CHANNEL_CHECKS]);
@@ -520,7 +520,7 @@ mod tests {
         again.open(path);
         assert_eq!(again.state.playlist.icons.len(), 2);
         assert!(!again.state.playlist.icons.contains_key(&IconOwner::Track(2)));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// `with_state`, plus the settings of events 197-201: Plugin delay compensation ▸ Automatic off, View ▸ Waveforms
@@ -592,7 +592,7 @@ mod tests {
         assert!(s.project.arrangements.iter().flat_map(|a| &a.tracks).all(|t| t.clip_lock.is_none()));
         #[cfg(any(windows, target_os = "macos"))]
         assert!(editor_keys());
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// Receive notes from ▸ locks (event 202) come back on the channels at the same rack positions; one taken off is an
@@ -607,7 +607,7 @@ mod tests {
         app.state.rack.note_lock[NoteSrc::Touch as usize] = Some(1);
         app.save_to(lemon_path.clone());
         app.save_to(flp_path.clone());
-        let file = os_flp::FlpFile::parse(&std::fs::read(&lemon_path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&lemon_path).unwrap()).unwrap();
         assert_eq!(lemon::data(&file, lemon::NOTE_LOCKS), Some(vec![LAYOUT, 2, 0, 0, 0, 0, 3, 0, 1, 1, 0]));
         let mut back = App::new(None);
         back.open(lemon_path.clone());
@@ -627,7 +627,7 @@ mod tests {
         assert_eq!(s.state.rack.note_lock, [None, None]);
         again.open(flp_path);
         assert_eq!(again.state.rack.note_lock, [None, None], "an FLP has no locks");
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// An FLP's icon numbers (a channel's event 155, a mixer track's event 95) open as the icons with the same picture
@@ -645,7 +645,7 @@ mod tests {
         m[3].icon = Some(74); // the automation clip's nodes: no picture of Lemon Studio's
         m[4].icon = Some(80);
         made.save_to(path.clone());
-        let mut file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let mut file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         // The second channel's icon number, before its colour: 30, the microphone.
         let ev = file.chunks.iter_mut().find_map(|c| match &mut c.body {
             os_flp::ChunkBody::Events(v) => Some(v),
@@ -655,7 +655,7 @@ mod tests {
         let second = ev.iter().enumerate().filter(|(_, e)| e.id == 64).nth(1).unwrap().0;
         let color = second + ev[second..].iter().position(|e| e.id == 128).unwrap();
         ev.insert(color, Event::new(155, Value::U32(30)));
-        std::fs::write(&path, file.to_bytes().unwrap()).unwrap();
+        os_web::fs::write(&path, file.to_bytes().unwrap()).unwrap();
         let mut app = App::new(None);
         app.open(path);
         let s = &app.state;
@@ -672,7 +672,7 @@ mod tests {
         app.state.playlist.icons.remove(&IconOwner::Track(2));
         let lemon_path = d.join("Icons.lemon");
         app.save_to(lemon_path.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&lemon_path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&lemon_path).unwrap()).unwrap()).unwrap();
         assert_eq!((saved.channels[1].rack.icon, saved.mixer[2].icon, saved.mixer[3].icon), (30, Some(75), Some(74)));
         let mut back = App::new(None);
         back.open(lemon_path);
@@ -680,7 +680,7 @@ mod tests {
         assert_eq!(s.playlist.icons.get(&IconOwner::Channel(s.project.channels[1].id.0)), Some(&Icon::Mic));
         assert_eq!(s.playlist.icons.get(&IconOwner::Track(2)), None, "event 193 holds the choice, not event 95");
         assert_eq!(s.playlist.icons.len(), 2);
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// A target named .flp has no place for the state: the save succeeds, the file is a plain FLP, and opening it gives
@@ -692,7 +692,7 @@ mod tests {
         let mut app = with_state();
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", app.state.message);
-        let file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         assert!(!lemon::is_lemon(&file) && lemon::events(&file).unwrap().is_empty());
         let mut back = App::new(None);
         back.open(path);
@@ -700,7 +700,7 @@ mod tests {
         assert!(s.playlist.icons.is_empty() && s.mixer.slot_names.is_empty() && s.mixer.slot_colors.is_empty());
         let fresh = crate::playlist::PlaylistState::default();
         assert_eq!((s.playlist.perf_clip_progress, s.playlist.perf_velocity_subclips), (fresh.perf_clip_progress, fresh.perf_velocity_subclips));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// A file naming a feature this version does not know opens saying that part does not play here; saved again,
@@ -711,7 +711,7 @@ mod tests {
         let path = d.join("Newer.lemon");
         let mut app = with_state();
         app.save_to(path.clone());
-        let file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         assert_eq!(lemon::data(&file, lemon::FEATURES), Some(vec![LAYOUT, 0, 0, 0, 0]), "none used");
         let mut file = file;
         let mut names = start(2);
@@ -720,15 +720,15 @@ mod tests {
             names.extend_from_slice(n.as_bytes());
         }
         lemon::to_lemon(&mut file, &[Event::new(lemon::FEATURES, Value::var(names))]).unwrap();
-        std::fs::write(&path, file.to_bytes().unwrap()).unwrap();
+        os_web::fs::write(&path, file.to_bytes().unwrap()).unwrap();
         let mut back = App::new(None);
         back.open(path.clone());
         let message = back.state.message.clone().unwrap_or_default();
         assert!(message.ends_with("This version doesn't play: Tempo curves, Clip stretching"), "{message}");
         back.save_to(path.clone());
-        let file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         assert_eq!(unknown_features(&file), ["Tempo curves", "Clip stretching"], "kept through a save");
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// An `LMex` event this version does not know is kept through open and save; one of ours with a later layout is
@@ -739,17 +739,17 @@ mod tests {
         let path = d.join("State.lemon");
         let mut app = with_state();
         app.save_to(path.clone());
-        let mut file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let mut file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         let future = Event::new(240, Value::var([7, 7]));
         let later = Event::new(lemon::PERFORMANCE, Value::var([2, 0]));
         lemon::to_lemon(&mut file, &[future.clone(), later]).unwrap();
-        std::fs::write(&path, file.to_bytes().unwrap()).unwrap();
+        os_web::fs::write(&path, file.to_bytes().unwrap()).unwrap();
         let mut back = App::new(None);
         back.open(path.clone());
         assert!(back.state.playlist.perf_clip_progress, "a layout 2 Performance event is not read: the defaults stay");
         assert_eq!(back.state.playlist.icons.len(), 3);
         back.save_to(path.clone());
-        let file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         assert_eq!(lemon::data(&file, 240), Some(vec![7, 7]), "the unknown event is kept");
         // Two colours, the second cut short: the first is read.
         let mut s = with_state();
@@ -762,6 +762,6 @@ mod tests {
         apply(&mut s.state, &mut s.plugins, &f);
         assert_eq!(s.state.mixer.slot_colors.len(), 1);
         assert_eq!(s.state.mixer.slot_colors.get(&(2, 0)), Some(&os_model::Rgb::new(10, 200, 30)));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 }

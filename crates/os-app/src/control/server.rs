@@ -57,13 +57,13 @@ pub fn start(at: &str, level: Level, wake: fn()) -> std::io::Result<Server> {
         } else {
             // A socket left by an earlier run that ended without removing it goes; any other file stays (bind fails).
             use std::os::unix::fs::FileTypeExt;
-            if std::fs::symlink_metadata(at).is_ok_and(|m| m.file_type().is_socket()) {
-                let _ = std::fs::remove_file(at);
+            if os_web::fs::symlink_metadata(at).is_ok_and(|m| m.file_type().is_socket()) {
+                let _ = os_web::fs::remove_file(at);
             }
             let l = std::os::unix::net::UnixListener::bind(at)?;
             // Only this user may connect.
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(at, std::fs::Permissions::from_mode(0o600))?;
+            os_web::fs::set_permissions(at, os_web::fs::Permissions::from_mode(0o600))?;
             shown = at.to_string();
             std::thread::Builder::new().name("control".into()).spawn(move || {
                 for (conn, s) in l.incoming().flatten().enumerate() {

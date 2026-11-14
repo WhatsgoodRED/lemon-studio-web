@@ -12,24 +12,25 @@ use std::path::{Path, PathBuf};
 /// Puts `bytes` in place of the file at `path` (or creates it). A symlink stays a link: the file it points to is
 /// replaced. The old file's permissions carry over.
 pub fn replace(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let target = if path.is_symlink() { std::fs::canonicalize(path)? } else { path.to_path_buf() };
+    let target = if path.is_symlink() { os_web::fs::canonicalize(path)? } else { path.to_path_buf() };
     let tmp = beside(&target);
     let written = (|| {
-        let mut f = std::fs::File::create(&tmp)?;
+        let mut f = os_web::fs::File::create(&tmp)?;
         f.write_all(bytes)?;
         f.sync_all()?;
-        if let Ok(m) = std::fs::metadata(&target) {
-            std::fs::set_permissions(&tmp, m.permissions())?;
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Ok(m) = os_web::fs::metadata(&target) {
+            os_web::fs::set_permissions(&tmp, m.permissions())?;
         }
-        std::fs::rename(&tmp, &target)
+        os_web::fs::rename(&tmp, &target)
     })();
     if written.is_err() {
-        let _ = std::fs::remove_file(&tmp);
+        let _ = os_web::fs::remove_file(&tmp);
         return written;
     }
     // The rename itself reaches the disk with the folder (Unix; elsewhere the rename is enough).
     #[cfg(unix)]
-    if let Some(dir) = target.parent().and_then(|d| std::fs::File::open(if d.as_os_str().is_empty() { Path::new(".") } else { d }).ok()) {
+    if let Some(dir) = target.parent().and_then(|d| os_web::fs::File::open(if d.as_os_str().is_empty() { Path::new(".") } else { d }).ok()) {
         let _ = dir.sync_all();
     }
     Ok(())
@@ -48,8 +49,8 @@ mod tests {
 
     fn dir(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("lemon-replace-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let _ = os_web::fs::remove_dir_all(&d);
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -60,9 +61,9 @@ mod tests {
         let p = d.join("Song.lemon");
         replace(&p, b"first").unwrap();
         replace(&p, b"second, longer").unwrap();
-        assert_eq!(std::fs::read(&p).unwrap(), b"second, longer");
-        assert_eq!(std::fs::read_dir(&d).unwrap().count(), 1, "no file left beside it");
-        let _ = std::fs::remove_dir_all(d);
+        assert_eq!(os_web::fs::read(&p).unwrap(), b"second, longer");
+        assert_eq!(os_web::fs::read_dir(&d).unwrap().count(), 1, "no file left beside it");
+        let _ = os_web::fs::remove_dir_all(d);
     }
 
     /// A write that cannot be made leaves the old file as it was, and no file beside it.
@@ -73,12 +74,12 @@ mod tests {
         replace(&p, b"old").unwrap();
         // The target is a folder now: the rename over it fails after the new bytes were written.
         let q = d.join("Folder.lemon");
-        std::fs::create_dir(&q).unwrap();
-        std::fs::write(q.join("inside"), b"x").unwrap();
+        os_web::fs::create_dir(&q).unwrap();
+        os_web::fs::write(q.join("inside"), b"x").unwrap();
         assert!(replace(&q, b"new").is_err());
-        assert_eq!(std::fs::read(&p).unwrap(), b"old");
-        assert!(!std::fs::read_dir(&d).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().ends_with(".tmp")), "nothing left beside it");
-        let _ = std::fs::remove_dir_all(d);
+        assert_eq!(os_web::fs::read(&p).unwrap(), b"old");
+        assert!(!os_web::fs::read_dir(&d).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().ends_with(".tmp")), "nothing left beside it");
+        let _ = os_web::fs::remove_dir_all(d);
     }
 
     /// A symlink stays a link to the file it points to, which gets the new bytes; the file's permissions stay.
@@ -88,14 +89,14 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         let d = dir("link");
         let real = d.join("real.lemon");
-        std::fs::write(&real, b"old").unwrap();
-        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o640)).unwrap();
+        os_web::fs::write(&real, b"old").unwrap();
+        os_web::fs::set_permissions(&real, os_web::fs::Permissions::from_mode(0o640)).unwrap();
         let link = d.join("link.lemon");
         std::os::unix::fs::symlink(&real, &link).unwrap();
         replace(&link, b"new").unwrap();
         assert!(link.is_symlink(), "still a link");
-        assert_eq!(std::fs::read(&real).unwrap(), b"new");
-        assert_eq!(std::fs::metadata(&real).unwrap().permissions().mode() & 0o777, 0o640);
-        let _ = std::fs::remove_dir_all(d);
+        assert_eq!(os_web::fs::read(&real).unwrap(), b"new");
+        assert_eq!(os_web::fs::metadata(&real).unwrap().permissions().mode() & 0o777, 0o640);
+        let _ = os_web::fs::remove_dir_all(d);
     }
 }

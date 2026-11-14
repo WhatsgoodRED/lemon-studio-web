@@ -24,13 +24,13 @@ pub fn user_dir() -> Option<PathBuf> {
 /// The user's themes: (name, text) of each `.flstheme` in `user_dir`, by name.
 pub fn user_themes() -> Vec<(String, String)> {
     let Some(d) = user_dir() else { return Vec::new() };
-    let Ok(rd) = std::fs::read_dir(&d) else { return Vec::new() };
+    let Ok(rd) = os_web::fs::read_dir(&d) else { return Vec::new() };
     let mut v: Vec<_> = rd
         .flatten()
         .map(|e| e.path())
         .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("flstheme")))
         // Picture names relative to the theme file are this folder's (`wallpaper::absolute_names`).
-        .filter_map(|p| Some((p.file_stem()?.to_string_lossy().into_owned(), crate::wallpaper::absolute_names(&String::from_utf8_lossy(&std::fs::read(&p).ok()?), &d))))
+        .filter_map(|p| Some((p.file_stem()?.to_string_lossy().into_owned(), crate::wallpaper::absolute_names(&String::from_utf8_lossy(&os_web::fs::read(&p).ok()?), &d))))
         .collect();
     v.sort_by_key(|(n, _)| n.to_lowercase());
     v
@@ -248,11 +248,11 @@ impl App {
         if let Some(d) = crate::app::theme_dir() {
             match &s.text {
                 Some(t) => {
-                    let _ = std::fs::create_dir_all(&d);
-                    let _ = std::fs::write(d.join("current.flstheme"), t);
+                    let _ = os_web::fs::create_dir_all(&d);
+                    let _ = os_web::fs::write(d.join("current.flstheme"), t);
                 }
                 None => {
-                    let _ = std::fs::remove_file(d.join("current.flstheme"));
+                    let _ = os_web::fs::remove_file(d.join("current.flstheme"));
                 }
             }
         }
@@ -390,7 +390,7 @@ impl App {
         let msg = match e.target {
             NameTarget::Delete(i) => {
                 let Some((name, _)) = themes.get(i).filter(|_| i >= user_from) else { return self.name_close() };
-                let r = user_dir().map(|d| std::fs::remove_file(d.join(format!("{name}.flstheme"))));
+                let r = user_dir().map(|d| os_web::fs::remove_file(d.join(format!("{name}.flstheme"))));
                 self.state.settings.name_edit = None;
                 self.reload_themes();
                 match r {
@@ -417,7 +417,7 @@ impl App {
                             self.state.message = Some(format!("You have a theme called \"{name}\" already"));
                             return self.invalidate();
                         }
-                        let r = user_dir().map(|d| std::fs::rename(d.join(format!("{old}.flstheme")), d.join(format!("{name}.flstheme"))));
+                        let r = user_dir().map(|d| os_web::fs::rename(d.join(format!("{old}.flstheme")), d.join(format!("{name}.flstheme"))));
                         self.state.settings.name_edit = None;
                         self.reload_themes();
                         match r {
@@ -480,8 +480,8 @@ impl App {
 
     fn write_user_theme(&self, name: &str, text: &str) -> std::io::Result<()> {
         let d = user_dir().ok_or_else(|| std::io::Error::other("no user folder"))?;
-        std::fs::create_dir_all(&d)?;
-        std::fs::write(d.join(format!("{name}.flstheme")), text)
+        os_web::fs::create_dir_all(&d)?;
+        os_web::fs::write(d.join(format!("{name}.flstheme")), text)
     }
 
     /// The Themes list again (the user's themes may have changed), with the chosen tile and previews.

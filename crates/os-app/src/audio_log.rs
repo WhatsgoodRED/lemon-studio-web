@@ -163,7 +163,7 @@ impl App {
         let dir = crate::track_rec::folder(&self.state);
         let name = format!("Audio log_{}.wav", chrono::Local::now().format("%Y-%m-%d %H-%M-%S"));
         let path = dir.join(name);
-        let wrote = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(&path, tesla::wav::write(&sample, tesla::wav::Depth::Own)));
+        let wrote = os_web::fs::create_dir_all(&dir).and_then(|_| os_web::fs::write(&path, tesla::wav::write(&sample, tesla::wav::Depth::Own)));
         match wrote {
             Ok(()) => self.take_to_editor(&path),
             Err(e) => format!("{} could not be written: {e}", path.display()),
@@ -218,8 +218,8 @@ mod tests {
         let saved = tesla::state::from_plugin_state(&st).unwrap();
         assert_eq!((saved.sample.frames(), saved.sample.rate), (4800, 48000));
         let path = std::path::PathBuf::from(&saved.path);
-        assert!(path.exists() && path.parent().unwrap().ends_with("Recorded"), "{path:?}");
-        let _ = std::fs::remove_file(path);
+        assert!(path.vexists() && path.parent().unwrap().ends_with("Recorded"), "{path:?}");
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// The device's block gives its first output pair, only while the logger is on.
@@ -236,3 +236,6 @@ mod tests {
         assert_eq!(v, [1.0, 2.0, 5.0, 6.0]);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

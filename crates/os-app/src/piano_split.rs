@@ -93,14 +93,14 @@ pub fn load() -> Split {
     #[cfg(test)]
     return Split::default();
     #[cfg(not(test))]
-    os_paths::user_file("pianoroll.txt").and_then(|f| std::fs::read_to_string(f).ok()).map(|t| parse(&t)).unwrap_or_default()
+    os_paths::user_file("pianoroll.txt").and_then(|f| os_web::fs::read_to_string(f).ok()).map(|t| parse(&t)).unwrap_or_default()
 }
 
 /// Keeps the split for the next run (tests: nothing is written).
 pub fn save(s: Split) {
     #[cfg(not(test))]
     if let Some(f) = os_paths::user_file("pianoroll.txt") {
-        let _ = std::fs::write(f, text(s));
+        let _ = os_web::fs::write(f, text(s));
     }
     #[cfg(test)]
     let _ = text(s);

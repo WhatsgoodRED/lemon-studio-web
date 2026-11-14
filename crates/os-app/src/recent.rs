@@ -89,7 +89,7 @@ impl App {
     /// file that has gone is said and taken off the list.
     pub(crate) fn open_recent(&mut self, n: usize) {
         let Some(path) = list().into_iter().nth(n) else { return };
-        if !path.is_file() {
+        if !path.vis_file() {
             remove(&path);
             let text = crate::dialog::spans(&["Lemon Studio cannot find ", &path.to_string_lossy(), ".\n\nIt was taken off the recent projects."]);
             return self.tell(crate::dialog::Kind::Error, "Project not found", text);
@@ -105,8 +105,8 @@ mod tests {
 
     fn dir(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("lemon-recent-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let _ = os_web::fs::remove_dir_all(&d);
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -163,13 +163,13 @@ mod tests {
         crate::playlist::run(&mut app, Cmd::OpenRecent(11));
         assert_eq!(app.state.path.as_deref().map(|p| label(p)).as_deref(), Some("p0.flp"));
         // A file that has gone: said, dropped, nothing opened.
-        std::fs::remove_file(&files[5]).unwrap();
+        os_web::fs::remove_file(&files[5]).unwrap();
         let at = list().iter().position(|p| label(p) == "p5.flp").unwrap();
         app.menu_item(0, RECENT_PICK + at);
         assert_eq!(app.top_message().map(|m| m.0).as_deref(), Some("Project not found"));
         assert!(!list().iter().any(|p| label(p) == "p5.flp"));
         assert_eq!(app.state.path.as_deref().map(|p| label(p)).as_deref(), Some("p0.flp"));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// FILE's section, between the exports and Revert to last backup: the heading, the ten newest with their keys (the
@@ -217,3 +217,6 @@ mod tests {
         assert_eq!(menus::pick(0, RECENT_PICK + 3), Action::MenuItem(0, RECENT_PICK + 3));
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

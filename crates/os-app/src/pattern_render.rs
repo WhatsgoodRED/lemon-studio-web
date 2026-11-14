@@ -45,7 +45,7 @@ pub fn file_stem(dir: &Path, name: &str) -> String {
     let safe: String = name.chars().map(|c| if c.is_control() || r#"<>:"/\|?*"#.contains(c) { '_' } else { c }).collect();
     let safe = safe.trim().trim_end_matches('.').trim_end().to_string();
     let safe = if safe.is_empty() { "Pattern".to_string() } else { safe };
-    let free = |stem: &str| !dir.join(format!("{stem}.wav")).exists();
+    let free = |stem: &str| !dir.join(format!("{stem}.wav")).vexists();
     if free(&safe) {
         return safe;
     }
@@ -192,7 +192,7 @@ impl App {
             return self.tell(crate::dialog::Kind::Warning, TITLE, crate::dialog::spans(&[&text]));
         }
         let dir = folder(s);
-        if let Err(e) = std::fs::create_dir_all(&dir) {
+        if let Err(e) = os_web::fs::create_dir_all(&dir) {
             self.state.message = Some(format!("Render failed: {}: {e}", dir.display()));
             return self.invalidate();
         }
@@ -231,7 +231,7 @@ impl App {
 
     /// The render mode's Export (§1): the form's choices for the current pattern into its folder, then the channel.
     pub(crate) fn render_pattern_with(&mut self, f: &crate::export_form::ExportForm) {
-        if let Err(e) = std::fs::create_dir_all(&f.folder) {
+        if let Err(e) = os_web::fs::create_dir_all(&f.folder) {
             self.state.message = Some(format!("Render failed: {}: {e}", f.folder.display()));
             return self.invalidate();
         }
@@ -274,8 +274,8 @@ mod tests {
 
     fn temp(tag: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("lemon-pattern-render-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let _ = os_web::fs::remove_dir_all(&d);
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -292,7 +292,7 @@ mod tests {
         let d = temp("folder");
         with_data_folder(&mut app, &d);
         assert_eq!(folder(&app.state), d.join("Rendered"));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// The file is named after the pattern, made safe, numbered when taken (§2).
@@ -303,11 +303,11 @@ mod tests {
         assert_eq!(file_stem(&d, "Drums: A/B?"), "Drums_ A_B_");
         assert_eq!(file_stem(&d, "  Intro.. "), "Intro");
         assert_eq!(file_stem(&d, " "), "Pattern");
-        std::fs::write(d.join("Verse.wav"), b"").unwrap();
+        os_web::fs::write(d.join("Verse.wav"), b"").unwrap();
         assert_eq!(file_stem(&d, "Verse"), "Verse #2");
-        std::fs::write(d.join("Verse #2.wav"), b"").unwrap();
+        os_web::fs::write(d.join("Verse #2.wav"), b"").unwrap();
         assert_eq!(file_stem(&d, "Verse"), "Verse #3");
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// The render's choices: one 32-bit float WAV of one pass of the pattern, tail ringing out, no master effects,
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!((ch.kind, ch.name.as_deref(), ch.mixer_track), (ChannelKind::AudioClip, Some("Verse"), 0));
         let path = PathBuf::from(ch.sample_path.clone().unwrap());
         assert_eq!(path, d.join("Rendered").join("Verse.wav"));
-        assert!(std::fs::metadata(&path).unwrap().len() > 44);
+        assert!(os_web::fs::metadata(&path).unwrap().len() > 44);
         assert!(crate::playlist::clips(&app.state).is_empty(), "nothing placed");
         assert!(app.state.history.entries().iter().any(|e| e.1 == QUICK));
         crate::history::undo(&mut app.state);
@@ -396,7 +396,7 @@ mod tests {
         app.state.pattern = 2;
         app.pattern_cmd(crate::patterns::Cmd::QuickRender);
         assert!(app.export.is_none() && app.pattern_render.is_none() && !app.state.dialogs.is_empty());
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// Render as audio clip...: the Export form on the current pattern with the Rendered folder, the pattern's name and
@@ -421,7 +421,7 @@ mod tests {
         let ch = app.state.project.channels.last().unwrap();
         assert_eq!(ch.sample_path.as_deref().map(PathBuf::from), Some(d.join("Rendered").join("Pattern 1.wav")));
         assert!(crate::playlist::clips(&app.state).is_empty());
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// Render and replace from the menu: the channel and the clips in one undo step (§3).
@@ -444,6 +444,9 @@ mod tests {
         crate::history::undo(&mut app.state);
         let c = crate::playlist::clips(&app.state);
         assert!(c.len() == 1 && !c[0].muted && app.state.project.channels.len() == channels, "one undo step");
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

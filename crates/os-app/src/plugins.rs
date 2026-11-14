@@ -2288,7 +2288,7 @@ mod tests {
             f.extend_from_slice(&32u16.to_le_bytes());
             f.extend_from_slice(&[0; 24]);
             f.extend_from_slice(px);
-            std::fs::write(path, f).unwrap();
+            os_web::fs::write(path, f).unwrap();
             SelectObject(mem, old);
             DeleteObject(bmp);
             DeleteDC(mem);
@@ -2434,7 +2434,7 @@ mod tests {
         pump(&mut pl, 300);
         capture(frame, &b);
         assert_ne!(state(&pl), before, "the knob moved the plugin value");
-        assert_ne!(std::fs::read(&a).unwrap(), std::fs::read(&b).unwrap(), "the editor redrew");
+        assert_ne!(os_web::fs::read(&a).unwrap(), os_web::fs::read(&b).unwrap(), "the editor redrew");
     }
 
     /// The built-in Citrus's editor in its window: the wheel on SOFTEN and a right click on a matrix cell edit the
@@ -2474,7 +2474,7 @@ mod tests {
         let st = citrus::state::State::from_bytes(&pl.sytrus_file_state(0).expect("a Sytrus state")).expect("an edited state");
         assert_eq!(st.soften, 12, "three wheel notches of 4");
         assert_eq!(st.cell_off[citrus::state::COL_OUT], 1, "the output cell turned off");
-        assert_ne!(std::fs::read(&a).unwrap(), std::fs::read(&b).unwrap(), "the editor redrew");
+        assert_ne!(os_web::fs::read(&a).unwrap(), os_web::fs::read(&b).unwrap(), "the editor redrew");
     }
 
     /// The built-in Smith's editor in its window: the wheel on LEVEL and a click on the filter's HP edit the Ogun state
@@ -2514,7 +2514,7 @@ mod tests {
         let st = smith::state::State::from_bytes(&pl.ogun_file_state(0).expect("an Ogun state")).expect("an edited state");
         assert_eq!(st.ints[smith::state::LEVEL], 160 + 3 * 8, "three wheel notches of 8");
         assert_eq!(st.ints[smith::state::F_TYPE], 3, "the high pass");
-        assert_ne!(std::fs::read(&a).unwrap(), std::fs::read(&b).unwrap(), "the editor redrew");
+        assert_ne!(os_web::fs::read(&a).unwrap(), os_web::fs::read(&b).unwrap(), "the editor redrew");
     }
 
     /// Random clicks, drags and wheel turns on the editor; a probe toggle must keep changing the plugin state.
@@ -2700,7 +2700,7 @@ mod tests {
         // A bright 2 s saw so a low-pass is audible.
         let wav = std::env::temp_dir().join(format!("os-app-knob-sound-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..88200).flat_map(|i| { let v = ((i as f32 / 44100.0 * 220.0).fract() * 2.0 - 1.0) * 0.4; [v, v] }).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 44100, &tone).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &tone).unwrap();
         // The persisted field is a JSON string holding JSON: forward slashes keep it free of escapes.
         let path = format!("\"\\\"{}\\\"\"", wav.to_string_lossy().replace('\\', "/"));
         let st = format!("{{\"version\":\"0.0.1\",\"params\":{{}},\"fields\":{{\"sample-path\":{path}}}}}");
@@ -2783,7 +2783,7 @@ mod tests {
         // A bright 2 s saw so a low-pass is audible.
         let wav = std::env::temp_dir().join(format!("os-app-app-knob-sound-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..88200).flat_map(|i| { let v = ((i as f32 / 44100.0 * 220.0).fract() * 2.0 - 1.0) * 0.4; [v, v] }).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 44100, &tone).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &tone).unwrap();
         // The persisted field is a JSON string holding JSON: forward slashes keep it free of escapes.
         let path = format!("\"\\\"{}\\\"\"", wav.to_string_lossy().replace('\\', "/"));
         let st = format!("{{\"version\":\"0.0.1\",\"params\":{{}},\"fields\":{{\"sample-path\":{path}}}}}");
@@ -2994,7 +2994,7 @@ mod tests {
     fn swing_reaches_hosted_sampler() {
         let wav = std::env::temp_dir().join(format!("os-swing-click-{}.wav", std::process::id()));
         let click: Vec<f32> = (0..48000).flat_map(|i| { let v = if i < 200 { 0.8 } else { 0.0 }; [v, v] }).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &click).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &click).unwrap();
         let onsets = |swing: u8| -> Vec<usize> {
             let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
             let index = pl.index_of(LEMON_SAMPLER).unwrap();
@@ -3030,7 +3030,7 @@ mod tests {
         };
         let straight = onsets(0);
         let swung = onsets(128);
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
         eprintln!("straight {straight:?} swung {swung:?}");
         assert_eq!(straight.len(), 2);
         assert_eq!(swung.len(), 2);
@@ -3155,7 +3155,7 @@ mod tests {
         // A tenth of a second of sound.
         let wav = std::env::temp_dir().join(format!("os-app-voices-{}.wav", std::process::id()));
         let frames: Vec<f32> = (0..4800).flat_map(|_| [0.25f32; 2]).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
         assert!(pl.load_sample(0, &wav.to_string_lossy()));
         let osc = pl.index_of(crate::osc3::LEMON_TRIO).unwrap();
         pl.create_with(1, osc, None).unwrap();
@@ -3194,7 +3194,7 @@ mod tests {
             with(&pl, key, &|i| i.reset());
         }
         assert_eq!(pl.voices(), 0, "Stop ends every voice");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// A channel's stretch settings reach its Lemon Sampler (spec: audio/time-stretch.md "Fields"), which plays them:
@@ -3210,7 +3210,7 @@ mod tests {
                 [v, v]
             })
             .collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &tone).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &tone).unwrap();
         let mut ch = crate::app::test_project().channels.remove(0);
         // Stretch (a realtime method), twice as long, 300 cents up.
         ch.sound.stretch = [0, 300, 10000, (-1i32) as u32];
@@ -3250,7 +3250,7 @@ mod tests {
         assert!((lemon_sampler::params::time_steps(f(&p["ts_time"]) as f32) - 16.0).abs() < 1e-3);
         assert!((f(&p["ts_mul"]) - 0.5).abs() < 1e-6);
         assert_eq!(p["ts_mode"], serde_json::json!({"i32": 1}), "the method kept");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// A channel's sample settings reach its Lemon Sampler (spec: audio/precomputed-effects.md "Settings",
@@ -3297,7 +3297,7 @@ mod tests {
         // The sound: reversed and swapped, nothing else.
         let wav = std::env::temp_dir().join(format!("os-app-sampler-fx-{}.wav", std::process::id()));
         let frames: Vec<f32> = (0..1000).flat_map(|i| [i as f32 / 1000.0, -(i as f32) / 2000.0]).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
         let mut ch = crate::app::test_project().channels.remove(0);
         ch.sound.fx = SampleFx { flags: SampleFx::REVERSE | SampleFx::SWAP, ..SampleFx::default() };
         pl.create_with(1, index, Some(&sampler_state(&ch))).unwrap();
@@ -3316,7 +3316,7 @@ mod tests {
         assert!((l[0] + 999.0 / 2000.0).abs() < 1e-6 && (r[0] - 0.999).abs() < 1e-6, "{} {}", l[0], r[0]);
         assert!((l[10] + 989.0 / 2000.0).abs() < 1e-6 && (r[10] - 0.989).abs() < 1e-6, "{} {}", l[10], r[10]);
         drop(i);
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Lemon Sampler's root note page edits reach the channel as they happen (`misc_param`): the engine plays the main
@@ -3342,7 +3342,7 @@ mod tests {
         let index = pl.index_of(LEMON_SAMPLER).expect("built-in Lemon Sampler");
         let wav = std::env::temp_dir().join(format!("os-app-sampler-cleared-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..9600).flat_map(|i| [((i as f32) * 0.0576).sin() * 0.5; 2]).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &tone).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &tone).unwrap();
         pl.create_with(0, index, None).unwrap();
         assert!(pl.load_sample(0, &wav.to_string_lossy()));
         let peak = |pl: &Plugins| {
@@ -3362,7 +3362,7 @@ mod tests {
         assert!(pl.set_sampler(0, Some(""), &[]));
         assert_eq!(pl.sampler_path(0).as_deref(), Some(""));
         assert_eq!(peak(&pl), 0.0, "nothing plays");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Lemon Sampler's time-stretch parameters read back into the channel's stretch settings (`stretch_param`, the
@@ -3440,7 +3440,7 @@ mod tests {
         // One second: silent first half, 0.5 in the second.
         let wav = std::env::temp_dir().join(format!("os-app-start-late-{}.wav", std::process::id()));
         let frames: Vec<f32> = (0..48000).flat_map(|i| if i < 24000 { [0.0; 2] } else { [0.5; 2] }).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
         assert!(pl.load_sample(0, &wav.to_string_lossy()));
         let inst = pl.hosted[&0].plugin.clone() as SharedInstrument;
         let mut i = inst.lock().unwrap();
@@ -3492,7 +3492,7 @@ mod tests {
         assert_eq!(pl.sampler_path(0).as_deref(), Some(mp3.as_str()));
         // The strip (no editor under the point): loaded through the state instead.
         let wav = std::env::temp_dir().join(format!("os-app-drop-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 44100, &[0.5; 2000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &[0.5; 2000]).unwrap();
         let wav = wav.to_string_lossy().into_owned();
         assert!(pl.drop_file(0, r.left + 12, r.top + 40, &wav, true));
         pump(&mut pl, 200);
@@ -3502,7 +3502,7 @@ mod tests {
     /// `<target>/bundled/<file>` of this test's build folder (`cargo run -p bundle-plugins`), if built.
     fn bundled(file: &str) -> Option<PathBuf> {
         let target = std::env::current_exe().ok()?.parent()?.parent()?.parent()?.to_path_buf();
-        Some(target.join("bundled").join(file)).filter(|p| p.exists())
+        Some(target.join("bundled").join(file)).filter(|p| p.vexists())
     }
 
     /// A VST3 instrument hosts like a CLAP one (spec: plugins/vst3-hosting.md): created, given state bytes, played;
@@ -3529,7 +3529,7 @@ mod tests {
         assert_eq!(d.format, os_host::Format::Vst3);
         assert!(d.uid().starts_with("vst3:") && d.uid().len() == 5 + 32);
         let wav = std::env::temp_dir().join(format!("os-app-vst3-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
         // A VST3 instance takes a bare component state too (here Lemon Sampler's JSON with the sample).
         let json = format!("{{\"version\":\"0.0.1\",\"params\":{{}},\"fields\":{{\"sample-path\":{}}}}}", json_string(&json_string(&wav.to_string_lossy())));
         assert!(pl.set_state(0, json.as_bytes()), "the sample reaches the VST3 instance");
@@ -3556,7 +3556,7 @@ mod tests {
         };
         let path = std::env::temp_dir().join(format!("openstudio-vst3-{}.flp", std::process::id()));
         let wav = std::env::temp_dir().join(format!("os-app-vst3-save-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.25; 4800]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.25; 4800]).unwrap();
         let mut a = crate::app::App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -3587,7 +3587,7 @@ mod tests {
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
 
         // The file names each class by its id.
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let r = crate::project_plugins::wrapped_channel(&saved.channels[row]).unwrap();
         assert_eq!((r.format.as_str(), r.id.as_str(), r.name.as_str()), ("vst3", a.plugins.available[0].desc.id.as_str(), "Lemon Sampler"));
         assert_eq!(r.state, ch_state);
@@ -3604,7 +3604,7 @@ mod tests {
         b.plugins.effects = vec![e];
         b.open(path.clone());
         b.sync_wrapped();
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert!(b.state.hosted_rows.contains(&row), "{:?}", b.state.message);
         assert_eq!(b.plugins.descriptor(row).unwrap().format, os_host::Format::Vst3);
         assert_eq!(b.plugins.state(row).as_deref(), Some(&ch_state[..]));
@@ -3860,8 +3860,8 @@ mod tests {
                 _ => std::thread::sleep(Duration::from_millis(10)),
             }
         };
-        let bytes = std::fs::read(&path).expect("file written");
-        let _ = std::fs::remove_file(&path);
+        let bytes = os_web::fs::read(&path).expect("file written");
+        let _ = os_web::fs::remove_file(&path);
         let samples: Vec<f32> = bytes[44..].chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
         let (left, right): (Vec<f32>, Vec<f32>) = samples.chunks_exact(2).map(|f| (f[0], f[1])).unzip();
         let peak = |v: &[f32]| v.iter().fold(0.0f32, |m, s| m.max(s.abs()));
@@ -3955,7 +3955,7 @@ mod tests {
     #[ignore]
     fn native_plugins_listed_when_opted_in() {
         let fl = os_native::default_fl_dir();
-        if !fl.join("Plugins").join("Fruity").join("Effects").is_dir() {
+        if !fl.join("Plugins").join("Fruity").join("Effects").vis_dir() {
             return;
         }
         // SAFETY: test-only; `OPENSTUDIO_NATIVE` is read only by this scan path.
@@ -4379,3 +4379,6 @@ mod slot_tests {
         assert_eq!(between, 0);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

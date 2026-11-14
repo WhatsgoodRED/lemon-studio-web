@@ -473,13 +473,13 @@ pub struct UserPreset {
 /// The user's presets, by name: every `.lstoolbar` in `user_dir` that holds a layout.
 pub fn user_presets() -> Vec<UserPreset> {
     let Some(dir) = user_dir() else { return Vec::new() };
-    let Ok(rd) = std::fs::read_dir(&dir) else { return Vec::new() };
+    let Ok(rd) = os_web::fs::read_dir(&dir) else { return Vec::new() };
     let mut v: Vec<UserPreset> = rd
         .flatten()
         .map(|e| e.path())
         .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case(EXT)))
         .filter_map(|path| {
-            let layout = Layout::parse(&std::fs::read_to_string(&path).ok()?)?;
+            let layout = Layout::parse(&os_web::fs::read_to_string(&path).ok()?)?;
             Some(UserPreset { name: preset_name(&path), path, layout })
         })
         .collect();
@@ -496,9 +496,9 @@ pub fn preset_name(path: &Path) -> String {
 pub fn write_preset(path: &Path, l: &Layout) -> std::io::Result<PathBuf> {
     let path = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case(EXT)) { path.to_path_buf() } else { path.with_extension(EXT) };
     if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
+        os_web::fs::create_dir_all(dir)?;
     }
-    std::fs::write(&path, l.text())?;
+    os_web::fs::write(&path, l.text())?;
     Ok(path)
 }
 

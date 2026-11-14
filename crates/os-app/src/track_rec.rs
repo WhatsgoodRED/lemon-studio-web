@@ -167,7 +167,7 @@ impl App {
             match w.join() {
                 // Under a millisecond is nothing.
                 Ok((path, frames)) if frames * 1000 < u64::from(r.rate) => {
-                    let _ = std::fs::remove_file(path);
+                    let _ = os_web::fs::remove_file(path);
                 }
                 Ok((path, frames)) => {
                     let first = ring.first.load(Ordering::Acquire);
@@ -276,7 +276,7 @@ mod tests {
         assert!(app.state.history.entries().iter().any(|e| e.1 == crate::one_click::RECORDED));
         assert_eq!(app.arm_tracks(&[1], false), None);
         assert!(!app.state.project.mixer.iter().any(|m| m.armed));
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
     }
 
     #[test]

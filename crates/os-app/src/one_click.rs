@@ -225,7 +225,7 @@ impl App {
                 }
             }
             Ok((path, _)) => {
-                let _ = std::fs::remove_file(path);
+                let _ = os_web::fs::remove_file(path);
                 "Nothing was recorded".into()
             }
             Err(e) => format!("Audio recording: {e}"),
@@ -257,7 +257,7 @@ impl App {
     /// plugins/tesla/README.md "Recording into Tesla from Lemon Studio"). The file stays in `Recorded` either way.
     pub(crate) fn take_to_editor(&mut self, path: &std::path::Path) -> String {
         let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        let sample = match std::fs::read(path).map_err(|e| e.to_string()).and_then(|b| tesla::wav::read(&b)) {
+        let sample = match os_web::fs::read(path).map_err(|e| e.to_string()).and_then(|b| tesla::wav::read(&b)) {
             Ok(s) => s,
             Err(e) => return format!("{name} could not be read: {e}"),
         };
@@ -338,7 +338,7 @@ mod tests {
         let clip = app.state.project.arrangement().unwrap().clips.last().unwrap().clone();
         assert_eq!(clip.position, 0);
         assert!(app.state.history.entries().iter().any(|e| e.1 == RECORDED));
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
     }
 
     /// Into the audio editor: asks for the input, then the take goes into Tesla on the master track instead of the
@@ -378,7 +378,10 @@ mod tests {
         let saved = tesla::state::from_plugin_state(&st).unwrap();
         assert!(saved.sample.frames() > 0);
         let path = std::path::PathBuf::from(&saved.path);
-        assert!(path.exists() && path.parent().unwrap().ends_with("Recorded"), "{path:?}");
-        let _ = std::fs::remove_file(&path);
+        assert!(path.vexists() && path.parent().unwrap().ends_with("Recorded"), "{path:?}");
+        let _ = os_web::fs::remove_file(&path);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

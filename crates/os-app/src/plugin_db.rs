@@ -102,7 +102,7 @@ fn read_json<T: for<'de> Deserialize<'de>>(name: &str) -> Option<T> {
     if cfg!(test) {
         return None;
     }
-    let bytes = std::fs::read(os_paths::user_file(name)?).ok()?;
+    let bytes = os_web::fs::read(os_paths::user_file(name)?).ok()?;
     serde_json::from_slice(&bytes).map_err(|e| eprintln!("lemonstudio: {name}: {e}")).ok()
 }
 
@@ -113,12 +113,12 @@ fn write_json<T: Serialize>(name: &str, v: &T) {
     }
     let Some(p) = os_paths::user_file(name) else { return };
     if let Some(d) = p.parent() {
-        let _ = std::fs::create_dir_all(d);
+        let _ = os_web::fs::create_dir_all(d);
     }
     let tmp = p.with_extension("json.tmp");
     match serde_json::to_vec_pretty(v) {
-        Ok(text) if std::fs::write(&tmp, &text).is_ok() => {
-            if let Err(e) = std::fs::rename(&tmp, &p) {
+        Ok(text) if os_web::fs::write(&tmp, &text).is_ok() => {
+            if let Err(e) = os_web::fs::rename(&tmp, &p) {
                 eprintln!("lemonstudio: {name}: {e}");
             }
         }
@@ -457,18 +457,18 @@ impl Formats {
 
 fn walk(dir: &Path, depth: u32, formats: Formats, walked: &mut HashSet<(PathBuf, Formats)>, seen: &mut HashSet<String>, out: &mut Vec<Found>) {
     // A folder reached twice (links, nested search folders) is searched once.
-    let canon = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+    let canon = os_web::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
     if depth > MAX_DEPTH || !walked.insert((canon, formats)) {
         return;
     }
-    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let Ok(rd) = os_web::fs::read_dir(dir) else { return };
     let mut entries: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
     entries.sort_by_key(|p| path_key(p));
     for p in entries {
         let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase());
         let format = match ext.as_deref() {
             Some("clap") if formats.clap && os_clap::is_plugin(&p) => Some(Format::Clap),
-            Some("vst3") if formats.vst3 && (p.is_dir() || p.is_file()) => Some(Format::Vst3),
+            Some("vst3") if formats.vst3 && (p.vis_dir() || p.vis_file()) => Some(Format::Vst3),
             Some(x) if x == os_vst2::EXTENSION && formats.vst2 && os_vst2::is_plugin(&p) => Some(Format::Vst2),
             _ => None,
         };
@@ -478,7 +478,7 @@ fn walk(dir: &Path, depth: u32, formats: Formats, walked: &mut HashSet<(PathBuf,
                     out.push(Found { path: p, format });
                 }
             }
-            None if p.is_dir() => walk(&p, depth + 1, formats, walked, seen, out),
+            None if p.vis_dir() => walk(&p, depth + 1, formats, walked, seen, out),
             None => {}
         }
     }
@@ -501,8 +501,8 @@ pub fn stamp(path: &Path, format: Format) -> (u64, u64) {
         Format::Vst2 => os_vst2::module_file(path),
         Format::Native => path.to_path_buf(),
     };
-    let file = if module.exists() { module } else { path.to_path_buf() };
-    let Ok(md) = std::fs::metadata(&file) else { return (0, 0) };
+    let file = if module.vexists() { module } else { path.to_path_buf() };
+    let Ok(md) = os_web::fs::metadata(&file) else { return (0, 0) };
     let modified = md.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
     (if md.is_dir() { 0 } else { md.len() }, modified)
 }
@@ -1180,8 +1180,8 @@ mod tests {
 
     fn temp(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("os_plugdb_{name}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let _ = os_web::fs::remove_dir_all(&d);
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -1192,8 +1192,8 @@ mod tests {
         let d = temp("discover");
         let w = |p: &str| {
             let p = d.join(p);
-            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-            std::fs::write(p, b"x").unwrap();
+            os_web::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            os_web::fs::write(p, b"x").unwrap();
         };
         w("added/Vendor/Synth.clap");
         w("added/Vendor/Deep/Er/Fx.vst3");
@@ -1221,7 +1221,7 @@ mod tests {
         }
         want.extend([("added/Vendor/Deep/Er/Fx.vst3".to_string(), Format::Vst3), ("added/Vendor/Synth.clap".to_string(), Format::Clap)]);
         assert_eq!(names, want);
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// VST2 plugins: `.vst` bundles on macOS; elsewhere libraries with the plugin extension only when they export a VST2
@@ -1230,10 +1230,10 @@ mod tests {
     fn discovery_finds_vst2_plugins() {
         let d = temp("discover_vst2");
         let ext = os_vst2::EXTENSION;
-        let bundle = |p: &str| std::fs::create_dir_all(d.join(p).join("Contents").join("MacOS")).unwrap();
+        let bundle = |p: &str| os_web::fs::create_dir_all(d.join(p).join("Contents").join("MacOS")).unwrap();
         let file = |p: &str| {
-            std::fs::create_dir_all(d.join(p).parent().unwrap()).unwrap();
-            std::fs::write(d.join(p), b"not a library").unwrap();
+            os_web::fs::create_dir_all(d.join(p).parent().unwrap()).unwrap();
+            os_web::fs::write(d.join(p), b"not a library").unwrap();
         };
         if cfg!(target_os = "macos") {
             bundle("vst2/Synth.vst");
@@ -1257,7 +1257,7 @@ mod tests {
         // The standard VST2 folders are listed, tagged.
         let dirs = search_dirs(&Prefs::default());
         assert!(dirs.iter().any(|s| s.kind == DirKind::Standard(Format::Vst2) && s.tag() == "VST2"));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// A plugin this program cannot load (a 32-bit one) is listed as not supported, dimmed and with its reason: not
@@ -1265,7 +1265,7 @@ mod tests {
     #[test]
     fn plugins_that_cannot_load_here_are_not_errors() {
         let d = temp("unsupported");
-        std::fs::write(d.join("Old.dll"), b"plugin").unwrap();
+        os_web::fs::write(d.join("Old.dll"), b"plugin").unwrap();
         let found = vec![Found { path: d.join("Old.dll"), format: Format::Vst2 }];
         let tries = AtomicUsize::new(0);
         let scan = |_: &Path, _: Format| {
@@ -1281,7 +1281,7 @@ mod tests {
         let rows = table(&[], &[], &first, &Prefs::default(), &HashSet::new());
         assert_eq!((rows[0].status.as_str(), rows[0].format, rows[0].dim), ("not supported", "VST2", true));
         assert!(rows[0].note.contains("32-bit"));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// The sweep (§4 "Cache"): unchanged files keep their result, changed and new ones are scanned, failed ones only
@@ -1290,7 +1290,7 @@ mod tests {
     fn sweep_reuses_unchanged_files() {
         let d = temp("sweep");
         for f in ["A.clap", "B.clap", "Bad.clap"] {
-            std::fs::write(d.join(f), b"plugin").unwrap();
+            os_web::fs::write(d.join(f), b"plugin").unwrap();
         }
         let found = |names: &[&str]| names.iter().map(|n| Found { path: d.join(n), format: Format::Clap }).collect::<Vec<_>>();
         let scanned = Mutex::new(Vec::<String>::new());
@@ -1318,7 +1318,7 @@ mod tests {
         assert_eq!(again, first);
         assert_eq!(compare(&first, &again).message(), "Plugin scan: no changes");
         // With the option the failed file is tried again; a changed file is scanned; a gone file drops out.
-        std::fs::write(d.join("B.clap"), b"plugin, a newer version").unwrap();
+        os_web::fs::write(d.join("B.clap"), b"plugin, a newer version").unwrap();
         let next = sweep(&found(&["B.clap", "Bad.clap"]), &first, Mode::Changed, true, 2, &scan, &progress);
         let mut s = take();
         s.sort();
@@ -1328,7 +1328,7 @@ mod tests {
         // Rescan all.
         sweep(&found(&["B.clap", "Bad.clap"]), &next, Mode::All, false, 1, &scan, &progress);
         assert_eq!(take().len(), 2);
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     #[test]
@@ -1382,3 +1382,6 @@ mod tests {
         assert_eq!((found[0].status.as_str(), found[0].note.as_str(), found[0].toggles), ("error", "no factory", false));
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

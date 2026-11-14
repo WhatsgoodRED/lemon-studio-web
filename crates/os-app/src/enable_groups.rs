@@ -52,14 +52,14 @@ pub fn text(on: bool) -> String {
 
 #[cfg_attr(test, allow(dead_code))]
 fn load() -> bool {
-    os_paths::user_file("groups.txt").and_then(|f| std::fs::read_to_string(f).ok()).is_none_or(|t| parse(&t))
+    os_paths::user_file("groups.txt").and_then(|f| os_web::fs::read_to_string(f).ok()).is_none_or(|t| parse(&t))
 }
 
 #[cfg_attr(test, allow(dead_code))]
 fn save(on: bool) {
     if let Some(dir) = os_paths::user_dir() {
-        let _ = std::fs::create_dir_all(&dir);
-        let _ = std::fs::write(dir.join("groups.txt"), text(on));
+        let _ = os_web::fs::create_dir_all(&dir);
+        let _ = os_web::fs::write(dir.join("groups.txt"), text(on));
     }
 }
 

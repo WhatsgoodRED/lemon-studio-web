@@ -113,7 +113,7 @@ impl Shared {
 /// "Sending slices to Lemon Slicer"). The error names the path (once: the decoder's own error starts with it) and why.
 pub fn file_state(path: &str, mut st: State) -> Result<(State, Arc<Sample>), String> {
     let s = os_engine::sample::load_shared(Path::new(path)).map_err(|e| e.to_string())?;
-    let info = std::fs::read(path).map(|b| slicing::wav_info(&b)).unwrap_or_default();
+    let info = os_web::fs::read(path).map(|b| slicing::wav_info(&b)).unwrap_or_default();
     st.set_path(path);
     let (gb, gt) = slicing::guess_tempo(s.frames(), s.rate);
     let (beats, bpm) = match (info.beats, info.bpm) {
@@ -329,7 +329,7 @@ pub(crate) mod tests {
         file.extend((body.len() as u32).to_le_bytes());
         file.extend(body);
         let p = std::env::temp_dir().join(format!("lemon-slicer-{}-{name}.wav", std::process::id()));
-        std::fs::write(&p, file).unwrap();
+        os_web::fs::write(&p, file).unwrap();
         p
     }
 
@@ -353,7 +353,7 @@ pub(crate) mod tests {
         let (mut l, mut r) = (vec![0.0; 300], vec![0.0; 300]);
         e.render(Some(&kit), &mut l, &mut r, &dsp::Block::default());
         assert!(l.iter().any(|v| v.abs() > 0.3));
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     #[test]
@@ -375,6 +375,6 @@ pub(crate) mod tests {
         assert_eq!(sh2.kit.lock().unwrap().as_ref().unwrap().spans.len(), 2);
         assert!(sh2.open("Z:\\nowhere.wav", &q).is_err());
         assert!(sh2.kit.lock().unwrap().is_none());
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 }

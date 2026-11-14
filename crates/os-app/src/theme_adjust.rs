@@ -255,8 +255,8 @@ impl App {
     /// Keeps the applied theme for the next start (`current.flstheme` in the user folder).
     pub(crate) fn theme_store(&self) {
         if let (Some(d), Some(text)) = (crate::app::theme_dir(), &self.state.fl_text) {
-            let _ = std::fs::create_dir_all(&d);
-            let _ = std::fs::write(d.join("current.flstheme"), text);
+            let _ = os_web::fs::create_dir_all(&d);
+            let _ = os_web::fs::write(d.join("current.flstheme"), text);
         }
     }
 
@@ -369,7 +369,7 @@ impl App {
             Some(_) => self.theme_store(),
             None => {
                 if let Some(d) = crate::app::theme_dir() {
-                    let _ = std::fs::remove_file(d.join("current.flstheme"));
+                    let _ = os_web::fs::remove_file(d.join("current.flstheme"));
                 }
             }
         }

@@ -564,7 +564,7 @@ mod tests {
     #[test]
     fn reads_fls_default_preset_when_present() {
         let p = r"C:\Program Files\Image-Line\FL Studio 2026\Plugins\Fruity\Effects\Fruity Love Philter\Data\Default.dat";
-        let Ok(b) = std::fs::read(p) else { return };
+        let Ok(b) = os_web::fs::read(p) else { return };
         let st = State::from_bytes(&b).expect("FL's default reads");
         assert_eq!(st.filters.len(), FILTERS);
         let again = State::from_bytes(&st.to_bytes()).expect("and reads back");

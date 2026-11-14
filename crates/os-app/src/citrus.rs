@@ -65,11 +65,11 @@ fn factory_dir() -> PathBuf {
 /// the top by their name alone) and sorted by that name. No source is named.
 pub fn fst_presets_in(dir: &Path) -> Vec<crate::presets::Preset> {
     fn walk(dir: &Path, rel: &mut Vec<String>, out: &mut Vec<crate::presets::Preset>) {
-        let Ok(rd) = std::fs::read_dir(dir) else { return };
+        let Ok(rd) = os_web::fs::read_dir(dir) else { return };
         let mut entries: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
         entries.sort();
         for p in entries {
-            if p.is_dir() {
+            if p.vis_dir() {
                 rel.push(p.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
                 walk(&p, rel, out);
                 rel.pop();
@@ -98,7 +98,7 @@ pub fn fst_state(path: &Path) -> Option<Result<Vec<u8>, String>> {
         return None;
     }
     Some(
-        std::fs::read(path)
+        os_web::fs::read(path)
             .map_err(|e| format!("{}: {e}", path.display()))
             .and_then(|b| citrus::preset::state_from_fst(&b).ok_or_else(|| format!("{} holds no patch Citrus can read", path.display())))
             .map(|fl| citrus::plugin_state_from_fl(&fl)),
@@ -205,14 +205,14 @@ mod tests {
         assert!(a.state.hosted_rows.contains(&row));
         assert_eq!(a.plugins.sytrus_file_state(row), Some(Vec::new()));
         a.save_to(path.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         assert_eq!((saved.channels[row].plugin.as_deref(), saved.channels[row].plugin_state.as_deref()), (Some(FILE_NAME), None));
 
         // A patch goes in (as a preset load does), the project is saved and reopened.
         let fl = saw_state();
         assert!(a.plugins.set_state(row, &citrus::plugin_state_from_fl(&fl)));
         a.save_to(path.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         assert_eq!(saved.channels[row].plugin_state.as_deref(), Some(fl.as_slice()));
         let mut b = App::new(None);
         b.plugins.available = crate::plugins::builtin();
@@ -221,8 +221,8 @@ mod tests {
         assert!(b.state.hosted_rows.contains(&row), "{:?}", b.state.message);
         assert_eq!(b.plugins.sytrus_file_state(row), Some(fl.clone()));
         b.save_to(path.clone());
-        let again = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let again = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(again.channels[row], saved.channels[row]);
     }
 
@@ -240,21 +240,24 @@ mod tests {
     #[test]
     fn fst_presets_are_listed_and_read() {
         let dir = std::env::temp_dir().join(format!("openstudio-citrus-fst-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("Bass").join("Deep")).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(dir.join("Bass").join("Deep")).unwrap();
         let fl = saw_state();
         let fst = citrus::preset::test_fst(&fl);
-        std::fs::write(dir.join("Default.fst"), &fst).unwrap();
-        std::fs::write(dir.join("Bass").join("Deep").join("Sub.fst"), &fst).unwrap();
-        std::fs::write(dir.join("Bass").join("notes.txt"), b"x").unwrap();
+        os_web::fs::write(dir.join("Default.fst"), &fst).unwrap();
+        os_web::fs::write(dir.join("Bass").join("Deep").join("Sub.fst"), &fst).unwrap();
+        os_web::fs::write(dir.join("Bass").join("notes.txt"), b"x").unwrap();
         let l = fst_presets_in(&dir);
         let names: Vec<&str> = l.iter().map(|p| p.name.as_str()).collect();
         assert_eq!(names, vec!["Bass - Deep/Sub", "Default"]);
         let st = fst_state(&l[0].path).unwrap().unwrap();
         assert_eq!(citrus::fl_from_plugin_state(&st), Some(fl));
         assert!(fst_state(&dir.join("Bass").join("notes.txt")).is_none());
-        std::fs::write(dir.join("Bad.fst"), b"nope").unwrap();
+        os_web::fs::write(dir.join("Bad.fst"), b"nope").unwrap();
         assert!(fst_state(&dir.join("Bad.fst")).unwrap().is_err());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

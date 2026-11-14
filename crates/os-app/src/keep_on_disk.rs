@@ -64,7 +64,7 @@ mod tests {
         b.extend((data as u32).to_le_bytes());
         b.resize(b.len() + data, 0);
         let p = std::env::temp_dir().join(format!("os-app-keep-{name}-{}-{k}.wav", std::process::id()));
-        std::fs::write(&p, b).unwrap();
+        os_web::fs::write(&p, b).unwrap();
         p
     }
 
@@ -101,7 +101,7 @@ mod tests {
             let p = wav("case", rate, channels, frames);
             sample_chosen(&mut app, r, p.clone());
             assert_eq!(flags(&app, r), if kept { KEPT } else { None }, "{what}");
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
         let mut app = App::new(None);
         let n = app.state.project.channels.len();
@@ -109,7 +109,7 @@ mod tests {
         app.sample_to_rack(p.to_string_lossy().into_owned(), crate::views::rack::rect(&app.state).bottom() + 40.0);
         assert_eq!(app.state.project.channels.len(), n + 1);
         assert_eq!(flags(&app, n), KEPT, "a channel a drop made");
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     /// A load never turns Keep on disk off: a short file after a long one leaves it on. The channel's other flags stay.
@@ -124,7 +124,7 @@ mod tests {
         sample_chosen(&mut app, r, short.clone());
         assert_eq!(flags(&app, r), Some(ChannelSound::RESAMPLE | ChannelSound::KEEP_ON_DISK), "still on");
         for p in [long, short] {
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
     }
 
@@ -138,7 +138,7 @@ mod tests {
         sample_chosen(&mut app, r, p.clone());
         assert_eq!(flags(&app, r), None);
         set_check(&AUTO_KEEP_ON_DISK, true);
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     /// The switch is part of the load's one history step: undo puts the flags back as they were, redo turns it on.
@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(flags(&app, r), None, "undone");
         ctrl_alt_z(&mut app.state);
         assert_eq!(flags(&app, r), KEPT, "redone");
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     /// The channel's Lemon Sampler gets the switch with the sample on the next tick, and follows undo.
@@ -182,6 +182,6 @@ mod tests {
         ctrl_z(&mut app.state);
         app.plugin_tick();
         assert_eq!(keep_disk(&app), Some(false), "undone");
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 }

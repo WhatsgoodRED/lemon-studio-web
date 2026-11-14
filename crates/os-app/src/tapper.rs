@@ -262,14 +262,14 @@ pub fn text(s: &Settings) -> String {
 
 #[cfg_attr(test, allow(dead_code))]
 fn load() -> Settings {
-    os_paths::user_file("tapper.txt").and_then(|f| std::fs::read_to_string(f).ok()).map(|t| parse(&t)).unwrap_or_default()
+    os_paths::user_file("tapper.txt").and_then(|f| os_web::fs::read_to_string(f).ok()).map(|t| parse(&t)).unwrap_or_default()
 }
 
 #[cfg_attr(test, allow(dead_code))]
 fn save(s: &Settings) {
     if let Some(dir) = os_paths::user_dir() {
-        let _ = std::fs::create_dir_all(&dir);
-        let _ = std::fs::write(dir.join("tapper.txt"), text(s));
+        let _ = os_web::fs::create_dir_all(&dir);
+        let _ = os_web::fs::write(dir.join("tapper.txt"), text(s));
     }
 }
 

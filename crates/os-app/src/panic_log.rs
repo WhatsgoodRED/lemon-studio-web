@@ -49,12 +49,12 @@ fn message(payload: &dyn std::any::Any) -> &str {
 /// Adds `text` to the log at `p`, starting it again past `MAX_BYTES`.
 fn append(p: &Path, text: &str) -> std::io::Result<()> {
     if let Some(dir) = p.parent() {
-        std::fs::create_dir_all(dir)?;
+        os_web::fs::create_dir_all(dir)?;
     }
-    if std::fs::metadata(p).is_ok_and(|m| m.len() > MAX_BYTES) {
-        std::fs::rename(p, p.with_extension("log.1"))?;
+    if os_web::fs::metadata(p).is_ok_and(|m| m.len() > MAX_BYTES) {
+        os_web::fs::rename(p, p.with_extension("log.1"))?;
     }
-    std::fs::OpenOptions::new().create(true).append(true).open(p)?.write_all(text.as_bytes())
+    os_web::fs::OpenOptions::new().create(true).append(true).open(p)?.write_all(text.as_bytes())
 }
 
 #[cfg(test)]
@@ -75,11 +75,11 @@ mod tests {
         let p = dir.join("Logs").join("panic.log");
         append(&p, "first\n").unwrap();
         append(&p, "second\n").unwrap();
-        assert_eq!(std::fs::read_to_string(&p).unwrap(), "first\nsecond\n");
+        assert_eq!(os_web::fs::read_to_string(&p).unwrap(), "first\nsecond\n");
         append(&p, &"x".repeat(MAX_BYTES as usize)).unwrap();
         append(&p, "after\n").unwrap();
-        assert_eq!(std::fs::read_to_string(&p).unwrap(), "after\n");
-        assert!(std::fs::read_to_string(p.with_extension("log.1")).unwrap().starts_with("first\nsecond\n"));
-        let _ = std::fs::remove_dir_all(dir);
+        assert_eq!(os_web::fs::read_to_string(&p).unwrap(), "after\n");
+        assert!(os_web::fs::read_to_string(p.with_extension("log.1")).unwrap().starts_with("first\nsecond\n"));
+        let _ = os_web::fs::remove_dir_all(dir);
     }
 }

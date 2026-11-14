@@ -240,7 +240,7 @@ impl FrameWindow {
             c.change_property32(PropMode::REPLACE, win, a.WM_PROTOCOLS, AtomEnum::ATOM, &[a.WM_DELETE_WINDOW, a._NET_WM_PING])?;
             // The process and its host: the window manager can end an unresponsive Lemon Studio from a frame.
             c.change_property32(PropMode::REPLACE, win, a._NET_WM_PID, AtomEnum::CARDINAL, &[std::process::id()])?;
-            if let Ok(host) = std::fs::read_to_string("/proc/sys/kernel/hostname") {
+            if let Ok(host) = os_web::fs::read_to_string("/proc/sys/kernel/hostname") {
                 c.change_property8(PropMode::REPLACE, win, a.WM_CLIENT_MACHINE, AtomEnum::STRING, host.trim().as_bytes())?;
             }
             // No decorations: the frame draws its own title bar (flags: decorations; decorations: none).

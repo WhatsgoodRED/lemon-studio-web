@@ -125,7 +125,7 @@ pub(crate) fn commit(s: &mut State) {
             if new == path {
                 return;
             }
-            s.message = Some(if !new.is_dir() {
+            s.message = Some(if !new.vis_dir() {
                 format!("{text} is not a folder")
             } else if replace(s, e.row, new) {
                 format!("Browser folder: {text}")
@@ -142,7 +142,7 @@ impl App {
         use crate::filedlg::{FileDlg, Mode};
         commit(&mut self.state);
         let title = if row < self.state.browser_folders.len() { "Replace a browser folder" } else { "Add a browser folder" };
-        let start = self.state.browser_folders.get(row).filter(|p| p.is_dir()).cloned();
+        let start = self.state.browser_folders.get(row).filter(|p| p.vis_dir()).cloned();
         let dlg = FileDlg::new(Mode::Folder, title, "browser", crate::dialog::Then::BrowserFolder(row));
         self.file_dialog(dlg.start(start.as_deref()));
         self.invalidate();
@@ -267,10 +267,10 @@ mod tests {
     /// Temporary folders `names` under a folder of the test's own.
     fn folders(test: &str, names: &[&str]) -> (PathBuf, Vec<PathBuf>) {
         let root = std::env::temp_dir().join(format!("os_search_folders_{test}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
         let dirs: Vec<PathBuf> = names.iter().map(|n| root.join(n)).collect();
         for d in &dirs {
-            std::fs::create_dir_all(d).unwrap();
+            os_web::fs::create_dir_all(d).unwrap();
         }
         (root, dirs)
     }
@@ -308,7 +308,7 @@ mod tests {
         // The group is not greyed out any more; External tools still is.
         assert!(!app.hits.iter().any(|h| h.action == Action::Placeholder("Browser extra search folders")));
         assert!(app.hits.iter().any(|h| h.action == Action::Placeholder("External tools")));
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 
     /// Removing a row forgets which of its folders were open in the browser, not those of a folder whose name starts
@@ -325,7 +325,7 @@ mod tests {
         remove(s, 0);
         assert!(!s.browser_open.contains(&one) && !s.browser_open.contains(&format!("{one}/Snares")));
         assert!(s.browser_open.contains(&two) && s.browser_open.contains(&format!("{two}/Snares")), "the sibling stays open");
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 
     /// The folder button: in an empty row the folder chosen is added to the browser, in a filled row it replaces the
@@ -355,7 +355,7 @@ mod tests {
         click(&mut app, &mut c, Action::Settings(SAct::FolderPick(0)));
         assert_eq!(app.state.browser_folders, [dirs[1].clone(), dirs[2].clone()]);
         assert_eq!(fake::shown().0, 5);
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 
     /// A Browser name relabels its root and sorts it by the name, as soon as Enter commits it; clearing it gives the
@@ -397,7 +397,7 @@ mod tests {
         }
         assert_eq!(roots(&app), ["Packs", "Rendered", "Sliced audio"]);
         assert!(app.state.browser_names.is_empty());
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 
     /// Emptying a Folder cell removes the row and its root (with its name); a folder typed into it replaces the row's,
@@ -427,7 +427,7 @@ mod tests {
         key(&mut app, &mut c, NamedKey::Enter);
         assert_eq!(app.state.browser_folders, [dirs[2].clone()]);
         assert_eq!(roots(&app), ["New"]);
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 
     /// `browser_folders.txt`: the names after a tab; a file without names (one folder per line) still reads.
@@ -442,3 +442,6 @@ mod tests {
         assert_eq!(parse_file(&text), [(folders[0].clone(), String::new()), (folders[1].clone(), "My loops".to_string())]);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

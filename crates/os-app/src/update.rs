@@ -84,9 +84,9 @@ pub fn target() -> Result<PathBuf, String> {
     let target = exe;
     let dir = target.parent().ok_or("Lemon Studio's program file has no folder.")?;
     let probe = dir.join(format!(".lemonstudio-update-check-{}", std::process::id()));
-    match std::fs::write(&probe, b"") {
+    match os_web::fs::write(&probe, b"") {
         Ok(()) => {
-            let _ = std::fs::remove_file(&probe);
+            let _ = os_web::fs::remove_file(&probe);
             Ok(target)
         }
         Err(_) => Err(format!("Lemon Studio can't replace itself in {}: that folder can't be written to. Download the new version from the release page instead.", dir.display())),
@@ -97,22 +97,22 @@ pub fn target() -> Result<PathBuf, String> {
 fn updater() -> Result<PathBuf, String> {
     let bytes = UPDATER.ok_or("This build has no updater.")?;
     let dir = folder().ok_or("Lemon Studio has no user folder to update from.")?;
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    os_web::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let path = dir.join(UPDATER_NAME);
-    if std::fs::read(&path).is_ok_and(|b| b == bytes) {
+    if os_web::fs::read(&path).is_ok_and(|b| b == bytes) {
         return Ok(path);
     }
     let tmp = dir.join(format!("{UPDATER_NAME}.{}.tmp", std::process::id()));
-    std::fs::write(&tmp, bytes).map_err(|e| format!("{}: {e}", tmp.display()))?;
+    os_web::fs::write(&tmp, bytes).map_err(|e| format!("{}: {e}", tmp.display()))?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755));
+        let _ = os_web::fs::set_permissions(&tmp, os_web::fs::Permissions::from_mode(0o755));
     }
-    if let Err(e) = std::fs::rename(&tmp, &path) {
-        let _ = std::fs::remove_file(&tmp);
+    if let Err(e) = os_web::fs::rename(&tmp, &path) {
+        let _ = os_web::fs::remove_file(&tmp);
         // Windows: an updater still running (from a moment ago) holds its file; that one is as good.
-        if !path.exists() {
+        if !path.vexists() {
             return Err(format!("{}: {e}", path.display()));
         }
     }
@@ -270,11 +270,11 @@ impl Updates {
         if let Ok(exe) = std::env::current_exe() {
             let mut old = exe.into_os_string();
             old.push(".old");
-            let _ = std::fs::remove_file(old);
+            let _ = os_web::fs::remove_file(old);
         }
         let outcome = folder().map(|d| d.join("result.json")).and_then(|f| {
-            let text = std::fs::read_to_string(&f).ok();
-            let _ = std::fs::remove_file(&f);
+            let text = os_web::fs::read_to_string(&f).ok();
+            let _ = os_web::fs::remove_file(&f);
             text
         });
         let told = outcome.and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()).map(|v| {
@@ -312,7 +312,7 @@ impl Updates {
             eprintln!("Lemon Studio: the update could not start: {e}");
             if let Some(f) = folder() {
                 let record = serde_json::json!({ "ok": false, "version": install.version, "message": e });
-                let _ = std::fs::write(f.join("result.json"), record.to_string());
+                let _ = os_web::fs::write(f.join("result.json"), record.to_string());
             }
         }
     }
@@ -558,3 +558,6 @@ mod tests {
         }
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

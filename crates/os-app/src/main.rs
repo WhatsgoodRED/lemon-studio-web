@@ -251,7 +251,7 @@ struct Shell {
 /// damage rects and their device pixels), paint and present milliseconds, and how long the oldest input it answers
 /// waited; slow ticks too.
 struct FrameLog {
-    out: std::io::BufWriter<std::fs::File>,
+    out: std::io::BufWriter<os_web::fs::File>,
     start: Instant,
     /// The first input event since the last frame.
     input: Option<Instant>,
@@ -260,7 +260,7 @@ struct FrameLog {
 impl FrameLog {
     fn open() -> Option<FrameLog> {
         let path = std::env::var_os("OS_FRAMES")?;
-        let file = std::fs::File::create(path).ok()?;
+        let file = os_web::fs::File::create(path).ok()?;
         let mut log = FrameLog { out: std::io::BufWriter::new(file), start: Instant::now(), input: None };
         // Wall-clock start (Unix seconds), to line the log up with a script driving the app.
         let unix = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64());

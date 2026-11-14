@@ -178,7 +178,7 @@ pub fn load() -> Saved {
     #[cfg(test)]
     return Saved::default();
     #[cfg(not(test))]
-    os_paths::user_file("snap.txt").and_then(|f| std::fs::read_to_string(f).ok()).map(|t| parse(&t)).unwrap_or_default()
+    os_paths::user_file("snap.txt").and_then(|f| os_web::fs::read_to_string(f).ok()).map(|t| parse(&t)).unwrap_or_default()
 }
 
 /// Keeps the three settings for the next run (tests: nothing is written).
@@ -186,8 +186,8 @@ pub fn save(s: &State) {
     let t = text(&Saved::of(s));
     #[cfg(not(test))]
     if let Some(dir) = os_paths::user_dir() {
-        let _ = std::fs::create_dir_all(&dir);
-        let _ = std::fs::write(dir.join("snap.txt"), t);
+        let _ = os_web::fs::create_dir_all(&dir);
+        let _ = os_web::fs::write(dir.join("snap.txt"), t);
     }
     #[cfg(test)]
     let _ = t;

@@ -54,7 +54,7 @@ impl App {
     /// The folder button (or the path beside it): a folder picker starting at the folder in use.
     pub(crate) fn factory_folder_pick(&mut self) {
         use crate::filedlg::{FileDlg, Mode};
-        let start = dir().filter(|d| d.is_dir());
+        let start = dir().filter(|d| d.vis_dir());
         let dlg = FileDlg::new(Mode::Folder, PICK_TITLE, "factory content folder", Then::FactoryFolder).start(start.as_deref());
         self.file_dialog(dlg);
     }
@@ -88,10 +88,10 @@ mod tests {
     #[test]
     fn the_chosen_folder_resolves_factory_samples() {
         let root = std::env::temp_dir().join(format!("lemon-factory-folder-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
         let packs = root.join("Data").join("Patches").join("Packs");
-        std::fs::create_dir_all(&packs).unwrap();
-        std::fs::write(packs.join("Kick.wav"), b"RIFF").unwrap();
+        os_web::fs::create_dir_all(&packs).unwrap();
+        os_web::fs::write(packs.join("Kick.wav"), b"RIFF").unwrap();
         let mut app = App::new(None);
         assert_eq!(chosen(), None);
         assert_eq!(dir(), os_engine::SampleLibrary::default_factory_dir());
@@ -99,7 +99,7 @@ mod tests {
         assert_eq!(crate::settings_file::get(KEY), Some(root.to_string_lossy().into_owned()));
         assert_eq!(dir(), Some(root.clone()));
         let file = crate::plugins::resolve_sample(r"%flstudiodata%\PATCHES\packs\kick.WAV");
-        assert!(std::path::Path::new(&file).is_file(), "{file}");
+        assert!(std::path::Path::new(&file).vis_file(), "{file}");
         assert!(path_text().starts_with(&root.to_string_lossy().into_owned()));
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("FL Studio factory content folder: ")));
         // The File page shows it, with Reset and the folder button working; Reset goes back to the install found.
@@ -119,6 +119,9 @@ mod tests {
             app.set_factory_folder(None);
         }
         assert_eq!((chosen(), dir()), (None, os_engine::SampleLibrary::default_factory_dir()));
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

@@ -3197,7 +3197,7 @@ mod tests {
         a.state.piano.dirty = false;
         a.save_to(file.clone());
         assert!(!a.state.piano.dirty, "a save that writes nothing new changes nothing");
-        let _ = std::fs::remove_file(file);
+        let _ = os_web::fs::remove_file(file);
     }
 
     /// A project opens on the pattern it was saved on, with the loop lengths saved into that pattern.
@@ -3218,7 +3218,7 @@ mod tests {
         a.save_to(file.clone());
         let mut b = crate::app::App::new(None);
         b.open(file.clone());
-        let _ = std::fs::remove_file(&file);
+        let _ = os_web::fs::remove_file(&file);
         assert_eq!(b.state.pattern, 2);
         assert_eq!(b.state.rack.loop_len.get(&0), Some(&8));
     }
@@ -3895,7 +3895,7 @@ mod tests {
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", app.state.message);
         app.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         let s = &app.state;
         let p = &s.project;
         assert_eq!(p.channels.len(), n);
@@ -4234,7 +4234,7 @@ mod tests {
         b.extend(body);
         let dir = dir.map_or_else(std::env::temp_dir, std::path::Path::to_path_buf);
         let p = dir.join(format!("os-app-tags-{name}-{}-{k}.wav", std::process::id()));
-        std::fs::write(&p, b).unwrap();
+        os_web::fs::write(&p, b).unwrap();
         p
     }
 
@@ -4278,7 +4278,7 @@ mod tests {
             let ch = &app.state.project.channels[r];
             assert_eq!((ch.misc.root, ch.sound.stretch), (root, stretch), "{name}");
             assert_eq!(ch.sample_path.as_deref(), Some(p.to_string_lossy().as_ref()));
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
         // A plain file after an `acid` one keeps Auto and its TIME.
         let (fitted, plain) = (tagged_wav(None, "fitted", 0.5, &[acid(4, 0, 120.0)]), tagged_wav(None, "plain", 0.5, &[]));
@@ -4292,7 +4292,7 @@ mod tests {
         read_tags(&mut app.state.project.channels[r], std::path::Path::new("Z:/no such folder/loop.mp3"));
         assert_eq!(app.state.project.channels[r].misc.root, 60);
         for p in [fitted, plain] {
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
     }
 
@@ -4317,7 +4317,7 @@ mod tests {
         assert_eq!(load(&mut app, true, false), (72, was), "root note only");
         assert_eq!(load(&mut app, false, true), (50, auto(4.0, was)), "tempo only");
         assert_eq!(load(&mut app, true, true), (72, auto(4.0, was)), "both on");
-        let _ = std::fs::remove_file(both);
+        let _ = os_web::fs::remove_file(both);
     }
 
     /// Every way a sample goes into a sampler channel reads it: a drop on the row, a drop below the rows (a new
@@ -4340,8 +4340,8 @@ mod tests {
         assert_eq!((ch.misc.root, ch.sound.stretch), (67, auto(4.0, [0; 4])), "a drop below the rows");
         // The browser's send, from a folder holding one sample.
         let dir = std::env::temp_dir().join(format!("os-app-tags-browser-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let sent = tagged_wav(Some(&dir), "sent", 0.5, &[smpl(71), acid(2, 0, 120.0)]);
         app.state.browser_folders.push(dir.clone());
         app.state.browser_open.insert(crate::views::browser::disk_key(&dir));
@@ -4356,9 +4356,9 @@ mod tests {
         read_tags(&mut clip, &new);
         assert_eq!((clip.misc.root, clip.sound.stretch), (50, auto(2.0, was)));
         for p in [dropped, new] {
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The channel's Lemon Sampler gets the root note and stretch the load read, with the sample, in the next tick;
@@ -4393,7 +4393,7 @@ mod tests {
         assert_eq!(app.plugins.sampler_path(r).as_deref(), Some(plain.to_string_lossy().as_ref()));
         assert_eq!(read(&app), (60, auto_index, 16), "back to C5, the stretch kept");
         for p in [both, plain] {
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
     }
 
@@ -4424,8 +4424,8 @@ mod tests {
         let r = sampler_row(&app);
         let y = crate::views::rack::name_rect(&app.state, r).unwrap().cy();
         let dir = std::env::temp_dir().join(format!("os-app-tags-history-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         app.state.browser_folders.push(dir.clone());
         app.state.browser_open.insert(crate::views::browser::disk_key(&dir));
         let side = |app: &App| {
@@ -4460,9 +4460,9 @@ mod tests {
             assert_eq!(side(&app), after, "{how}: redone");
             assert!(!app.state.history.undone(steps + 1));
             // Only one file at a time in the browser's folder: its send picks it.
-            let _ = std::fs::remove_file(file);
+            let _ = os_web::fs::remove_file(file);
         }
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// A sample dropped below the rows makes a channel: the step covers the channel itself. Undone, it goes; redone,
@@ -4484,7 +4484,7 @@ mod tests {
         ctrl_alt_z(&mut app.state);
         assert_eq!(app.state.project.channels.len(), n + 1);
         assert_eq!(app.state.project.channels[n], made, "it comes back as it was");
-        let _ = std::fs::remove_file(file);
+        let _ = os_web::fs::remove_file(file);
     }
 
     /// Undo and redo of a load reach the channel's Lemon Sampler on the next tick: its sample, root note and stretch
@@ -4530,7 +4530,7 @@ mod tests {
         assert!(app.state.hosted_rows.contains(&n));
         assert_eq!(sampler_side(&app, n), (both_s, 67, auto_index, 16), "hosted again from the channel");
         for p in [plain, both] {
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
     }
 
@@ -4761,7 +4761,7 @@ mod tests {
         assert_eq!(enabled(&app), Some((true, "Ctrl+Alt+R")));
         assert_eq!(run(&mut app, RCmd::Restretch).as_deref(), Some("No stretched channels to restretch"));
         let wav = std::env::temp_dir().join(format!("os-rack-restretch-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 282240]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 282240]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let src = os_model::ClipSource::Channel(app.state.project.channels.last().unwrap().index);
         let len = |app: &App| pl::clips(&app.state).iter().find(|c| c.source == src).map(|c| c.length);
@@ -4773,7 +4773,7 @@ mod tests {
         assert_eq!(len(&app), Some(1229), "fitted at once");
         app.state.tempo = 122.5;
         assert_eq!(run(&mut app, RCmd::Restretch).as_deref(), Some("Restretched 1 channel to 122.5 BPM"));
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// TOOLS > Set keyboard focus of all plugins to ▸: Enabled / Disabled set the editors' keyboard switch, the current
@@ -4801,7 +4801,7 @@ mod tests {
     fn name_button_shows_the_icon_and_the_waveform() {
         let wav = std::env::temp_dir().join(format!("os_rack_wave_{}.wav", std::process::id()));
         let frames: Vec<f32> = (0..9600).flat_map(|i| [(i as f32 * 0.05).sin() * 0.8; 2]).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
         let mut app = lock_app();
         app.state.project.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
         app.state.control.settle(&mut app.state.project);
@@ -4820,7 +4820,7 @@ mod tests {
         assert_ne!(plain, waved, "the waveform shows");
         crate::playlist::run(&mut app, crate::playlist::Cmd::SetIcon(0, Some(0)));
         assert_ne!(button(&mut app), waved, "the icon shows");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// The channel menu's Receive notes from ▸ for row `r`: (label, enabled, mark) of each entry.

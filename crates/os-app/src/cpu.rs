@@ -113,7 +113,7 @@ impl Cpu {
     pub fn saved() -> Cpu {
         let mut c = Cpu::default();
         if !cfg!(test) {
-            if let Some(t) = os_paths::user_file(SETTINGS).and_then(|f| std::fs::read_to_string(f).ok()) {
+            if let Some(t) = os_paths::user_file(SETTINGS).and_then(|f| os_web::fs::read_to_string(f).ok()) {
                 c.parse(&t);
             }
         }
@@ -141,8 +141,8 @@ impl Cpu {
             return;
         }
         if let Some(dir) = os_paths::user_dir() {
-            let _ = std::fs::create_dir_all(&dir);
-            let _ = std::fs::write(dir.join(SETTINGS), self.text());
+            let _ = os_web::fs::create_dir_all(&dir);
+            let _ = os_web::fs::write(dir.join(SETTINGS), self.text());
         }
     }
 
@@ -276,8 +276,8 @@ fn handles_threads() -> (u32, u32) {
 /// Open file descriptors and threads.
 #[cfg(target_os = "linux")]
 fn handles_threads() -> (u32, u32) {
-    let fds = std::fs::read_dir("/proc/self/fd").map_or(0, |d| d.count() as u32);
-    let threads = std::fs::read_to_string("/proc/self/status")
+    let fds = os_web::fs::read_dir("/proc/self/fd").map_or(0, |d| d.count() as u32);
+    let threads = os_web::fs::read_to_string("/proc/self/status")
         .ok()
         .and_then(|s| s.lines().find_map(|l| l.strip_prefix("Threads:").and_then(|v| v.trim().parse().ok())))
         .unwrap_or(0);
@@ -327,7 +327,7 @@ pub fn memory_mb() -> Option<u64> {
 /// Memory the program uses (resident pages), MB.
 #[cfg(target_os = "linux")]
 pub fn memory_mb() -> Option<u64> {
-    let s = std::fs::read_to_string("/proc/self/statm").ok()?;
+    let s = os_web::fs::read_to_string("/proc/self/statm").ok()?;
     let pages: u64 = s.split_whitespace().nth(1)?.parse().ok()?;
     Some(pages * 4096 >> 20)
 }

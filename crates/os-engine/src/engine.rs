@@ -6405,7 +6405,7 @@ mod tests {
         }
         // A one-second sample; the first clip starts 250 ms into it, the second plays it from the top.
         let wav = std::env::temp_dir().join(format!("os-engine-clip-start-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 96000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 96000]).unwrap();
         let mut trimmed = Clip::new(0, 96, 0, ClipSource::Channel(0));
         trimmed.window = Some((250.0, 711.0));
         let mut p = song(vec![], vec![trimmed, Clip::new(384, 96, 0, ClipSource::Channel(0))]);
@@ -6456,7 +6456,7 @@ mod tests {
         // `frames` frames of a ramp at `rate`.
         let write = |wav: &std::path::Path, rate: u32, frames: u32| {
             let ramp: Vec<f32> = (0..frames).flat_map(|i| [i as f32 / frames as f32; 2]).collect();
-            crate::wav::write_f32_stereo(&mut std::fs::File::create(wav).unwrap(), rate, &ramp).unwrap();
+            crate::wav::write_f32_stereo(&mut os_web::fs::File::create(wav).unwrap(), rate, &ramp).unwrap();
         };
         // The hosted channels' file: one second at 44.1 kHz (the output runs at 48 kHz). The channel without an
         // instrument has a file of its own.
@@ -6552,7 +6552,7 @@ mod tests {
         let e = build(&p, &mut SampleLibrary::new(None), true, &logs());
         assert!(e.channels.iter().all(|c| c.sample.is_some() && c.length.is_none()));
         for wav in [hosted_wav, own_wav] {
-            let _ = std::fs::remove_file(wav);
+            let _ = os_web::fs::remove_file(wav);
         }
     }
 
@@ -6580,7 +6580,7 @@ mod tests {
         }
         // 550 frames: about 11 ms, played out long before the note's end.
         let wav = std::env::temp_dir().join(format!("os-engine-looped-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 1100]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 1100]).unwrap();
         let mut p = project(vec![long_note(0, 96, 0)], vec![]);
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
         // The note ends one beat in, at 130 BPM.
@@ -6605,7 +6605,7 @@ mod tests {
         p.channels[0].sound.loop_points = Some([100, 400]);
         let o = offs(&p, |_| false);
         assert!(at_end(&o), "the channel's own loop: {o:?}");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// A paused playback whose hosted instruments another stream processes lets go of them: an audio clip's voice is
@@ -6635,7 +6635,7 @@ mod tests {
             }
         }
         let wav = std::env::temp_dir().join(format!("os-engine-pause-clip-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 4 * 96000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 4 * 96000]).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
@@ -6692,7 +6692,7 @@ mod tests {
             }
         }
         let wav = std::env::temp_dir().join(format!("os-engine-clip-level-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.5; 96000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.5; 96000]).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 192, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
@@ -6716,7 +6716,7 @@ mod tests {
         n.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
         let out = Engine::new(&n, &mut lib, 48000, PlayMode::Song).render_all(480);
         assert!((out[mid] - 0.5 * 0.38961).abs() < 1e-3, "{}", out[mid]);
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Each note's own pan and mod X / Y go to the hosted instrument with the note (spec: audio/voice-levels.md "The
@@ -7251,7 +7251,7 @@ mod tests {
     fn clips_deleted_or_moved_while_playing_stop_sounding() {
         use os_model::{Clip, ClipSource};
         let wav = std::env::temp_dir().join(format!("os-engine-playing-edit-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 192000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 192000]).unwrap();
         // A two-second sample in a clip from 0 to 192, and one more at 384 that keeps the song going.
         let with = |clip: Option<Clip>| {
             let mut p = song(vec![], clip.into_iter().chain([Clip::new(384, 96, 0, ClipSource::Channel(0))]).collect());
@@ -7287,7 +7287,7 @@ mod tests {
         let mut out = Vec::new();
         e2.render_ticks(24, &mut out);
         assert!(out[2880..].iter().any(|x| x.abs() > 0.05), "added under the play position");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// The same through a hosted instrument (spec: audio/transport.md "Edits while playing"): a deleted or moved audio
@@ -7316,7 +7316,7 @@ mod tests {
             }
         }
         let wav = std::env::temp_dir().join(format!("os-engine-playing-edit-hosted-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 192000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 192000]).unwrap();
         let f = |t: f64| laws::tick_to_frame(t, 96, 130.0, 48000);
         let mut lib = SampleLibrary::new(None);
         // 48 ticks of `playing`, then `edited` takes over up to tick 400: the tick of the note's end, rounded down.
@@ -7352,7 +7352,7 @@ mod tests {
         };
         assert_eq!(end(&pattern(true), &pattern(true)), Some(300), "unchanged: its note off at its end");
         assert_eq!(end(&pattern(true), &pattern(false)), Some(48), "deleted");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     // spec: audio/voice-levels.md "The main pitch", audio/automation.md "Project targets": a control point holds the
@@ -7409,7 +7409,7 @@ mod tests {
         // A one-second ramp (each frame's value is its time) in a clip from tick 0 to 192 (0.92 s at 130 BPM).
         let wav = std::env::temp_dir().join(format!("os-engine-clip-inside-{}.wav", std::process::id()));
         let ramp: Vec<f32> = (0..48000).flat_map(|i| [i as f32 / 48000.0; 2]).collect();
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 192, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
@@ -7460,7 +7460,7 @@ mod tests {
         let mut e = Engine::new(&p, &mut lib, 48000, PlayMode::Song);
         e.seek_tick(300);
         assert!(e.late.is_empty(), "the sample has run out by tick 300");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Frame of tick `t` at 48 kHz, PPQ 96, 130 BPM (the test projects').
@@ -7516,7 +7516,7 @@ mod tests {
         // A one-second ramp (each frame's value is its time): any other place in the sample sounds different.
         let wav = std::env::temp_dir().join(format!("os-engine-truncated-transport-{}.wav", std::process::id()));
         let ramp: Vec<f32> = (0..48000).flat_map(|i| [i as f32 / 48000.0; 2]).collect();
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
         let mut p = project(vec![long_note(0, 768, 0)], vec![]);
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
         let mut lib = SampleLibrary::new(None);
@@ -7536,7 +7536,7 @@ mod tests {
         e.seek_tick(12);
         assert!(e.late.is_empty(), "neither the step nor the slide note starts again");
         assert!(e.render_all(480).iter().all(|&v| v == 0.0));
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
 
         // A layer's note under way: each child gets it, to its end.
         let mut lp = layered(0, vec![long_note(0, 768, 0)], &[ChannelKind::Plugin, ChannelKind::Plugin]);
@@ -7569,7 +7569,7 @@ mod tests {
     fn audio_clip_fades_and_gain() {
         use os_model::{Clip, ClipSource};
         let wav = std::env::temp_dir().join(format!("os-engine-clip-fades-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 96000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 96000]).unwrap();
         // A one-bar clip (1.846 s at 130 BPM) of a one-second DC sample: plain, then with fades and gain.
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
@@ -7639,7 +7639,7 @@ mod tests {
         assert!((g(2400) - want(0.5)).abs() < 1e-3, "voice fade-in midway: {}", g(2400));
         assert!((g(24000) - 2.0).abs() < 1e-4, "voice gain: {}", g(24000));
         assert!((g(end) - w).abs() < 2e-3, "voice fade-out half way: {} vs {w}", g(end));
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     // spec: audio/audio-clips.md "Automatic crossfades"
@@ -7647,7 +7647,7 @@ mod tests {
     fn automatic_crossfades_play_at_unity() {
         use os_model::{Clip, ClipSource};
         let wav = std::env::temp_dir().join(format!("os-engine-crossfades-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         // Two one-bar clips of a two-second DC sample on one track, the second from beat 3: 192 ticks of overlap.
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0)), Clip::new(192, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
@@ -7689,7 +7689,7 @@ mod tests {
         let fx = os_model::crossfade::playing(&p, &p.arrangements[0].clips, 130.0);
         assert_eq!(fx[0].1, Some((50.0, 0.0)));
         assert_eq!(fx[1].0.map(|f| f.0), Some(os_model::crossfade::ms(192, 130.0, 96)));
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// A hosted sampler that takes voice gains as `Instrument::voice_gain` asks (Lemon Sampler's way): every voice
@@ -7794,7 +7794,7 @@ mod tests {
     fn a_clip_voice_that_ends_itself_is_choked_only_at_the_song_end() {
         use os_model::{Clip, ClipSource};
         let wav = std::env::temp_dir().join(format!("os-engine-clip-ends-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         let mut first = Clip::new(0, 192, 0, ClipSource::Channel(0));
         first.window = Some((250.0, 1000.0));
         let mut p = song(vec![], vec![first, Clip::new(384, 192, 0, ClipSource::Channel(0))]);
@@ -7816,7 +7816,7 @@ mod tests {
             chokes.sort_unstable();
             assert_eq!(chokes, vec![(a, first_end), (b, at(576))], "ends {ends}");
         }
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     // spec: audio/audio-clips.md "Automatic crossfades", "Fades and clip gain"
@@ -7827,7 +7827,7 @@ mod tests {
     fn automatic_crossfades_on_a_hosted_sampler_play_at_unity() {
         use os_model::{Clip, ClipSource};
         let wav = std::env::temp_dir().join(format!("os-engine-hosted-crossfades-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0)), Clip::new(192, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
@@ -7866,7 +7866,7 @@ mod tests {
             assert!((second[2 * at(288)] - mid).abs() < 2e-4, "t {t}: {} vs {mid}", second[2 * at(288)]);
             assert!(second[2 * at(100)].abs() < 1e-6, "nothing before the second clip");
         }
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     // spec: audio/audio-clips.md "Fades and clip gain"
@@ -7878,7 +7878,7 @@ mod tests {
     fn an_instrument_without_voice_gains_plays_the_second_clip_on() {
         use os_model::{Clip, ClipSource};
         let wav = std::env::temp_dir().join(format!("os-engine-unvoiced-crossfades-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0)), Clip::new(192, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
@@ -7894,7 +7894,7 @@ mod tests {
             assert!((out[2 * at(tick)] - 0.5).abs() < 1e-4, "tick {tick}, after the first clip: {}", out[2 * at(tick)]);
         }
         assert!(out[2 * (at(576) + 10)].abs() < 1e-6, "silent after the second clip");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     // spec: audio/audio-clips.md "Stretching by resampling (mode 0)"
@@ -7903,7 +7903,7 @@ mod tests {
         use os_model::{Clip, ClipSource};
         let wav = std::env::temp_dir().join(format!("os-engine-stretch-{}.wav", std::process::id()));
         let ramp: Vec<f32> = (0..48000).flat_map(|i| [i as f32 / 48000.0; 2]).collect();
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
@@ -7916,7 +7916,7 @@ mod tests {
         for f in [1000usize, 4000, 12000] {
             assert!((slow[4 * f] - plain[2 * f]).abs() < 1e-3, "frame {}: {} vs {}", 2 * f, slow[4 * f], plain[2 * f]);
         }
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// A 48 kHz wav of sine parts (Hz, seconds), removed on drop.
@@ -7932,7 +7932,7 @@ mod tests {
                     frames.extend_from_slice(&[v, v]);
                 }
             }
-            crate::wav::write_f32_stereo(&mut std::fs::File::create(&path).unwrap(), 48000, &frames).unwrap();
+            crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&path).unwrap(), 48000, &frames).unwrap();
             Sines(path)
         }
 
@@ -7943,7 +7943,7 @@ mod tests {
 
     impl Drop for Sines {
         fn drop(&mut self) {
-            let _ = std::fs::remove_file(&self.0);
+            let _ = os_web::fs::remove_file(&self.0);
         }
     }
 
@@ -8809,7 +8809,7 @@ mod tests {
     fn audio_clips_end_at_the_loop_point() {
         use os_model::{Clip, ClipSource};
         let wav = std::env::temp_dir().join(format!("os-engine-loop-clip-{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 48000 * 4]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 48000 * 4]).unwrap();
         for range in [(0, 192), (96, 192)] {
             let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0))]);
             p.channels[0].kind = ChannelKind::AudioClip;

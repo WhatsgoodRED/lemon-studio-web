@@ -95,7 +95,7 @@ pub fn missing_samples(s: &State) -> Vec<(usize, String)> {
         .iter()
         .enumerate()
         .filter_map(|(row, ch)| Some((row, ch.sample_path.clone().filter(|p| !p.trim().is_empty())?)))
-        .filter(|(_, p)| !Path::new(&crate::plugins::resolve_sample(p)).is_file())
+        .filter(|(_, p)| !Path::new(&crate::plugins::resolve_sample(p)).vis_file())
         .collect()
 }
 
@@ -155,7 +155,7 @@ fn missing_box(samples: &[String], plugins: &[String]) -> Msg {
 /// Find samples...: a folder picker, starting in the project's folder.
 pub fn pick_folder(app: &mut App) {
     use crate::filedlg::{FileDlg, Mode};
-    let start = app.state.path.as_deref().and_then(Path::parent).filter(|d| d.is_dir()).map(PathBuf::from);
+    let start = app.state.path.as_deref().and_then(Path::parent).filter(|d| d.vis_dir()).map(PathBuf::from);
     let dlg = FileDlg::new(Mode::Folder, "Find missing samples", "missing samples", Then::SampleFolder).start(start.as_deref());
     app.file_dialog(dlg);
 }
@@ -190,7 +190,7 @@ pub fn find_in(root: &Path, mut wanted: HashSet<String>, deadline: Instant) -> V
             break;
         }
         listed += 1;
-        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        let Ok(entries) = os_web::fs::read_dir(&dir) else { continue };
         let mut here = false;
         for e in entries.flatten() {
             let Ok(kind) = e.file_type() else { continue };
@@ -245,7 +245,7 @@ fn relink(app: &mut App, before: &[(usize, String)]) -> usize {
     let mut found = 0;
     for (row, old) in before {
         let now = crate::plugins::resolve_sample(old);
-        if !Path::new(&now).is_file() {
+        if !Path::new(&now).vis_file() {
             continue;
         }
         found += 1;
@@ -293,17 +293,17 @@ pub(crate) mod tests {
     #[test]
     fn search_finds_folders_by_name() {
         let root = std::env::temp_dir().join(format!("os_missing_search_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(root.join("a/b/c")).unwrap();
-        std::fs::create_dir_all(root.join("d")).unwrap();
-        std::fs::write(root.join("a/b/c/Kick.WAV"), b"").unwrap();
-        std::fs::write(root.join("d/snare.wav"), b"").unwrap();
-        std::fs::write(root.join("d/other.wav"), b"").unwrap();
+        let _ = os_web::fs::remove_dir_all(&root);
+        os_web::fs::create_dir_all(root.join("a/b/c")).unwrap();
+        os_web::fs::create_dir_all(root.join("d")).unwrap();
+        os_web::fs::write(root.join("a/b/c/Kick.WAV"), b"").unwrap();
+        os_web::fs::write(root.join("d/snare.wav"), b"").unwrap();
+        os_web::fs::write(root.join("d/other.wav"), b"").unwrap();
         let wanted: HashSet<String> = ["kick.wav", "snare.wav", "gone.wav"].iter().map(|s| s.to_string()).collect();
         let mut found = find_in(&root, wanted, Instant::now() + Duration::from_secs(10));
         found.sort();
         assert_eq!(found, vec![root.join("a/b/c"), root.join("d")]);
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 
     /// The box lists each missing name once, sorted, and offers Find samples... only when samples are missing.
@@ -326,10 +326,10 @@ pub(crate) mod tests {
     #[test]
     fn samples_beside_the_project_are_found() {
         let dir = std::env::temp_dir().join(format!("os_missing_beside_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let wav = wav(4410);
-        std::fs::write(dir.join("Here.wav"), &wav).unwrap();
+        os_web::fs::write(dir.join("Here.wav"), &wav).unwrap();
         let mut app = App::new(None);
         app.state.project = crate::app::default_project();
         let a = crate::app::add_channel(&mut app.state.project);
@@ -353,8 +353,8 @@ pub(crate) mod tests {
         // The box lists Gone.wav; Find samples... in a folder that has it relinks the channel.
         assert!(app.state.dialogs.last().is_some_and(|d| matches!(&d.body, crate::dialog::Body::Msg(m) if m.plain().contains("Gone.wav"))));
         app.state.dialogs.clear();
-        std::fs::create_dir_all(dir.join("elsewhere/deep")).unwrap();
-        std::fs::write(dir.join("elsewhere/deep/Gone.wav"), &wav).unwrap();
+        os_web::fs::create_dir_all(dir.join("elsewhere/deep")).unwrap();
+        os_web::fs::write(dir.join("elsewhere/deep/Gone.wav"), &wav).unwrap();
         search(&mut app, dir.join("elsewhere"));
         let t0 = Instant::now();
         while app.missing.search.is_some() && t0.elapsed() < Duration::from_secs(20) {
@@ -365,6 +365,9 @@ pub(crate) mod tests {
         assert_eq!(app.state.project.channels[b].sample_path.as_deref(), Some(dir.join("elsewhere").join("deep").join("Gone.wav").to_string_lossy().as_ref()));
         assert!(app.unsaved(), "a relinked sample is a change to save");
         os_engine::sample::set_search_folders(Vec::new());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

@@ -433,7 +433,7 @@ mod tests {
         let path = dir.join(format!("lemon-init-open-{}.flp", std::process::id()));
         let resaved = dir.join(format!("lemon-init-open-{}-resaved.flp", std::process::id()));
         let stored = |p: &std::path::Path| {
-            let f = os_flp::FlpFile::parse(&std::fs::read(p).unwrap()).unwrap();
+            let f = os_flp::FlpFile::parse(&os_web::fs::read(p).unwrap()).unwrap();
             let q = os_flp::project::load(&f).unwrap();
             (q.channels[0].volume, q.tempo.unwrap())
         };
@@ -461,19 +461,19 @@ mod tests {
         // Without event 9 (a file from before Lemon Studio wrote it): song mode, even with no clips.
         pl::arr_mut(&mut a.state).clips.clear();
         a.save_to(path.clone());
-        let mut f = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let mut f = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         for c in &mut f.chunks {
             if let os_flp::ChunkBody::Events(ev) = &mut c.body {
                 ev.retain(|e| e.id != 9);
             }
         }
-        std::fs::write(&path, f.to_bytes().unwrap()).unwrap();
+        os_web::fs::write(&path, f.to_bytes().unwrap()).unwrap();
         let mut d = App::new(None);
         d.open(path.clone());
         assert!(d.state.song_mode);
         assert_eq!(controls(&d), INIT);
-        let _ = std::fs::remove_file(&path);
-        let _ = std::fs::remove_file(&resaved);
+        let _ = os_web::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&resaved);
     }
 
     /// The browser lists the controls under Current project ▸ Initialized controls ("<owner> - <setting>"), a folder

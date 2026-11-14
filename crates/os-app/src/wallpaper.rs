@@ -56,7 +56,7 @@ pub fn absolute_names(text: &str, dir: &Path) -> String {
 /// A PNG or JPEG file's picture; `None` for another format, a file that is missing or does not decode, or one larger
 /// than `MAX_SIDE`.
 pub fn read(path: &Path) -> Option<Image> {
-    decode(&std::fs::read(path).ok()?)
+    decode(&os_web::fs::read(path).ok()?)
 }
 
 /// `read` on the file's bytes.

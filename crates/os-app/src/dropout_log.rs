@@ -50,12 +50,12 @@ pub fn write(line: &str) {
     let Some(p) = path() else { return };
     let _g = LOCK.lock();
     if let Some(d) = p.parent() {
-        let _ = std::fs::create_dir_all(d);
+        let _ = os_web::fs::create_dir_all(d);
     }
-    if std::fs::metadata(&p).is_ok_and(|m| m.len() >= CAP) {
-        let _ = std::fs::rename(&p, p.with_extension("log.1"));
+    if os_web::fs::metadata(&p).is_ok_and(|m| m.len() >= CAP) {
+        let _ = os_web::fs::rename(&p, p.with_extension("log.1"));
     }
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&p) {
+    if let Ok(mut f) = os_web::fs::OpenOptions::new().create(true).append(true).open(&p) {
         let _ = writeln!(f, "{} {line}", now());
     }
 }
@@ -184,16 +184,16 @@ mod tests {
     #[test]
     fn the_log_rotates_at_its_cap() {
         let dir = std::env::temp_dir().join(format!("lemon-audio-log-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         set_test_dir(Some(dir.clone()));
         let long = "x".repeat(1000);
         for _ in 0..(CAP / 1000 + 5) {
             write(&long);
         }
-        let main = std::fs::metadata(dir.join("audio.log")).unwrap().len();
-        let old = std::fs::metadata(dir.join("audio.log.1")).unwrap().len();
+        let main = os_web::fs::metadata(dir.join("audio.log")).unwrap().len();
+        let old = os_web::fs::metadata(dir.join("audio.log.1")).unwrap().len();
         assert!(main < CAP && old >= CAP && old < CAP + 2000, "{main} {old}");
         set_test_dir(None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }

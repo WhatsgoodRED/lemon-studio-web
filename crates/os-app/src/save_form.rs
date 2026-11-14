@@ -94,7 +94,7 @@ thread_local! {
 
 /// The first `Project_N` (N from 1) that names nothing in `root`, as a folder or as a project file.
 pub fn free_name(root: &Path) -> String {
-    let taken = |n: &str| !root.as_os_str().is_empty() && (root.join(n).exists() || root.join(format!("{n}.flp")).exists() || root.join(format!("{n}.{}", crate::project_files::EXT)).exists());
+    let taken = |n: &str| !root.as_os_str().is_empty() && (root.join(n).vexists() || root.join(format!("{n}.flp")).vexists() || root.join(format!("{n}.{}", crate::project_files::EXT)).vexists());
     (1u32..).map(|n| format!("Project_{n}")).find(|n| !taken(n)).expect("a free name")
 }
 
@@ -207,7 +207,7 @@ impl SaveForm {
             return Some("Choose a folder for the project (the folder button).".into());
         }
         let file = self.file();
-        file.exists().then(|| format!("{} already exists.", file.display()))
+        file.vexists().then(|| format!("{} already exists.", file.display()))
     }
 
     /// Combo `k`'s list: its entries and the chosen one.
@@ -360,7 +360,7 @@ impl App {
     /// The folder button: a folder picker for the root folder, starting in it.
     fn form_root_pick(&mut self) {
         use crate::filedlg::{FileDlg, Mode};
-        let start = top(self).map(|f| f.root.clone()).filter(|d| d.is_dir());
+        let start = top(self).map(|f| f.root.clone()).filter(|d| d.vis_dir());
         let dlg = FileDlg::new(Mode::Folder, PICK_TITLE, "project folder", Then::DataFolder(df::DThen::FormRoot)).start(start.as_deref());
         self.file_dialog(dlg);
     }
@@ -396,7 +396,7 @@ impl App {
         prefs::set_text(COPY_KEY, if f.copy { "1" } else { "0" });
         prefs::set_text(FILES_KEY, FILES[usize::from(f.files).min(FILES.len() - 1)]);
         let dir = f.folder();
-        if let Err(e) = std::fs::create_dir_all(&dir) {
+        if let Err(e) = os_web::fs::create_dir_all(&dir) {
             self.tell(Kind::Error, f.title(), spans(&["", &dir.display().to_string(), &format!(" could not be made: {e}")]));
             return self.dialog_done(Then::SaveProject(f.next), Reply::File(None));
         }
@@ -433,15 +433,15 @@ mod tests {
     /// A fresh scratch folder for one test, set as the user's projects folder (removed again by the caller).
     fn scratch(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("os_saveform_{tag}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         TEST_ROOT.with(|d| *d.borrow_mut() = Some(dir.join("Projects")));
         dir
     }
 
     fn done(dir: &Path) {
         TEST_ROOT.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(dir);
+        let _ = os_web::fs::remove_dir_all(dir);
     }
 
     fn form(app: &App) -> Option<&SaveForm> {
@@ -481,8 +481,8 @@ mod tests {
         let root = dir.join("Projects");
         let mut app = App::new(None);
         let kick = dir.join("lib").join("kick.wav");
-        std::fs::create_dir_all(kick.parent().unwrap()).unwrap();
-        std::fs::write(&kick, [7u8; 12]).unwrap();
+        os_web::fs::create_dir_all(kick.parent().unwrap()).unwrap();
+        os_web::fs::write(&kick, [7u8; 12]).unwrap();
         app.state.project.channels[0].sample_path = Some(kick.to_string_lossy().into_owned());
         app.act(Action::MenuItem(0, crate::views::menus::FILE_SAVE));
         let f = form(&app).expect("the Save as form").clone();
@@ -499,7 +499,7 @@ mod tests {
         let file = folder.join("Project_1.lemon");
         let copy = folder.join(df::SAMPLES_DIR).join("kick.wav");
         assert_eq!(app.state.path, Some(file.clone()));
-        assert!(file.is_file() && copy.is_file());
+        assert!(file.vis_file() && copy.vis_file());
         let opened = App::new(Some(file.clone()));
         assert_eq!(opened.state.project.channels[0].sample_path.as_deref(), Some(copy.to_string_lossy().as_ref()));
         assert_eq!(opened.state.project.data_folder, Some(DataFolder { choice: DataFolder::NONE, folder: df::folder_text(&folder) }));
@@ -525,8 +525,8 @@ mod tests {
     fn names_refusals_and_information() {
         let dir = scratch("names");
         let root = dir.join("Projects");
-        std::fs::create_dir_all(&root).unwrap();
-        std::fs::write(root.join("Taken.lemon"), b"x").unwrap();
+        os_web::fs::create_dir_all(&root).unwrap();
+        os_web::fs::write(root.join("Taken.lemon"), b"x").unwrap();
         let mut app = App::new(None);
         app.open_save_form(None);
         type_text(&mut app, "a/b");
@@ -571,7 +571,7 @@ mod tests {
         let dir = scratch("skip");
         let mut app = App::new(None);
         let picked = dir.join("elsewhere");
-        std::fs::create_dir_all(&picked).unwrap();
+        os_web::fs::create_dir_all(&picked).unwrap();
         app.open_save_form(None);
         crate::dialog::fake::answer(Some(picked.clone()));
         click(&mut app, FHit::Folder);
@@ -687,3 +687,6 @@ mod tests {
         done(&dir);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

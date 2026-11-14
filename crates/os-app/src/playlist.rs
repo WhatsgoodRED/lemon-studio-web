@@ -2395,12 +2395,12 @@ pub fn make_unique_sample(s: &mut State, i: usize) -> String {
     let want = (os_engine::laws::tick_to_frame(f64::from(c.length), p.ppq, p.tick_tempo(s.tempo), rate) as usize) * 2;
     audio.resize(want.max(2), 0.0);
     let dir = s.path.as_ref().and_then(|p| p.parent()).map(|d| d.join("Rendered")).unwrap_or_else(|| std::env::temp_dir().join("Lemon Studio").join("Rendered"));
-    if let Err(e) = std::fs::create_dir_all(&dir) {
+    if let Err(e) = os_web::fs::create_dir_all(&dir) {
         return format!("Make unique as sample: {e}");
     }
     let base: String = crate::rack::channel_name(s, row).chars().map(|c| if r#"<>:"/\|?*"#.contains(c) { '_' } else { c }).collect();
-    let file = (1..).map(|k| dir.join(if k == 1 { format!("{base} (unique).wav") } else { format!("{base} (unique {k}).wav") })).find(|f| !f.exists()).expect("unbounded");
-    let written = std::fs::File::create(&file).and_then(|f| {
+    let file = (1..).map(|k| dir.join(if k == 1 { format!("{base} (unique).wav") } else { format!("{base} (unique {k}).wav") })).find(|f| !f.vexists()).expect("unbounded");
+    let written = os_web::fs::File::create(&file).and_then(|f| {
         let mut w = std::io::BufWriter::new(f);
         os_engine::wav::write_f32_stereo(&mut w, rate, &audio)
     });
@@ -3139,7 +3139,7 @@ fn edit_sample(app: &mut App, row: usize) -> Option<String> {
     let file = std::path::PathBuf::from(crate::plugins::resolve_sample(&path));
     let name = file.file_name().map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
     // A WAV keeps its own sample format; other files are decoded as the engine plays them.
-    let sample = match std::fs::read(&file).map_err(|e| e.to_string()).and_then(|b| tesla::wav::read(&b)) {
+    let sample = match os_web::fs::read(&file).map_err(|e| e.to_string()).and_then(|b| tesla::wav::read(&b)) {
         Ok(s) => s,
         Err(_) => match os_engine::sample::load(&file) {
             Ok(s) => tesla::sample::Sample::from_channels(s.rate, vec![s.left, s.right], tesla::sample::Format::Float32),
@@ -5613,7 +5613,7 @@ pub fn export_tracks(app: &mut App) -> String {
     todo.reverse(); // popped from the end: the first track first
     let stem = s.path.as_ref().and_then(|p| p.file_stem()).map_or_else(|| "Untitled".to_string(), |n| n.to_string_lossy().into_owned());
     let dir = render_dir(s).join(format!("{stem} tracks"));
-    if let Err(e) = std::fs::create_dir_all(&dir) {
+    if let Err(e) = os_web::fs::create_dir_all(&dir) {
         return format!("Export tracks: {e}");
     }
     app.playlist_render = Some(Render::Tracks { todo, audible, end, dir, written: 0 });
@@ -5691,10 +5691,10 @@ pub fn consolidate(app: &mut App) -> String {
         }
     }
     let dir = render_dir(s);
-    if let Err(e) = std::fs::create_dir_all(&dir) {
+    if let Err(e) = os_web::fs::create_dir_all(&dir) {
         return format!("Consolidate: {e}");
     }
-    let n = std::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0) + 1;
+    let n = os_web::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0) + 1;
     let job = render_job(s, &dir, &format!("Consolidated {n}"), b - a);
     let track = free_track(s, track_after_used(s), a, b);
     app.playlist_render = Some(Render::Consolidate { a, b, used: use_idx, track });
@@ -6233,10 +6233,10 @@ mod tests {
         let ch = app.state.project.channels[0].index;
         assert!(!entry(&pick_menu(&app.state, ch, 0.0, 0.0), "Edit sample...").enabled, "no sample");
         let dir = std::env::temp_dir().join(format!("ls_edit_sample_{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("Tone.wav");
         let tone = tesla::sample::Sample::from_channels(44100, vec![vec![0.25; 4410], vec![-0.25; 4410]], tesla::sample::Format::Int16);
-        std::fs::write(&file, tesla::wav::write(&tone, tesla::wav::Depth::Own)).unwrap();
+        os_web::fs::write(&file, tesla::wav::write(&tone, tesla::wav::Depth::Own)).unwrap();
         app.state.project.channels[0].sample_path = Some(file.to_string_lossy().into_owned());
         let it = entry(&pick_menu(&app.state, ch, 0.0, 0.0), "Edit sample...").clone();
         assert!(it.enabled);
@@ -6248,7 +6248,7 @@ mod tests {
         assert_eq!((saved.sample.frames(), saved.sample.rate), (4410, 44100));
         assert_eq!(std::path::PathBuf::from(&saved.path), file);
         assert_eq!(app.state.project.channels[0].sample_path.as_deref(), Some(file.to_string_lossy().as_ref()), "the channel keeps its sample");
-        let _ = std::fs::remove_dir_all(dir);
+        let _ = os_web::fs::remove_dir_all(dir);
     }
 
     /// A channel's plugin window menu: Piano roll, Delete..., Rename, color and icon..., Change color... and Random
@@ -6405,3 +6405,6 @@ mod tests {
         assert!(crate::mixer::track(&app.state, t).unwrap().slot_cpu.iter().all(|c| c.threaded));
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

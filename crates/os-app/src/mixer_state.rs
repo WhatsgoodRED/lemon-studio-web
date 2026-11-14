@@ -146,7 +146,7 @@ pub fn dir() -> Option<PathBuf> {
 /// The saved states, by name.
 pub fn list() -> Vec<(String, PathBuf)> {
     let Some(d) = dir() else { return Vec::new() };
-    let mut v: Vec<(String, PathBuf)> = std::fs::read_dir(d)
+    let mut v: Vec<(String, PathBuf)> = os_web::fs::read_dir(d)
         .into_iter()
         .flatten()
         .flatten()
@@ -161,17 +161,17 @@ pub fn list() -> Vec<(String, PathBuf)> {
 /// Writes `st` as "<name>.lemontrack", with a number after the name when one of that name exists.
 pub fn save(st: &TrackState, name: &str) -> Result<PathBuf, String> {
     let d = dir().ok_or("no user folder")?;
-    std::fs::create_dir_all(&d).map_err(|e| e.to_string())?;
+    os_web::fs::create_dir_all(&d).map_err(|e| e.to_string())?;
     let clean: String = name.chars().map(|c| if r#"\/:*?"<>|"#.contains(c) { '_' } else { c }).collect();
-    let free = |p: &Path| !p.exists();
+    let free = |p: &Path| !p.vexists();
     let path = (1..).map(|i| d.join(if i == 1 { format!("{clean}.{EXT}") } else { format!("{clean} {i}.{EXT}") })).find(|p| free(p)).unwrap();
-    std::fs::write(&path, st.to_json()).map_err(|e| e.to_string())?;
+    os_web::fs::write(&path, st.to_json()).map_err(|e| e.to_string())?;
     Ok(path)
 }
 
 /// Reads the state in `path`.
 pub fn load(path: &Path) -> Option<TrackState> {
-    TrackState::from_json(&std::fs::read_to_string(path).ok()?)
+    TrackState::from_json(&os_web::fs::read_to_string(path).ok()?)
 }
 
 #[cfg(test)]
@@ -196,3 +196,6 @@ mod tests {
         assert_eq!(other.index, 5, "the track keeps its place");
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

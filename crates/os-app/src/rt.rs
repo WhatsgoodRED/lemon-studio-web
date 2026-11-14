@@ -205,9 +205,9 @@ fn demote(t: i32, normal: &libc::sched_param) {
 
 /// Thread `tid`'s waits so far (its voluntary context switches) and its CPU time in ns, from `/proc`.
 fn waits_and_cpu(tid: i32) -> Option<(u64, u64)> {
-    let status = std::fs::read_to_string(format!("/proc/self/task/{tid}/status")).ok()?;
+    let status = os_web::fs::read_to_string(format!("/proc/self/task/{tid}/status")).ok()?;
     let waits = status.lines().find_map(|l| l.strip_prefix("voluntary_ctxt_switches:"))?.trim().parse().ok()?;
-    let sched = std::fs::read_to_string(format!("/proc/self/task/{tid}/schedstat")).ok()?;
+    let sched = os_web::fs::read_to_string(format!("/proc/self/task/{tid}/schedstat")).ok()?;
     let cpu = sched.split_whitespace().next()?.parse().ok()?;
     Some((waits, cpu))
 }

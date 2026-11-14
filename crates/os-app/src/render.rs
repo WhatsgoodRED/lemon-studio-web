@@ -164,7 +164,7 @@ pub fn render(o: &Opts) -> Result<(), String> {
         }
     }
     drop(e);
-    let written = std::fs::File::create(&o.out).and_then(|file| {
+    let written = os_web::fs::File::create(&o.out).and_then(|file| {
         let mut w = std::io::BufWriter::new(file);
         os_engine::wav::write_f32_stereo(&mut w, o.rate, &audio)?;
         std::io::Write::flush(&mut w)
@@ -254,16 +254,16 @@ mod tests {
     #[test]
     fn renders_a_project_file() {
         let dir = std::env::temp_dir().join(format!("lemon-render-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::create_dir_all(&dir).unwrap();
         let (flp, out) = (dir.join("song.flp"), dir.join("song.wav"));
         let file = os_flp::project::create(&crate::app::test_project()).expect("create");
-        std::fs::write(&flp, file.to_bytes().expect("bytes")).unwrap();
+        os_web::fs::write(&flp, file.to_bytes().expect("bytes")).unwrap();
         let o = Opts { hosted: Hosted::Builtin, seconds: Some(2.0), ..Opts::new(flp, out.clone()) };
         render(&o).expect("render");
-        let wav = std::fs::read(&out).unwrap();
+        let wav = os_web::fs::read(&out).unwrap();
         assert_eq!(&wav[..4], b"RIFF");
         assert!(wav.len() > 44, "the file holds audio");
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// A Lemon Sampler channel on a short sample with a sustain loop (a single-cycle wave, as MicrO_5.wav) and no
@@ -273,7 +273,7 @@ mod tests {
     fn a_looping_sample_stops_at_its_notes_end() {
         use os_model::{Arrangement, Clip, ClipSource, Note, Pattern};
         let dir = std::env::temp_dir().join(format!("lemon-render-loop-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::create_dir_all(&dir).unwrap();
         let (flp, out, sample) = (dir.join("loop.flp"), dir.join("loop.wav"), dir.join("cycle.wav"));
         // 550 frames of 16-bit mono at 44.1 kHz with a `smpl` loop over the whole file.
         let frames = 550u32;
@@ -302,7 +302,7 @@ mod tests {
         let mut wav = b"RIFF".to_vec();
         wav.extend((b.len() as u32).to_le_bytes());
         wav.extend(b);
-        std::fs::write(&sample, wav).unwrap();
+        os_web::fs::write(&sample, wav).unwrap();
 
         let mut p = crate::app::test_project();
         p.channels.truncate(1);
@@ -311,16 +311,16 @@ mod tests {
         p.patterns = vec![Pattern { number: 1, notes: vec![Note { length: 96, key: 60, ..Note::step(0, 0) }], ..Pattern::default() }];
         p.arrangements = vec![Arrangement { number: 1, clips: vec![Clip::new(0, 384, 0, ClipSource::Pattern(1))], ..Default::default() }];
         let file = os_flp::project::create(&p).expect("create");
-        std::fs::write(&flp, file.to_bytes().expect("bytes")).unwrap();
+        os_web::fs::write(&flp, file.to_bytes().expect("bytes")).unwrap();
         render(&Opts { hosted: Hosted::Builtin, seconds: Some(1.5), ..Opts::new(flp, out.clone()) }).expect("render");
 
-        let wav = std::fs::read(&out).unwrap();
+        let wav = os_web::fs::read(&out).unwrap();
         let at = wav.windows(4).position(|w| w == b"data").expect("data chunk") + 8;
         let audio: Vec<f32> = wav[at..].chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect();
         let peak = |from: f64, to: f64| audio[(from * 44100.0) as usize * 2..(to * 44100.0) as usize * 2].iter().fold(0.0f32, |m, v| m.max(v.abs()));
         // The sample alone lasts 12 ms: still sounding at 0.3 s is the loop.
         assert!(peak(0.25, 0.4) > 0.05, "the loop plays for the note: {}", peak(0.25, 0.4));
         assert!(peak(0.7, 1.4) < 1e-4, "quiet after the note's end: {}", peak(0.7, 1.4));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }

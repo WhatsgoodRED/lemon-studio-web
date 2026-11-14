@@ -358,7 +358,7 @@ fn clients_connect_over_a_local_socket() {
     let mut a = app();
     a.listen(server::start(path.to_str().unwrap(), Level::Edit, || {}).unwrap());
     use std::os::unix::fs::PermissionsExt;
-    assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600, "this user only");
+    assert_eq!(os_web::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600, "this user only");
     let s = std::os::unix::net::UnixStream::connect(&path).unwrap();
     let mut w = s.try_clone().unwrap();
     let mut r = BufReader::new(s);
@@ -386,7 +386,7 @@ fn clients_connect_over_a_local_socket() {
     assert_eq!(a.state.tempo, 111.0);
     let h = &a.state.history;
     assert_eq!(h.entries().into_iter().find(|e| e.0 == h.at()).map(|e| e.1.to_string()).as_deref(), Some("Socket: tempo"), "the client's name stays with its connection");
-    let _ = std::fs::remove_file(&path);
+    let _ = os_web::fs::remove_file(&path);
 }
 
 #[test]
@@ -410,16 +410,16 @@ fn saving_asks_the_user_unless_headless() {
     let mut c = rpc::Client { name: "Helper".into(), level: Level::Edit, saves: false, token: None };
     a.state.dialogs.clear();
     let r = a.rpc(&mut c, "save", &json!({"path": path})).ok().unwrap();
-    assert!(r.get("asked").is_some() && !path.exists() && a.state.dialogs.len() == 1, "{r}");
+    assert!(r.get("asked").is_some() && !path.vexists() && a.state.dialogs.len() == 1, "{r}");
     a.dialog_done(crate::dialog::Then::ClientSave(path.clone()), crate::dialog::Reply::Button(crate::dialog::Answer::Yes));
-    assert!(path.exists(), "saved once the user said yes");
-    let _ = std::fs::remove_file(&path);
+    assert!(path.vexists(), "saved once the user said yes");
+    let _ = os_web::fs::remove_file(&path);
     let mut c = rpc::Client { name: "Script".into(), level: Level::Edit, saves: true, token: None };
     let r = a.rpc(&mut c, "save", &json!({"path": path})).ok().unwrap();
     assert_eq!(r["saved"], json!(path.display().to_string()));
-    let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+    let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
     assert_eq!(saved.channels.len(), a.state.project.channels.len());
-    let _ = std::fs::remove_file(&path);
+    let _ = os_web::fs::remove_file(&path);
 }
 
 #[test]
@@ -591,10 +591,10 @@ fn a_deleted_channel_s_instrument_comes_back_with_an_undo() {
 #[test]
 fn a_file_in_the_socket_s_place_is_left_alone() {
     let path = std::env::temp_dir().join(format!("lemon-control-file-{}.flp", std::process::id()));
-    std::fs::write(&path, b"a project").unwrap();
+    os_web::fs::write(&path, b"a project").unwrap();
     assert!(server::start(path.to_str().unwrap(), Level::Edit, || {}).is_err());
-    assert_eq!(std::fs::read(&path).unwrap(), b"a project");
-    let _ = std::fs::remove_file(&path);
+    assert_eq!(os_web::fs::read(&path).unwrap(), b"a project");
+    let _ = os_web::fs::remove_file(&path);
 }
 
 #[test]
@@ -875,7 +875,7 @@ fn preset_loads_are_undo_steps() {
     a.state.project.channels[0].name = Some("808 Snare".into());
     a.params_tick();
     let dir = std::env::temp_dir().join(format!("os-preset-undo-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    os_web::fs::create_dir_all(&dir).unwrap();
     let header = Header { plugin: desc.name.clone(), id: desc.uid(), format: desc.format.as_str().into(), body: String::new() };
     let preset = |name: &str, v: [f64; 2]| {
         let p = dir.join(format!("{name}.ospreset"));
@@ -949,7 +949,7 @@ fn preset_loads_are_undo_steps() {
     a.plugins.preset_waits.push((1, dark.clone(), web_time::Instant::now()));
     crate::presets::pending_tick(&mut a);
     assert_eq!((a.state.history.at(), knob.lock().unwrap().value), (steps, [0.1, 0.9]));
-    let _ = std::fs::remove_dir_all(&dir);
+    let _ = os_web::fs::remove_dir_all(&dir);
 }
 
 /// The interface edits the audit of 2026-10-28 found without an undo step have one now; a drag or a run of wheel
@@ -1037,3 +1037,6 @@ fn a_hosted_slots_scaling_and_help() {
     a.plugins.hosted.clear();
     assert!(!scaling(&a).enabled);
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

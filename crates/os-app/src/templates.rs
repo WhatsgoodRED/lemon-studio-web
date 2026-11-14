@@ -52,13 +52,13 @@ pub(crate) fn file_in(root: &Path, cat: &str, name: &str) -> PathBuf {
     let dir = root.join(cat).join(name);
     let lemon = dir.join(format!("{name}.{}", crate::project_files::EXT));
     let flp = dir.join(format!("{name}.flp"));
-    if !lemon.is_file() && flp.is_file() { flp } else { lemon }
+    if !lemon.vis_file() && flp.vis_file() { flp } else { lemon }
 }
 
 /// The folders in `dir`, by name, sorted without regard to case.
 fn folders(dir: &Path) -> Vec<String> {
-    let mut v: Vec<String> = std::fs::read_dir(dir)
-        .map(|r| r.flatten().filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().into_string().ok()).collect())
+    let mut v: Vec<String> = os_web::fs::read_dir(dir)
+        .map(|r| r.flatten().filter(|e| e.path().vis_dir()).filter_map(|e| e.file_name().into_string().ok()).collect())
         .unwrap_or_default();
     v.sort_by_key(|n| n.to_lowercase());
     v
@@ -70,7 +70,7 @@ pub fn scan(root: &Path) -> Vec<Category> {
     folders(root)
         .into_iter()
         .filter_map(|cat| {
-            let templates: Vec<String> = folders(&root.join(&cat)).into_iter().filter(|t| file_in(root, &cat, t).is_file()).collect();
+            let templates: Vec<String> = folders(&root.join(&cat)).into_iter().filter(|t| file_in(root, &cat, t).vis_file()).collect();
             (!templates.is_empty()).then_some(Category { name: cat, templates })
         })
         .collect()
@@ -85,7 +85,7 @@ fn picked() -> String {
 pub fn file() -> Option<PathBuf> {
     let pick = picked();
     let (cat, name) = pick.split_once('/')?;
-    Some(file_in(&root()?, cat, name)).filter(|f| f.is_file())
+    Some(file_in(&root()?, cat, name)).filter(|f| f.vis_file())
 }
 
 /// The Default template as the FILE menu ("New (<name>)") and the settings page show it: the template's name, or
@@ -184,7 +184,7 @@ impl App {
             return;
         }
         if choice == 2 {
-            if let Some(p) = last_project().filter(|p| p.is_file()) {
+            if let Some(p) = last_project().filter(|p| p.vis_file()) {
                 self.open(p.clone());
                 if self.state.path.as_deref() == Some(p.as_path()) {
                     return;
@@ -207,20 +207,20 @@ mod tests {
     /// templates.
     fn templates(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("os_templates_{tag}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         for (cat, name) in [("Minimal", "Basic with limiter"), ("Utility", "Scoring")] {
             let mut a = App::new(None);
             a.state.tempo = 140.0;
             let ch = a.state.project.channels[0].clone();
             a.state.project.channels.push(ch);
             let at = dir.join(cat).join(name);
-            std::fs::create_dir_all(&at).unwrap();
+            os_web::fs::create_dir_all(&at).unwrap();
             a.save_to(at.join(format!("{name}.flp")));
             assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
         }
-        std::fs::create_dir_all(dir.join("Other").join("No file")).unwrap();
-        std::fs::create_dir_all(dir.join("Minimal").join("Wrong name")).unwrap();
-        std::fs::write(dir.join("Minimal").join("Wrong name").join("Other.flp"), b"x").unwrap();
+        os_web::fs::create_dir_all(dir.join("Other").join("No file")).unwrap();
+        os_web::fs::create_dir_all(dir.join("Minimal").join("Wrong name")).unwrap();
+        os_web::fs::write(dir.join("Minimal").join("Wrong name").join("Other.flp"), b"x").unwrap();
         TEST_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         // Saving those made them the last used project: start this test without one.
         restore_last(None);
@@ -276,7 +276,7 @@ mod tests {
             });
             assert_eq!(shown.as_deref(), Some("Basic with limiter"));
         }
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// FILE ▸ New opens the picked template as an untitled project, which is not the last used project; Empty, or a
@@ -300,18 +300,18 @@ mod tests {
         assert_eq!(w.spent, 0.0);
         // Saved where asked, it becomes that file; the template stays as it was.
         let saved = dir.join("Song.flp");
-        let before = std::fs::read(file().unwrap()).unwrap();
+        let before = os_web::fs::read(file().unwrap()).unwrap();
         app.save_to(saved.clone());
         assert_eq!(app.state.path.as_deref(), Some(saved.as_path()));
-        assert_eq!(std::fs::read(file().unwrap()).unwrap(), before);
+        assert_eq!(os_web::fs::read(file().unwrap()).unwrap(), before);
         assert_eq!(last_project(), Some(std::path::absolute(&saved).unwrap()));
         // The template's file gone: Empty.
-        std::fs::remove_dir_all(dir.join("Minimal")).unwrap();
+        os_web::fs::remove_dir_all(dir.join("Minimal")).unwrap();
         assert_eq!(name(), "Empty");
         app.menu_item(0, crate::views::menus::FILE_NEW);
         assert_eq!((app.state.tempo, app.state.project.channels.len(), app.state.file.is_none()), (130.0, 1, true));
         assert_eq!(app.state.message.as_deref(), Some("New project"));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The Startup project: exactly FL's three choices, Default template by default; the last used project is the file
@@ -345,18 +345,21 @@ mod tests {
         assert_eq!((a.state.tempo, a.state.path.as_deref()), (111.0, Some(std::path::absolute(&song).unwrap().as_path())));
         // Opening another file makes it the last used project.
         let other = dir.join("Other.flp");
-        std::fs::copy(&song, &other).unwrap();
+        os_web::fs::copy(&song, &other).unwrap();
         a.open(other.clone());
         assert_eq!(last_project(), Some(std::path::absolute(&other).unwrap()));
         // Gone, or not a project: the default template.
-        std::fs::remove_file(&other).unwrap();
+        os_web::fs::remove_file(&other).unwrap();
         let mut a = App::new(None);
         a.startup_project();
         assert_eq!((a.state.tempo, a.state.path.clone()), (140.0, None));
-        std::fs::write(&other, b"not a project").unwrap();
+        os_web::fs::write(&other, b"not a project").unwrap();
         let mut a = App::new(None);
         a.startup_project();
         assert_eq!((a.state.tempo, a.state.path.clone()), (140.0, None));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

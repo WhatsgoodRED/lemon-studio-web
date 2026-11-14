@@ -2042,6 +2042,7 @@ dependencies = [
  "os-plugkit",
  "os-theme",
  "os-ui",
+ "os-web",
  "rfd",
  "serde_json",
  "tiny-skia",
@@ -2181,6 +2182,7 @@ dependencies = [
  "os-plugkit",
  "os-theme",
  "os-ui",
+ "os-web",
  "rfd",
  "serde_json",
  "tiny-skia",
@@ -3173,6 +3175,7 @@ version = "0.0.1"
 dependencies = [
  "chrono",
  "os-model",
+ "os-web",
  "thiserror 2.0.21",
 ]
 

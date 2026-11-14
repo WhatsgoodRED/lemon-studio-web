@@ -137,7 +137,7 @@ pub fn stamp(s: &State, proj: &mut Project) {
 /// counts: a project from another computer, whose specified folder is not on this one, backs up to the global folder
 /// (Lemon Studio rule). Tests: only data folders in the system's temporary folder.
 pub fn backup_folder(s: &State, path: Option<&Path>) -> Option<PathBuf> {
-    let dir = resolve(&s.project, path).filter(|d| d.is_dir());
+    let dir = resolve(&s.project, path).filter(|d| d.vis_dir());
     #[cfg(test)]
     let dir = dir.filter(|d| d.starts_with(std::env::temp_dir()));
     match dir {
@@ -150,12 +150,12 @@ pub fn backup_folder(s: &State, path: Option<&Path>) -> Option<PathBuf> {
 /// of its name and size there is used as it is (the sample itself, or a copy made before); a different file of that
 /// name gives `name (2).ext`, `name (3).ext`, and so on. Returns the place and whether a copy must be made there.
 pub fn copy_target(src: &Path, samples: &Path) -> Option<(PathBuf, bool)> {
-    let size = std::fs::metadata(src).ok().filter(|m| m.is_file())?.len();
+    let size = os_web::fs::metadata(src).ok().filter(|m| m.is_file())?.len();
     let stem = src.file_stem()?.to_string_lossy().into_owned();
     let ext = src.extension().map_or_else(String::new, |e| format!(".{}", e.to_string_lossy()));
     for n in 1u32.. {
         let to = if n == 1 { samples.join(src.file_name()?) } else { samples.join(format!("{stem} ({n}){ext}")) };
-        match std::fs::metadata(&to) {
+        match os_web::fs::metadata(&to) {
             Ok(m) if m.is_file() && m.len() == size => return Some((to, false)),
             Ok(_) => continue,
             Err(_) => return Some((to, true)),
@@ -166,8 +166,12 @@ pub fn copy_target(src: &Path, samples: &Path) -> Option<(PathBuf, bool)> {
 
 /// Copies `src` to `to`, which keeps the original's file times (spec: ui/data-folder.md §4).
 pub fn copy_keeping_times(src: &Path, to: &Path) -> std::io::Result<()> {
-    std::fs::copy(src, to)?;
-    let m = std::fs::metadata(src)?;
+    os_web::fs::copy(src, to)?;
+    // The web build's files keep no times of their own.
+    #[cfg(target_arch = "wasm32")]
+    return Ok(());
+    #[allow(unreachable_code)]
+    let m = os_web::fs::metadata(src)?;
     let mut times = std::fs::FileTimes::new();
     if let Ok(t) = m.modified() {
         times = times.set_modified(t);
@@ -180,7 +184,7 @@ pub fn copy_keeping_times(src: &Path, to: &Path) -> std::io::Result<()> {
         use std::os::windows::fs::FileTimesExt;
         times = times.set_created(t);
     }
-    std::fs::OpenOptions::new().write(true).open(to)?.set_times(times)
+    os_web::fs::OpenOptions::new().write(true).open(to)?.set_times(times)
 }
 
 /// Copies sample `src` into `<dir>/Samples` (`copy_target`): where the channel finds it now.
@@ -188,7 +192,7 @@ pub fn copy_sample(src: &Path, dir: &Path) -> std::io::Result<PathBuf> {
     let samples = dir.join(SAMPLES_DIR);
     let Some((to, copy)) = copy_target(src, &samples) else { return Err(std::io::ErrorKind::NotFound.into()) };
     if copy {
-        std::fs::create_dir_all(&samples)?;
+        os_web::fs::create_dir_all(&samples)?;
         copy_keeping_times(src, &to)?;
     }
     Ok(to)
@@ -278,7 +282,7 @@ impl App {
     /// ui/data-folder.md §5).
     pub(crate) fn data_folder_pick(&mut self) {
         use crate::filedlg::{FileDlg, Mode};
-        let start = folder(&self.state).filter(|d| d.is_dir());
+        let start = folder(&self.state).filter(|d| d.vis_dir());
         let dlg = FileDlg::new(Mode::Folder, PICK_TITLE, "data folder", Then::DataFolder(DThen::Picked)).start(start.as_deref());
         self.file_dialog(dlg);
     }
@@ -352,18 +356,18 @@ impl App {
         };
         let target = file_after.with_file_name(format!("{}.{}", name.trim(), file.extension().map_or_else(|| crate::project_files::EXT.to_string(), |e| e.to_string_lossy().into_owned())));
         // Both names are checked before anything is renamed (the file's new name where the file is now).
-        if let Some((_, new)) = folder_move.as_ref().filter(|(_, new)| new.exists()) {
+        if let Some((_, new)) = folder_move.as_ref().filter(|(_, new)| new.vexists()) {
             return self.rename_refused(new);
         }
         let target_now = match &folder_move {
             Some((old, new)) => target.strip_prefix(new).map_or_else(|_| target.clone(), |rel| old.join(rel)),
             None => target.clone(),
         };
-        if target_now != file && target_now.exists() {
+        if target_now != file && target_now.vexists() {
             return self.rename_refused(&target_now);
         }
         if let Some((old, new)) = &folder_move {
-            if let Err(e) = std::fs::rename(old, new) {
+            if let Err(e) = os_web::fs::rename(old, new) {
                 return self.rename_failed(old, &e);
             }
             self.state.path = Some(file_after.clone());
@@ -384,7 +388,7 @@ impl App {
             }
         }
         if target != file_after {
-            if let Err(e) = std::fs::rename(&file_after, &target) {
+            if let Err(e) = os_web::fs::rename(&file_after, &target) {
                 return self.rename_failed(&file_after, &e);
             }
             self.state.path = Some(target.clone());
@@ -445,8 +449,8 @@ mod tests {
     /// A fresh scratch folder for one test (removed again by the caller).
     pub(crate) fn scratch(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("os_datafolder_{tag}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         dir
     }
 
@@ -498,8 +502,8 @@ mod tests {
         assert_eq!(opened.state.project.data_folder, Some(DataFolder { choice: DataFolder::RELATIVE, folder: folder_text(&dir) }));
         // A copy elsewhere still names `dir` in 202: opened, its data folder is its own folder; saved, 202 follows.
         let other = dir.join("moved");
-        std::fs::create_dir_all(&other).unwrap();
-        std::fs::copy(&song, other.join("song.flp")).unwrap();
+        os_web::fs::create_dir_all(&other).unwrap();
+        os_web::fs::copy(&song, other.join("song.flp")).unwrap();
         let mut moved = App::new(Some(other.join("song.flp")));
         assert_eq!(folder(&moved.state), Some(other.clone()));
         moved.save_to(other.join("song.flp"));
@@ -511,7 +515,7 @@ mod tests {
         moved.set_data_folder_choice(DataFolder::NONE);
         assert_eq!(moved.state.project.data_folder, Some(DataFolder::default()));
         assert_eq!(path_text(&moved.state), NONE_TEXT);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// With a data folder and Location's "project data folder" (the default), a save first copies the file it replaces
@@ -523,12 +527,12 @@ mod tests {
         let global = dir.join("global");
         crate::backup::TEST_DIR.with(|d| *d.borrow_mut() = Some(global.clone()));
         let work = dir.join("work");
-        std::fs::create_dir_all(&work).unwrap();
+        os_web::fs::create_dir_all(&work).unwrap();
         let mut app = App::new(None);
         app.save_to(work.join("t.flp"));
         app.state.tempo = 99.0;
         app.save_to(work.join("t.flp"));
-        let count = |d: &Path| std::fs::read_dir(d).map(|r| r.count()).unwrap_or(0);
+        let count = |d: &Path| os_web::fs::read_dir(d).map(|r| r.count()).unwrap_or(0);
         assert_eq!((count(&global), count(&work.join(BACKUP_DIR))), (1, 0), "no data folder: the global folder");
         app.set_data_folder_choice(DataFolder::RELATIVE);
         app.state.tempo = 98.0;
@@ -543,7 +547,7 @@ mod tests {
         app.state.project.data_folder = Some(DataFolder { choice: DataFolder::SPECIFIED, folder: folder_text(&dir.join("gone")) });
         assert_eq!(backup_folder(&app.state, path.as_deref()), Some(global.clone()));
         crate::backup::TEST_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     fn hit(app: &App, a: &Action) -> Option<os_ui::Rect> {
@@ -592,20 +596,20 @@ mod tests {
         assert_eq!(app.hits.iter().rev().find(|h| h.rect == r).unwrap().hint, RENAME_HINT);
         let copy = app.hits.iter().find(|h| h.action == Action::Settings(SAct::Check(crate::prefs::COPY_USED_SAMPLES.label))).expect("Copy works");
         assert_eq!(copy.hint, COPY_HINT);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// A file of `n` bytes at `p` (a stand-in sample; nothing reads its sound here).
     fn file(p: &Path, n: usize) {
-        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-        std::fs::write(p, vec![7u8; n]).unwrap();
+        os_web::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        os_web::fs::write(p, vec![7u8; n]).unwrap();
     }
 
     /// A project saved as `<dir>/<name>/<name>.flp` with "relative": its data folder is `<dir>/<name>`.
     fn saved_with_folder(dir: &Path, name: &str) -> App {
         let mut app = App::new(None);
         app.set_data_folder_choice(DataFolder::RELATIVE);
-        std::fs::create_dir_all(dir.join(name)).unwrap();
+        os_web::fs::create_dir_all(dir.join(name)).unwrap();
         app.save_to(dir.join(name).join(format!("{name}.flp")));
         assert_eq!(folder(&app.state), Some(dir.join(name)));
         app
@@ -628,11 +632,11 @@ mod tests {
         let kick = dir.join("a").join("kick.wav");
         file(&kick, 10);
         let old = web_time::SystemTime::UNIX_EPOCH + web_time::Duration::from_secs(1_500_000_000);
-        std::fs::OpenOptions::new().write(true).open(&kick).unwrap().set_modified(old).unwrap();
+        os_web::fs::OpenOptions::new().write(true).open(&kick).unwrap().set_modified(old).unwrap();
         assert_eq!(copy_target(&kick, &samples), Some((samples.join("kick.wav"), true)));
         let to = copy_sample(&kick, &dir.join("df")).unwrap();
         assert_eq!(to, samples.join("kick.wav"));
-        assert_eq!(std::fs::metadata(&to).unwrap().modified().unwrap(), old, "the copy keeps the file time");
+        assert_eq!(os_web::fs::metadata(&to).unwrap().modified().unwrap(), old, "the copy keeps the file time");
         assert_eq!(copy_target(&kick, &samples), Some((samples.join("kick.wav"), false)), "same name and size: used as it is");
         assert_eq!(copy_target(&to, &samples), Some((to.clone(), false)), "a sample already there");
         let other = dir.join("b").join("kick.wav");
@@ -643,7 +647,7 @@ mod tests {
         assert_eq!(copy_target(&third, &samples), Some((samples.join("kick (3).wav"), true)));
         assert_eq!(copy_target(&other, &samples), Some((samples.join("kick (2).wav"), false)));
         assert_eq!(copy_target(&dir.join("missing.wav"), &samples), None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Ticking Copy used samples asks (Attention, Copy to the data folder / Don't copy); Copy copies every sample into
@@ -663,14 +667,14 @@ mod tests {
         app.dialog_click(crate::dialog::DHit::Button(1));
         assert!(app.state.dialogs.is_empty());
         assert!(crate::prefs::check(&crate::prefs::COPY_USED_SAMPLES), "stays ticked");
-        assert!(!dir.join("song").join(SAMPLES_DIR).exists() && !app.unsaved());
+        assert!(!dir.join("song").join(SAMPLES_DIR).vexists() && !app.unsaved());
         // Off, then on again: Copy to the data folder.
         app.toggle_copy_samples();
         assert!(app.state.dialogs.is_empty(), "unticking asks nothing");
         app.toggle_copy_samples();
         app.dialog_click(crate::dialog::DHit::Button(0));
         let copy = dir.join("song").join(SAMPLES_DIR).join("kick.wav");
-        assert!(copy.is_file());
+        assert!(copy.vis_file());
         assert_eq!(app.state.project.channels[0].sample_path.as_deref(), Some(copy.to_string_lossy().as_ref()));
         assert!(app.unsaved(), "a change of the project");
         // The next save writes the new path.
@@ -682,9 +686,9 @@ mod tests {
         file(&snare, 5);
         crate::rack::sample_chosen(&mut app, 0, snare.clone());
         let copy = dir.join("song").join(SAMPLES_DIR).join("snare.wav");
-        assert!(copy.is_file());
+        assert!(copy.vis_file());
         assert_eq!(app.state.project.channels[0].sample_path.as_deref(), Some(copy.to_string_lossy().as_ref()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The folder button: a picker titled "Select a directory", then Attention. Save to the folder saves the project as
@@ -698,7 +702,7 @@ mod tests {
         file(&kick, 12);
         app.state.project.channels[0].sample_path = Some(kick.to_string_lossy().into_owned());
         let picked = dir.join("picked");
-        std::fs::create_dir_all(&picked).unwrap();
+        os_web::fs::create_dir_all(&picked).unwrap();
         // Don't save to the folder.
         crate::dialog::fake::answer(Some(picked.clone()));
         app.data_folder_pick();
@@ -706,11 +710,11 @@ mod tests {
         app.dialog_click(crate::dialog::DHit::Button(1));
         assert_eq!(app.state.project.data_folder, Some(DataFolder { choice: DataFolder::SPECIFIED, folder: folder_text(&picked) }));
         assert_eq!(app.state.path, Some(dir.join("song").join("song.flp")), "nothing saved");
-        assert!(std::fs::read_dir(&picked).unwrap().next().is_none());
+        assert!(os_web::fs::read_dir(&picked).unwrap().next().is_none());
         // Save to the folder, with Copy ticked.
         crate::prefs::set_check(&crate::prefs::COPY_USED_SAMPLES, true);
         let other = dir.join("other");
-        std::fs::create_dir_all(&other).unwrap();
+        os_web::fs::create_dir_all(&other).unwrap();
         crate::dialog::fake::answer(Some(other.clone()));
         app.data_folder_pick();
         app.dialog_click(crate::dialog::DHit::Button(0));
@@ -720,8 +724,8 @@ mod tests {
         assert_eq!(opened.state.project.data_folder, Some(DataFolder { choice: DataFolder::SPECIFIED, folder: folder_text(&other) }));
         let copy = other.join(SAMPLES_DIR).join("kick.wav");
         assert_eq!(opened.state.project.channels[0].sample_path.as_deref(), Some(copy.to_string_lossy().as_ref()));
-        assert!(dir.join("song").join("song.flp").is_file(), "the old file stays");
-        let _ = std::fs::remove_dir_all(&dir);
+        assert!(dir.join("song").join("song.flp").vis_file(), "the old file stays");
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Rename (spec: ui/data-folder.md §6): the form holds the names (the project's selected), Rename asks for
@@ -753,19 +757,19 @@ mod tests {
         assert_eq!(top_msg(&app).map(|m| (m.0, m.1)), Some(("Confirmation".into(), "Are you sure you want to rename this project and its data folder?".into())));
         app.dialog_click(crate::dialog::DHit::Button(0));
         let new = dir.join("T3");
-        assert!(!dir.join("t2spec").exists() && new.join("T3.flp").is_file() && !new.join("t2spec.flp").exists());
+        assert!(!dir.join("t2spec").vexists() && new.join("T3.flp").vis_file() && !new.join("t2spec.flp").vexists());
         assert_eq!(app.state.path, Some(new.join("T3.flp")));
         let moved = new.join(SAMPLES_DIR).join("kick.wav");
         let opened = App::new(Some(new.join("T3.flp")));
         assert_eq!(opened.state.project.channels[0].sample_path.as_deref(), Some(moved.to_string_lossy().as_ref()));
         assert_eq!(opened.state.project.data_folder.unwrap().folder, folder_text(&new), "the save wrote the folder");
-        let backups: Vec<String> = std::fs::read_dir(new.join(BACKUP_DIR)).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        let backups: Vec<String> = os_web::fs::read_dir(new.join(BACKUP_DIR)).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
         assert!(backups.iter().any(|n| n.starts_with("T3 (overwritten on ")), "the replaced file went to Backup: {backups:?}");
         // A folder name that is taken: refused, nothing changes.
-        std::fs::create_dir_all(dir.join("Taken")).unwrap();
+        os_web::fs::create_dir_all(dir.join("Taken")).unwrap();
         app.rename_project("Taken", Some("Taken"));
         assert_eq!(top_msg(&app).map(|m| m.0), Some(Rename::TITLE.to_string()));
-        assert!(new.join("T3.flp").is_file() && app.state.path == Some(new.join("T3.flp")));
+        assert!(new.join("T3.flp").vis_file() && app.state.path == Some(new.join("T3.flp")));
         app.dialog_click(crate::dialog::DHit::Button(0));
         // Unticked: only the file.
         app.open_rename();
@@ -774,7 +778,7 @@ mod tests {
         app.key(&Key::Named(NamedKey::Enter), false, false);
         assert_eq!(top_msg(&app).map(|m| m.1), Some("Are you sure you want to rename this project?".into()));
         app.dialog_click(crate::dialog::DHit::Button(0));
-        assert!(new.join("T4.flp").is_file() && !new.join("T3.flp").exists());
+        assert!(new.join("T4.flp").vis_file() && !new.join("T3.flp").vexists());
         // Cancel and an empty name do nothing.
         app.open_rename();
         app.key(&Key::Named(NamedKey::Backspace), false, false);
@@ -783,8 +787,8 @@ mod tests {
         app.dialog_click(crate::dialog::DHit::Button(0));
         app.key(&Key::Named(NamedKey::Escape), false, false);
         assert!(app.state.dialogs.is_empty());
-        assert!(new.join("T4.flp").is_file());
-        let _ = std::fs::remove_dir_all(&dir);
+        assert!(new.join("T4.flp").vis_file());
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The Rename form is drawn with its parts; its buttons and checks take clicks.
@@ -805,7 +809,7 @@ mod tests {
         let r = hit(&app, &Action::Dlg(DHit::Cancel)).unwrap();
         click(&mut app, &mut c, r);
         assert!(app.state.dialogs.is_empty());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The browser's Current project tree: a Project data entry just before Samples, only while the project has a data
@@ -833,6 +837,9 @@ mod tests {
         let rows = shown(&mut app);
         let inside: Vec<_> = rows.iter().filter(|r| r.key.starts_with(&format!("{key}/"))).map(|r| (r.depth, r.label.clone())).collect();
         assert_eq!(inside, vec![(2, SAMPLES_DIR.to_string()), (3, "kick".to_string()), (2, "song.flp".to_string())]);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

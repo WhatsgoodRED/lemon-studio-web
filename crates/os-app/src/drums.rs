@@ -137,7 +137,7 @@ mod tests {
         f.extend((body.len() as u32).to_le_bytes());
         f.extend(body);
         let p = std::env::temp_dir().join(format!("openstudio-drums-{}-{name}.wav", std::process::id()));
-        std::fs::write(&p, f).unwrap();
+        os_web::fs::write(&p, f).unwrap();
         p
     }
 
@@ -177,7 +177,7 @@ mod tests {
         assert!(p > 0.2 && p < 1.0, "the pad sounds: {p}");
         drop(i);
         assert_eq!(pl.drums_file_state(99), None);
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// An FPC channel added in the app saves a new instance's state; one with a sample saves its bytes, and the
@@ -198,13 +198,13 @@ mod tests {
         a.sync_drums();
         assert!(a.state.hosted_rows.contains(&row));
         a.save_to(file.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&file).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&file).unwrap()).unwrap()).unwrap();
         assert_eq!(saved.channels[row].plugin_state.as_deref(), Some(lemon_drum_sampler::params::default_state().as_slice()));
 
         let fl = state_for(&path);
         assert!(a.plugins.set_state(row, &plugin_state(&fl)));
         a.save_to(file.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&file).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&file).unwrap()).unwrap()).unwrap();
         assert_eq!(saved.channels[row].plugin_state.as_deref(), Some(fl.as_slice()));
         let mut b = App::new(None);
         b.plugins.available = crate::plugins::builtin();
@@ -212,8 +212,8 @@ mod tests {
         b.sync_drums();
         assert!(b.state.hosted_rows.contains(&row), "{:?}", b.state.message);
         assert_eq!(b.plugins.drums_file_state(row), Some(fl.clone()));
-        let _ = std::fs::remove_file(&file);
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(&file);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// FL's own Breakbeat template (when FL 2026 is installed): its two FPC channels open with their pads, every
@@ -221,7 +221,7 @@ mod tests {
     #[test]
     fn the_breakbeat_template_plays_its_kits() {
         let path = std::path::PathBuf::from(r"C:\Program Files\Image-Line\FL Studio 2026\Data\Templates\Advanced\Electronic\Breakbeat.flp");
-        let Some(project) = std::fs::read(&path).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok()) else {
+        let Some(project) = os_web::fs::read(&path).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok()) else {
             return;
         };
         let rows: Vec<usize> = (0..project.channels.len()).filter(|&r| is_fpc(&project.channels[r])).collect();
@@ -239,7 +239,7 @@ mod tests {
             for p in &pads {
                 for (_, l) in p.sounding() {
                     let file = crate::plugins::resolve_sample(&l.path);
-                    assert!(std::path::Path::new(&file).is_file(), "channel {r}: {} -> {file}", l.path);
+                    assert!(std::path::Path::new(&file).vis_file(), "channel {r}: {} -> {file}", l.path);
                 }
             }
             // The first pad whose samples open (Lemon Studio reads none of a WavPack file whose first block is empty,
@@ -257,10 +257,13 @@ mod tests {
         let out = std::env::temp_dir().join(format!("openstudio-drums-breakbeat-{}.flp", std::process::id()));
         let before = a.state.project.clone();
         a.save_to(out.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&out).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&out);
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&out).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&out);
         for &r in &rows {
             assert_eq!(back.channels[r], before.channels[r], "channel {r}");
         }
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

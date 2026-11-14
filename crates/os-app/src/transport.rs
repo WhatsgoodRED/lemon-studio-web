@@ -1295,6 +1295,8 @@ impl Feeder {
             }
         }
         self.voices.store(e.voice_count() as u32, Ordering::Relaxed);
+        #[cfg(target_arch = "wasm32")]
+        web::note(frames, peak);
         // A hosted plugin that missed a tick (busy elsewhere) is heard as a gap: a dropout like an empty block.
         let missed = e.take_missed();
         if missed > 0 {
@@ -1636,6 +1638,86 @@ pub(crate) mod web {
     pub(super) fn start(rx: Receiver<Cmd>, shared: Arc<Shared>, latest: Arc<Mutex<Option<Project>>>, inst: Instruments, library: SampleLibrary) {
         let a = Audio::new(shared, latest, inst, library);
         AUDIO.with(|s| *s.borrow_mut() = Some((rx, a)));
+    }
+
+    thread_local! {
+        static DEBUG: std::cell::Cell<(u64, f32)> = const { std::cell::Cell::new((0, 0.0)) };
+    }
+
+    /// The feeders rendered `frames` frames peaking at `peak` (`lemon_debug`).
+    pub(super) fn note(frames: u64, peak: f32) {
+        DEBUG.with(|d| {
+            let (f, p) = d.get();
+            d.set((f + frames, p.max(peak)));
+        });
+    }
+
+    /// Frames the feeders rendered, their peak, and the transport's state, for the page's checks.
+    #[wasm_bindgen::prelude::wasm_bindgen]
+    pub fn lemon_debug() -> String {
+        let (f, p) = DEBUG.with(|d| d.get());
+        let more = AUDIO.with(|s| {
+            s.try_borrow().ok().and_then(|s| s.as_ref().map(|(_, a)| {
+                let err = a.shared.error.lock().ok().and_then(|e| e.clone()).unwrap_or_default();
+                format!("state={} main={} pre={} underruns={} err={err}", a.shared.state.load(Ordering::Relaxed), a.main.is_some(), a.pre.is_some(), a.shared.underruns.load(Ordering::Relaxed))
+            }))
+        });
+        format!("frames={f} peak={p} {}", more.unwrap_or_default())
+    }
+
+    /// Renders a second of an empty pattern with the metronome on, with the engine alone: its peak (a check of the
+    /// engine in the browser, apart from the app's streams).
+    #[wasm_bindgen::prelude::wasm_bindgen]
+    pub fn lemon_selftest() -> String {
+        let mut p = Project::default();
+        p.mixer = (0..2).map(os_model::MixerTrack::new).collect();
+        let mut lib = SampleLibrary::new(None);
+        let mut e = Engine::new(&p, &mut lib, 48000, PlayMode::Pattern(1));
+        e.set_looping(true);
+        let sw = std::sync::Arc::new(os_engine::metronome::Switch::default());
+        sw.set_on(true);
+        e.set_metronome(sw);
+        let mut out = vec![0.0f32; 2 * 48000];
+        e.process(&mut out);
+        let peak = out.iter().fold(0.0f32, |m, x| m.max(x.abs()));
+        let app = AUDIO.with(|s| {
+            let mut s = s.try_borrow_mut().ok()?;
+            let (_, a) = s.as_mut()?;
+            let p = a.live_project.clone()?;
+            let (ni, fx) = a.inst.lock().map(|h| (h.inst.len(), h.fx.iter().map(|f| (f.0, f.1)).collect::<Vec<_>>())).unwrap_or_default();
+            let mut peaks = Vec::new();
+            for plugins in [false, true] {
+                let mut e = engine(&p, &mut a.library, 48000, PlayMode::Pattern(1), &a.inst, plugins);
+                let sw = std::sync::Arc::new(os_engine::metronome::Switch::default());
+                sw.set_on(true);
+                e.set_metronome(sw);
+                let mut out = vec![0.0f32; 2 * 48000];
+                e.process(&mut out);
+                peaks.push(out.iter().fold(0.0f32, |m, x| m.max(x.abs())));
+            }
+            for variant in 0..2 {
+                let mut e = a.build(&p, PlayMode::Pattern(1), Kind::Song, At::default(), 48000, 1);
+                if variant == 1 {
+                    e.set_metronome(std::sync::Arc::new({ let s = os_engine::metronome::Switch::default(); s.set_on(true); s }));
+                }
+                let mut peak = 0.0f32;
+                let mut n = 0usize;
+                while n < 48000 {
+                    match e.next_tick() {
+                        Some((s, ..)) => {
+                            n += s.len() / 2;
+                            peak = s.iter().fold(peak, |m, x| m.max(x.abs()));
+                        }
+                        None => break,
+                    }
+                }
+                peaks.push(peak);
+                peaks.push(n as f32);
+            }
+            let on = crate::metronome::on();
+            Some(format!("mixer={} inst={ni} fx={fx:?} app-engine peak without/with plugins, build()+switch [peak,frames], build()+own switch={peaks:?} switch_on={on} track={}", p.mixer.len(), crate::metronome::switch().track()))
+        });
+        format!("engine-alone peak={peak} {}", app.unwrap_or_default())
     }
 
     /// Applies the transport's commands sent since the last call, then what follows them (`Audio::after`).
@@ -3229,7 +3311,7 @@ mod tests {
         }
         drop(t);
         assert_eq!(Arc::strong_count(&fx), 1, "the audio thread let go of the effect");
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// An export renders one pass of the pattern (not a loop) on the audio thread, with progress, into a WAV file.
@@ -3252,8 +3334,8 @@ mod tests {
         assert_eq!(t.state(), State::Stopped);
         // One bar at 130 BPM is about 1.85 s; the sampler's ring-out adds a little, a loop would never end.
         assert!(secs > 1.8 && secs < 8.0, "length {secs}");
-        let bytes = std::fs::read(&path).expect("file written");
-        let _ = std::fs::remove_file(&path);
+        let bytes = os_web::fs::read(&path).expect("file written");
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(&bytes[..4], b"RIFF");
         let frames = (bytes.len() - 44) / 8;
         assert!((frames as f64 / 48000.0 - secs).abs() < 0.01, "file holds {frames} frames");
@@ -3561,12 +3643,12 @@ mod tests {
         t.play(&project, PlayMode::Pattern(1), 0.0);
         wait_for(|| t.seconds() >= 0.5);
         std::thread::sleep(Duration::from_millis(300));
-        let threads: Vec<(i32, String, bool)> = std::fs::read_dir("/proc/self/task")
+        let threads: Vec<(i32, String, bool)> = os_web::fs::read_dir("/proc/self/task")
             .unwrap()
             .flatten()
             .filter_map(|e| {
                 let tid: i32 = e.file_name().to_str()?.parse().ok()?;
-                let name = std::fs::read_to_string(e.path().join("comm")).ok()?.trim().to_string();
+                let name = os_web::fs::read_to_string(e.path().join("comm")).ok()?.trim().to_string();
                 Some((tid, name, crate::rt::is_realtime(tid)))
             })
             .collect();

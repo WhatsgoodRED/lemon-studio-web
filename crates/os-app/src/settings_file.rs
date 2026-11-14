@@ -137,17 +137,17 @@ pub(crate) fn set_flag(key: &str, on: bool) {
 
 #[cfg_attr(test, allow(dead_code))]
 fn load() -> Store {
-    os_paths::user_file("settings.txt").and_then(|f| std::fs::read_to_string(f).ok()).map(|t| Store::parse(&t)).unwrap_or_default()
+    os_paths::user_file("settings.txt").and_then(|f| os_web::fs::read_to_string(f).ok()).map(|t| Store::parse(&t)).unwrap_or_default()
 }
 
 /// Writes a whole new file beside the old one and then puts it in its place, so a crash part-way leaves the old file.
 #[cfg_attr(test, allow(dead_code))]
 fn save(s: &Store) {
     if let Some(dir) = os_paths::user_dir() {
-        let _ = std::fs::create_dir_all(&dir);
+        let _ = os_web::fs::create_dir_all(&dir);
         let tmp = dir.join("settings.txt.tmp");
-        if std::fs::write(&tmp, s.text()).is_ok() && std::fs::rename(&tmp, dir.join("settings.txt")).is_err() {
-            let _ = std::fs::remove_file(&tmp);
+        if os_web::fs::write(&tmp, s.text()).is_ok() && os_web::fs::rename(&tmp, dir.join("settings.txt")).is_err() {
+            let _ = os_web::fs::remove_file(&tmp);
         }
     }
 }

@@ -836,7 +836,7 @@ mod tests {
         assert!(a.unsaved(), "a parameter set");
         let copy = std::env::temp_dir().join(format!("lemon-unsaved-copy-{}.flp", std::process::id()));
         assert_eq!(a.save_copy(copy.clone()), Some(Ok(())));
-        let _ = std::fs::remove_file(&copy);
+        let _ = os_web::fs::remove_file(&copy);
         assert!(a.unsaved(), "after a copy");
         a.mark_saved();
         assert!(!a.unsaved(), "saved");
@@ -965,10 +965,10 @@ mod tests {
     #[test]
     fn corpus_eq_automation_points_at_the_same_parameters() {
         let Some(list) = std::env::var_os("OPENSTUDIO_FLP_CORPUS") else { return };
-        let text = std::fs::read_to_string(list).unwrap();
+        let text = os_web::fs::read_to_string(list).unwrap();
         let (mut checked, mut bad) = (0, Vec::new());
         for path in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
-            let Some(project) = std::fs::read(path).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok()) else {
+            let Some(project) = os_web::fs::read(path).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok()) else {
                 continue;
             };
             let eq_slot = |t: u16, k: u8| {

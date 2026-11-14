@@ -63,7 +63,13 @@ fn platform_dir() -> Option<PathBuf> {
     var("XDG_CONFIG_HOME").or_else(|| var("HOME").map(|h| h.join(".config")))
 }
 
-#[cfg(not(any(windows, unix)))]
+/// The web build: the browser's in-memory file system (`os_web::fs`), kept by the page.
+#[cfg(target_arch = "wasm32")]
+fn platform_dir() -> Option<PathBuf> {
+    Some(PathBuf::from("/user"))
+}
+
+#[cfg(not(any(windows, unix, target_arch = "wasm32")))]
 fn platform_dir() -> Option<PathBuf> {
     None
 }

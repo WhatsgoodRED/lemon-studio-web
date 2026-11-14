@@ -56,7 +56,7 @@ impl App {
     pub(crate) fn save_diagnostics(&mut self) {
         let Some(path) = report_path() else { return };
         let text = self.diagnostics();
-        let written = path.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|()| std::fs::write(&path, text));
+        let written = path.parent().map_or(Ok(()), os_web::fs::create_dir_all).and_then(|()| os_web::fs::write(&path, text));
         self.state.message = Some(match written {
             Ok(()) => {
                 crate::help_links::open(&path.to_string_lossy());
@@ -83,10 +83,10 @@ mod tests {
         app.menu_item(HELP_MENU, at);
         let path = super::report_path().unwrap();
         assert_eq!(app.state.message, Some(format!("Saved {}", path.display())));
-        let text = std::fs::read_to_string(&path).unwrap();
+        let text = os_web::fs::read_to_string(&path).unwrap();
         assert!(text.starts_with(&format!("Lemon Studio {}\n", crate::version::staged())), "{text}");
         assert!(text.contains(&format!("System: {} {}", std::env::consts::OS, std::env::consts::ARCH)), "{text}");
         assert!(text.contains("Project: not saved\n  Channels: 5, patterns: 1, mixer tracks: 18"), "{text}");
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 }

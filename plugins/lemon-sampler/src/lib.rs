@@ -131,7 +131,7 @@ pub fn source_bits(path: &Path) -> u32 {
 /// reading its audio. **(Lemon Studio)** Loops are read from WAV files only (not yet from a WavPack file's wrapper).
 pub fn source_info(path: &Path) -> (u32, fx::Source) {
     let mut src = fx::Source::default();
-    let Ok(mut f) = std::fs::File::open(path) else {
+    let Ok(mut f) = os_web::fs::File::open(path) else {
         return (16, src);
     };
     let mut head = Vec::new();
@@ -1008,14 +1008,14 @@ mod tests {
     #[test]
     fn the_file_loop_and_format_are_read() {
         let dir = std::env::temp_dir().join(format!("lemon-sampler-src-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::create_dir_all(&dir).unwrap();
         let p = dir.join("a.wav");
-        std::fs::write(&p, wav(1, 100_001, Some((5, 90_000)))).unwrap();
+        os_web::fs::write(&p, wav(1, 100_001, Some((5, 90_000)))).unwrap();
         assert_eq!(source_info(&p), (16, fx::Source { int16_mono: true, file_loop: Some((5, 90_000)) }));
-        std::fs::write(&p, wav(2, 1000, None)).unwrap();
+        os_web::fs::write(&p, wav(2, 1000, None)).unwrap();
         assert_eq!(source_info(&p), (16, fx::Source { int16_mono: false, file_loop: None }));
         assert_eq!(source_bits(&p), 16);
-        std::fs::remove_dir_all(&dir).ok();
+        os_web::fs::remove_dir_all(&dir).ok();
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -1027,7 +1027,7 @@ mod tests {
     /// A fresh directory for a test's files.
     fn test_dir(tag: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("lemon-sampler-{tag}-{}", std::process::id()));
-        std::fs::create_dir_all(&d).unwrap();
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -1152,7 +1152,7 @@ mod tests {
     fn a_sample_on_disk_plays_as_from_memory() {
         let dir = test_dir("live");
         let p = dir.join("a.wav");
-        std::fs::write(&p, music(300_000, Some((150_000, 250_000)))).unwrap();
+        os_web::fs::write(&p, music(300_000, Some((150_000, 250_000)))).unwrap();
         let notes = [(0, Ev::On(60, 1)), (3, Ev::On(72, 2)), (10, Ev::On(84, 3)), (12, Ev::On(91, 4)), (40, Ev::Off(72)), (60, Ev::On(48, 5))];
         for (start, loop_on) in [(0.0, false), (0.3, true), (0.0, true)] {
             let setup = |p: &SamplerParams| {
@@ -1171,7 +1171,7 @@ mod tests {
             // The voices read from their rings, beyond the frames held.
             assert!(played.disk().frames_read() > 300_000, "{what}: {}", played.disk().frames_read());
         }
-        std::fs::remove_dir_all(&dir).ok();
+        os_web::fs::remove_dir_all(&dir).ok();
     }
 
     // A step that needs the whole file (reverse) or a realtime stretch method keeps the played sample in memory, with
@@ -1180,7 +1180,7 @@ mod tests {
     fn a_reversed_or_stretched_sample_stays_in_memory() {
         let dir = test_dir("ram");
         let p = dir.join("a.wav");
-        std::fs::write(&p, music(100_000, None)).unwrap();
+        os_web::fs::write(&p, music(100_000, None)).unwrap();
         let notes = [(0, Ev::On(60, 1)), (5, Ev::On(67, 2))];
         let reverse = |p: &SamplerParams| set(&p.fx_reverse, 1.0);
         let stretch = |p: &SamplerParams| set(&p.ts_mode, p.ts_mode.preview_normalized(1));
@@ -1191,7 +1191,7 @@ mod tests {
             assert!(disk.engine.disk().is_none() && disk.engine.sample.is_some(), "{what}");
             same(what, &ram.play(&notes, 100), &disk.play(&notes, 100));
         }
-        std::fs::remove_dir_all(&dir).ok();
+        os_web::fs::remove_dir_all(&dir).ok();
     }
 
     // An offline render (voices wait for their frames) is the render from memory, to the bit, with the reader given no
@@ -1200,7 +1200,7 @@ mod tests {
     fn an_offline_render_from_disk_is_the_one_from_memory() {
         let dir = test_dir("offline");
         let p = dir.join("a.wav");
-        std::fs::write(&p, music(200_000, Some((20_000, 180_000)))).unwrap();
+        os_web::fs::write(&p, music(200_000, Some((20_000, 180_000)))).unwrap();
         let notes = [(0, Ev::On(60, 1)), (2, Ev::On(79, 2)), (5, Ev::On(64, 3)), (5, Ev::Later(3, 0.55)), (30, Ev::Off(79))];
         let setup = |p: &SamplerParams| set(&p.start_offset, 0.1);
         let mut ram = Rig::new(&p, false, setup);
@@ -1211,7 +1211,7 @@ mod tests {
         }
         assert!(disk.engine.disk().is_some());
         same("offline", &ram.play(&notes, 200), &disk.play(&notes, 200));
-        std::fs::remove_dir_all(&dir).ok();
+        os_web::fs::remove_dir_all(&dir).ok();
     }
 
     // A note that starts where nothing is held (a trimmed audio clip) has its frames read at once, and its start is
@@ -1220,7 +1220,7 @@ mod tests {
     fn a_clip_start_is_held_once_played() {
         let dir = test_dir("learn");
         let p = dir.join("a.wav");
-        std::fs::write(&p, music(300_000, None)).unwrap();
+        os_web::fs::write(&p, music(300_000, None)).unwrap();
         let notes = [(0, Ev::On(60, 1)), (0, Ev::Later(1, 0.6)), (2, Ev::On(67, 2)), (2, Ev::Later(2, 0.25)), (3, Ev::On(62, 3))];
         let want = Rig::new(&p, false, |_| {}).play(&notes, 100);
         let mut r = Rig::new(&p, true, |_| {});
@@ -1242,7 +1242,7 @@ mod tests {
         set(&r.params.start_offset, 0.5);
         r.update();
         assert_eq!(r.shared.on_disk().unwrap().points(), &[0, 75_000, 150_000, 180_000]);
-        std::fs::remove_dir_all(&dir).ok();
+        os_web::fs::remove_dir_all(&dir).ok();
     }
 
     // A note at a START OFFSET whose frames are not held yet (the knob just moved) asks for them at once, without
@@ -1251,7 +1251,7 @@ mod tests {
     fn a_moved_start_offset_is_read_at_once() {
         let dir = test_dir("offset");
         let p = dir.join("a.wav");
-        std::fs::write(&p, music(200_000, None)).unwrap();
+        os_web::fs::write(&p, music(200_000, None)).unwrap();
         let mut r = Rig::new(&p, true, |_| {});
         let played = r.shared.on_disk().unwrap();
         set(&r.params.start_offset, 0.5);
@@ -1263,7 +1263,7 @@ mod tests {
         assert!(played.missed().is_empty() && !played.news());
         r.update();
         assert_eq!(r.shared.on_disk().unwrap().points(), &[0, 100_000]);
-        std::fs::remove_dir_all(&dir).ok();
+        os_web::fs::remove_dir_all(&dir).ok();
     }
 
     // A long file played from disk holds only the frames around its start points, and a ring per voice, in memory.
@@ -1272,7 +1272,7 @@ mod tests {
         let dir = test_dir("memory");
         let p = dir.join("a.wav");
         let frames = 2_000_000;
-        std::fs::write(&p, music(frames, Some((600_000, 1_900_000)))).unwrap();
+        os_web::fs::write(&p, music(frames, Some((600_000, 1_900_000)))).unwrap();
         let mut r = Rig::new(&p, true, |p| set(&p.start_offset, 0.5));
         let played = r.shared.on_disk().expect("plays from disk");
         assert!(r.shared.raw.lock().unwrap().is_none());
@@ -1287,7 +1287,7 @@ mod tests {
         assert_eq!(played.disk().rings(), 4);
         let bytes = (held + played.disk().rings() * stream::RING) * 2 * std::mem::size_of::<f32>();
         assert!(bytes * 4 < frames as usize * 2 * std::mem::size_of::<f32>(), "{bytes}");
-        std::fs::remove_dir_all(&dir).ok();
+        os_web::fs::remove_dir_all(&dir).ok();
     }
 
     // A voice that ends lets go of its ring; the reader stops once its file is no longer played: Keep on disk turned
@@ -1296,7 +1296,7 @@ mod tests {
     fn the_reader_stops_with_its_voices_and_its_sample() {
         let dir = test_dir("reader");
         let p = dir.join("a.wav");
-        std::fs::write(&p, music(100_000, None)).unwrap();
+        os_web::fs::write(&p, music(100_000, None)).unwrap();
         let mut r = Rig::new(&p, true, |_| {});
         let disk = r.shared.on_disk().unwrap().disk().clone();
         r.play(&[(0, Ev::On(60, 1)), (0, Ev::On(84, 2))], 4);
@@ -1332,6 +1332,6 @@ mod tests {
         let alive = plugin.engine.disk().expect("plays from disk").disk().reader_alive();
         drop(plugin);
         eventually("the reader stops with the plugin", || !alive.load(Ordering::Acquire));
-        std::fs::remove_dir_all(&dir).ok();
+        os_web::fs::remove_dir_all(&dir).ok();
     }
 }

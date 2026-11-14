@@ -259,7 +259,7 @@ mod tests {
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved") && !m.contains("not stored")), "{:?}", a.state.message);
 
-        let file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         let saved = os_flp::project::load(&file).unwrap();
         let ch = &saved.channels[row];
         assert_eq!((ch.kind, ch.plugin.as_deref()), (ChannelKind::Plugin, Some(FILE_NAME)));
@@ -275,8 +275,8 @@ mod tests {
         assert_eq!(b.plugins.osc3_file_state(row), Some(fl.clone()));
         // Saved again unedited: the channel's state bytes are unchanged.
         b.save_to(path.clone());
-        let again = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let again = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(again.channels[row], saved.channels[row]);
     }
 
@@ -313,13 +313,13 @@ mod tests {
     #[test]
     fn osc3_custom_shape_plays_the_channel_sample() {
         let dir = std::env::temp_dir().join(format!("openstudio-osc3-custom-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         // One period of a square, and of a saw.
         let wav = |name: &str, pts: &[f32]| {
             let p = dir.join(format!("{name}.wav"));
             let both: Vec<f32> = pts.iter().flat_map(|&v| [v, v]).collect();
-            os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&p).unwrap(), 44100, &both).unwrap();
+            os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&p).unwrap(), 44100, &both).unwrap();
             p.to_string_lossy().into_owned()
         };
         let square = wav("Square cycle", &[0.9, 0.9, 0.9, 0.9, -0.9, -0.9, -0.9, -0.9]);
@@ -367,7 +367,7 @@ mod tests {
         let path = dir.join("custom.flp");
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let ch = &saved.channels[row];
         assert_eq!((ch.plugin.as_deref(), ch.sample_path.as_deref()), (Some(FILE_NAME), Some(saw.as_str())));
         assert_eq!(ch.plugin_state.as_ref().map(Vec::len), Some(op::STATE_LEN));
@@ -377,7 +377,7 @@ mod tests {
         b.sync_osc3();
         assert_eq!(b.plugins.osc3_sample(row, true), Some(crate::plugins::resolve_sample(&saw)));
         drop(b);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The rack's Add one ▸ and Insert ▸ menus add a Lemon Trio channel and ask for the built-in plugin (the
@@ -442,11 +442,11 @@ mod tests {
     #[test]
     fn corpus_osc3_channels_survive_hosting_and_saving() {
         let Some(list) = std::env::var_os("OPENSTUDIO_FLP_CORPUS") else { return };
-        let text = std::fs::read_to_string(list).unwrap();
+        let text = os_web::fs::read_to_string(list).unwrap();
         let (mut files, mut channels, mut older) = (0, 0, 0);
         let out = std::env::temp_dir().join(format!("openstudio-osc3-corpus-{}.flp", std::process::id()));
         for path in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
-            let Some(project) = std::fs::read(path).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok())
+            let Some(project) = os_web::fs::read(path).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok())
             else {
                 continue;
             };
@@ -477,7 +477,7 @@ mod tests {
             let before = a.state.project.clone();
             a.save_to(out.clone());
             assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{path}: {:?}", a.state.message);
-            let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&out).unwrap()).unwrap()).unwrap();
+            let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&out).unwrap()).unwrap()).unwrap();
             for &r in &rows {
                 let (mut x, mut y) = (back.channels[r].clone(), before.channels[r].clone());
                 if y.plugin_state.as_ref().is_some_and(|s| s.len() < op::STATE_LEN) {
@@ -487,7 +487,7 @@ mod tests {
             }
             files += 1;
         }
-        let _ = std::fs::remove_file(&out);
+        let _ = os_web::fs::remove_file(&out);
         eprintln!("3x Osc: {channels} channels ({older} with an older version's state) in {files} files");
         assert!(files > 0, "no corpus file with a 3x Osc channel");
     }

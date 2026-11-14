@@ -10,7 +10,7 @@
 //!
 // spec: ui/zipped-projects.md
 
-use std::fs::File;
+use os_web::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -124,12 +124,12 @@ pub fn unzip(zip: &Path, fallback: Option<&Path>, done: &AtomicU64, total: &Atom
 /// it is this zip unzipped before (it has the project file, and no file of the zip's with another size).
 fn folder_for(base: &Path, stem: &str, entries: &[Entry], project: &Path) -> Option<PathBuf> {
     (1..100).map(|n| if n == 1 { base.join(stem) } else { base.join(format!("{stem} ({n})")) }).find(|d| {
-        if !d.exists() {
+        if !d.vexists() {
             return true;
         }
-        let same = |rel: &Path, size: u64| std::fs::metadata(d.join(rel)).is_ok_and(|m| m.is_file() && m.len() == size);
+        let same = |rel: &Path, size: u64| os_web::fs::metadata(d.join(rel)).is_ok_and(|m| m.is_file() && m.len() == size);
         let unzipped = entries.iter().any(|e| e.1 == project && same(&e.1, e.2));
-        unzipped && entries.iter().all(|(_, rel, size)| !d.join(rel).exists() || same(rel, *size))
+        unzipped && entries.iter().all(|(_, rel, size)| !d.join(rel).vexists() || same(rel, *size))
     })
 }
 
@@ -137,23 +137,23 @@ fn folder_for(base: &Path, stem: &str, entries: &[Entry], project: &Path) -> Opt
 /// its place, then moved in, so a stopped unzip leaves no part file under a real name.
 fn unzip_into<R: Read + io::Seek>(a: &mut zip::ZipArchive<R>, entries: &[Entry], dest: &Path, done: &AtomicU64) -> Result<(), String> {
     let err = |p: &Path, e: &dyn std::fmt::Display| format!("{}: {e}", p.display());
-    std::fs::create_dir_all(dest).map_err(|e| err(dest, &e))?;
+    os_web::fs::create_dir_all(dest).map_err(|e| err(dest, &e))?;
     for (i, rel, size) in entries {
         let out = dest.join(rel);
-        if std::fs::metadata(&out).is_ok_and(|m| m.is_file() && m.len() == *size) {
+        if os_web::fs::metadata(&out).is_ok_and(|m| m.is_file() && m.len() == *size) {
             done.fetch_add(*size, Ordering::Relaxed);
             continue;
         }
         if let Some(d) = out.parent() {
-            std::fs::create_dir_all(d).map_err(|e| err(d, &e))?;
+            os_web::fs::create_dir_all(d).map_err(|e| err(d, &e))?;
         }
         let mut part = out.clone().into_os_string();
         part.push(".part");
         let part = PathBuf::from(part);
         let mut f = a.by_index(*i).map_err(|e| err(rel, &e))?;
-        let written = File::create(&part).and_then(|w| copy(&mut f, io::BufWriter::new(w), done)).and_then(|()| std::fs::rename(&part, &out));
+        let written = File::create(&part).and_then(|w| copy(&mut f, io::BufWriter::new(w), done)).and_then(|()| os_web::fs::rename(&part, &out));
         if let Err(e) = written {
-            let _ = std::fs::remove_file(&part);
+            let _ = os_web::fs::remove_file(&part);
             return Err(err(&out, &e));
         }
     }
@@ -207,7 +207,7 @@ impl Pack {
         for ch in &mut p.channels {
             let Some(stored) = ch.sample_path.clone().filter(|s| !s.trim().is_empty()) else { continue };
             let real = PathBuf::from(crate::plugins::resolve_sample(&stored));
-            if !real.is_file() {
+            if !real.vis_file() {
                 self.missing.push(file_name(&stored).to_string());
                 continue;
             }
@@ -253,8 +253,8 @@ fn prepare(app: &mut App, zip: &Path) -> Result<(Vec<u8>, Pack), String> {
     let nanos = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
     let temp = std::env::temp_dir().join(format!("lemon-zip-{}-{nanos}.{ext}", std::process::id()));
     let saved = app.save_copy_with(temp.clone(), &mut |p| pack.gather(p));
-    let bytes = std::fs::read(&temp);
-    let _ = std::fs::remove_file(&temp);
+    let bytes = os_web::fs::read(&temp);
+    let _ = os_web::fs::remove_file(&temp);
     match saved {
         None => Err("wait until the project has loaded".into()),
         Some(Err(e)) => Err(e),
@@ -266,7 +266,7 @@ fn prepare(app: &mut App, zip: &Path) -> Result<(Vec<u8>, Pack), String> {
 fn write_zip(zip: &Path, flp: &[u8], pack: &Pack, done: &AtomicU64, total: &AtomicU64) -> Result<(), String> {
     use zip::write::SimpleFileOptions;
     use zip::CompressionMethod;
-    let sizes: Vec<u64> = pack.files.iter().map(|(f, _)| std::fs::metadata(f).map_or(0, |m| m.len())).collect();
+    let sizes: Vec<u64> = pack.files.iter().map(|(f, _)| os_web::fs::metadata(f).map_or(0, |m| m.len())).collect();
     total.store(flp.len() as u64 + sizes.iter().sum::<u64>(), Ordering::Relaxed);
     let options = |name: &str, size: u64| {
         let stored = Path::new(name).extension().is_some_and(|e| STORED.iter().any(|s| e.eq_ignore_ascii_case(s)));
@@ -288,11 +288,11 @@ fn write_zip(zip: &Path, flp: &[u8], pack: &Pack, done: &AtomicU64, total: &Atom
             copy(&mut r, &mut w, done).map_err(|e| format!("{}: {e}", file.display()))?;
         }
         w.finish().map_err(|e| e.to_string())?.flush().map_err(|e| e.to_string())?;
-        std::fs::rename(&part, zip).map_err(|e| e.to_string())
+        os_web::fs::rename(&part, zip).map_err(|e| e.to_string())
     };
     let r = write();
     if r.is_err() {
-        let _ = std::fs::remove_file(&part);
+        let _ = os_web::fs::remove_file(&part);
     }
     r
 }
@@ -370,8 +370,8 @@ mod tests {
 
     fn temp(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("os_zipped_{name}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let _ = os_web::fs::remove_dir_all(&d);
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -399,15 +399,15 @@ mod tests {
         let (done, total) = (AtomicU64::new(0), AtomicU64::new(0));
         let project = unzip(&zip, None, &done, &total).unwrap();
         assert_eq!(project, d.join("Song pack").join("Song.flp"));
-        assert_eq!(std::fs::read(d.join("Song pack/Kick.wav")).unwrap(), b"kick");
-        assert!(!d.join("evil.txt").exists());
+        assert_eq!(os_web::fs::read(d.join("Song pack/Kick.wav")).unwrap(), b"kick");
+        assert!(!d.join("evil.txt").vexists());
         assert_eq!(done.load(Ordering::Relaxed), total.load(Ordering::Relaxed));
         assert_eq!(unzip(&zip, None, &done, &total).unwrap(), project, "unzipped before: the same folder");
-        std::fs::write(d.join("Song pack/Kick.wav"), b"another kick").unwrap();
+        os_web::fs::write(d.join("Song pack/Kick.wav"), b"another kick").unwrap();
         assert_eq!(unzip(&zip, None, &done, &total).unwrap(), d.join("Song pack (2)").join("Song.flp"));
         make_zip(&d.join("empty.zip"), &[("a.wav", b"a")]);
         assert!(unzip(&d.join("empty.zip"), None, &done, &total).is_err());
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// Two samples of one name: the second is renamed, in the zip and in its project file.
@@ -425,11 +425,11 @@ mod tests {
     #[test]
     fn export_then_open() {
         let d = temp("roundtrip");
-        std::fs::create_dir_all(d.join("one")).unwrap();
-        std::fs::create_dir_all(d.join("two")).unwrap();
+        os_web::fs::create_dir_all(d.join("one")).unwrap();
+        os_web::fs::create_dir_all(d.join("two")).unwrap();
         let wav = crate::missing::tests::wav(441);
-        std::fs::write(d.join("one/Kick.wav"), &wav).unwrap();
-        std::fs::write(d.join("two/Kick.wav"), &wav[..wav.len() - 2]).unwrap();
+        os_web::fs::write(d.join("one/Kick.wav"), &wav).unwrap();
+        os_web::fs::write(d.join("two/Kick.wav"), &wav[..wav.len() - 2]).unwrap();
         let mut app = App::new(None);
         app.state.project = crate::app::default_project();
         let rows: Vec<usize> = (0..4).map(|_| crate::app::add_channel(&mut app.state.project)).collect();
@@ -443,7 +443,7 @@ mod tests {
         app.save_to(d.join("Song.flp"));
         let before = app.state.project.clone();
         let zip = d.join("out").join("Song.zip");
-        std::fs::create_dir_all(d.join("out")).unwrap();
+        os_web::fs::create_dir_all(d.join("out")).unwrap();
         let (flp, pack) = prepare(&mut app, &zip).unwrap();
         assert_eq!(app.state.project, before, "the project is not changed");
         assert_eq!(app.state.path.as_deref(), Some(d.join("Song.flp").as_path()));
@@ -451,10 +451,10 @@ mod tests {
         let (done, total) = (AtomicU64::new(0), AtomicU64::new(0));
         write_zip(&zip, &flp, &pack, &done, &total).unwrap();
         assert_eq!(names(&zip), vec!["Song.lemon", "Kick.wav", "Kick_2.wav"], "the project goes in as a .lemon file");
-        assert!(!d.join("out").join("Song.zip.part").exists());
+        assert!(!d.join("out").join("Song.zip.part").vexists());
         // On another computer: the original folders are gone.
-        std::fs::remove_dir_all(d.join("one")).unwrap();
-        std::fs::remove_dir_all(d.join("two")).unwrap();
+        os_web::fs::remove_dir_all(d.join("one")).unwrap();
+        os_web::fs::remove_dir_all(d.join("two")).unwrap();
         let project = unzip(&zip, None, &done, &total).unwrap();
         app.open(project);
         let resolved = |row: usize| crate::plugins::resolve_sample(app.state.project.channels[row].sample_path.as_deref().unwrap());
@@ -463,6 +463,9 @@ mod tests {
         assert_eq!(resolved(rows[1]), unzipped.join("Kick_2.wav").to_string_lossy());
         assert_eq!(resolved(rows[2]), unzipped.join("Kick.wav").to_string_lossy());
         os_engine::sample::set_search_folders(Vec::new());
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

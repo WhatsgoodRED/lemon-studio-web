@@ -66,7 +66,7 @@ fn probe() -> &'static Probe {
 type Stamp = (u64, Option<std::time::SystemTime>);
 
 fn stamp(path: &Path) -> Option<Stamp> {
-    std::fs::metadata(path).ok().map(|m| (m.len(), m.modified().ok()))
+    os_web::fs::metadata(path).ok().map(|m| (m.len(), m.modified().ok()))
 }
 
 /// The decodes `load_shared` handed out, by file, with the stamp of the file they were made from.
@@ -102,7 +102,7 @@ pub fn load_shared(path: &Path) -> Result<Arc<Sample>, SampleError> {
 
 /// Decodes a WAV (PCM or Vorbis-in-WAV) / FLAC / Ogg Vorbis / WavPack / MP3 / AIFF / M4A (AAC or ALAC) file.
 pub fn load(path: &Path) -> Result<Sample, SampleError> {
-    let bytes = std::fs::read(path).map_err(|source| SampleError::Io { path: path.to_owned(), source })?;
+    let bytes = os_web::fs::read(path).map_err(|source| SampleError::Io { path: path.to_owned(), source })?;
     let decode_err = |message: String| SampleError::Decode { path: path.to_owned(), message };
     if let Some(vw) = vorbis_in_wav(&bytes) {
         let mut s = decode(vw.ogg.to_vec(), Some("ogg")).map_err(decode_err)?;
@@ -165,7 +165,7 @@ pub fn length(path: &Path) -> Option<(u64, u32)> {
 
 /// The length the file's headers give, without decoding it.
 fn header_length(path: &Path) -> Option<(u64, u32)> {
-    let mut file = std::fs::File::open(path).ok()?;
+    let mut file = os_web::fs::File::open(path).ok()?;
     // A WavPack file that starts with a block without audio: that block's format is not the stream's.
     let mut head = [0u8; 24];
     if file.read_exact(&mut head).is_ok() && &head[..4] == b"wvpk" && head[20..24] == [0; 4] {
@@ -175,6 +175,9 @@ fn header_length(path: &Path) -> Option<(u64, u32)> {
     // (`mp4_trim`), else it is found by decoding it.
     let moov = mp4_moov(&mut file);
     file.rewind().ok()?;
+    // The web build's files are in memory and not a symphonia `MediaSource`: read whole.
+    #[cfg(target_arch = "wasm32")]
+    let file = Cursor::new(os_web::fs::read(path).ok()?);
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
     if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
@@ -236,7 +239,7 @@ pub struct WavTags {
 /// The `smpl` and `acid` chunks of the file at `path`. A file that isn't a RIFF WAV, or can't be read, has neither.
 /// Only the chunk headers and those two bodies are read.
 pub fn wav_tags(path: &Path) -> WavTags {
-    std::fs::File::open(path).ok().and_then(|f| tags_of(std::io::BufReader::new(f))).unwrap_or_default()
+    os_web::fs::File::open(path).ok().and_then(|f| tags_of(std::io::BufReader::new(f))).unwrap_or_default()
 }
 
 fn tags_of(mut r: impl Read + Seek) -> Option<WavTags> {
@@ -496,7 +499,7 @@ fn match_case(path: &Path) -> Option<PathBuf> {
         let want = name.to_string_lossy().to_lowercase();
         let mut found = None;
         let dir = if out.as_os_str().is_empty() { Path::new(".") } else { &out };
-        for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        for e in os_web::fs::read_dir(dir).into_iter().flatten().flatten() {
             let n = e.file_name();
             if n == name {
                 found = Some(n);
@@ -507,7 +510,7 @@ fn match_case(path: &Path) -> Option<PathBuf> {
             }
         }
         // A name the folder's listing does not show (a short 8.3 name on Windows) that opens all the same.
-        let found = found.or_else(|| out.join(name).exists().then(|| name.to_os_string()))?;
+        let found = found.or_else(|| out.join(name).vexists().then(|| name.to_os_string()))?;
         out.push(found);
     }
     Some(out)
@@ -556,10 +559,10 @@ fn by_name(path: &Path) -> Option<PathBuf> {
     }
     search_folders().iter().filter(|d| reachable(d)).find_map(|d| {
         let p = d.join(name);
-        if p.is_file() {
+        if p.vis_file() {
             return Some(p);
         }
-        match_case(&p).filter(|p| p.is_file())
+        match_case(&p).filter(|p| p.vis_file())
     })
 }
 
@@ -604,7 +607,7 @@ pub fn reachable(path: &Path) -> bool {
     }
     let (tx, rx) = mpsc::channel();
     let probe = root.clone();
-    if std::thread::Builder::new().name("sample-root".into()).spawn(move || tx.send(probe.exists()).ok()).is_err() {
+    if std::thread::Builder::new().name("sample-root".into()).spawn(move || tx.send(probe.vexists()).ok()).is_err() {
         return true;
     }
     if let Ok(mut r) = roots.lock() {
@@ -661,10 +664,10 @@ impl SampleLibrary {
     /// the newest "FL Studio ..." folder in the Wine prefix (`WINEPREFIX`, or `~/.wine`).
     pub fn default_factory_dir() -> Option<PathBuf> {
         if let Some(p) = std::env::var_os("OPENSTUDIO_FACTORY").map(PathBuf::from) {
-            return p.is_dir().then_some(p);
+            return p.vis_dir().then_some(p);
         }
         let p = PathBuf::from(r"C:\Program Files\Image-Line\FL Studio 2026");
-        if p.is_dir() {
+        if p.vis_dir() {
             return Some(p);
         }
         #[cfg(target_os = "macos")]
@@ -676,12 +679,12 @@ impl SampleLibrary {
 
     #[cfg(target_os = "macos")]
     fn mac_factory_dir() -> Option<PathBuf> {
-        let mut found: Vec<PathBuf> = std::fs::read_dir("/Applications")
+        let mut found: Vec<PathBuf> = os_web::fs::read_dir("/Applications")
             .ok()?
             .flatten()
             .filter(|e| e.file_name().to_str().is_some_and(|n| n.starts_with("FL Studio") && n.ends_with(".app")))
             .map(|e| e.path().join("Contents/Resources/FL"))
-            .filter(|p| p.join("Data/Patches").is_dir())
+            .filter(|p| p.join("Data/Patches").vis_dir())
             .collect();
         found.sort();
         found.pop()
@@ -694,12 +697,12 @@ impl SampleLibrary {
     #[cfg(not(windows))]
     fn wine_factory_dir() -> Option<PathBuf> {
         let prefix = std::env::var_os("WINEPREFIX").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".wine")))?;
-        let mut found: Vec<PathBuf> = std::fs::read_dir(prefix.join("drive_c/Program Files/Image-Line"))
+        let mut found: Vec<PathBuf> = os_web::fs::read_dir(prefix.join("drive_c/Program Files/Image-Line"))
             .ok()?
             .flatten()
             .map(|e| e.path())
             // (Image-Line's ASIO driver installs to "FL Studio ASIO": an install has the factory data.)
-            .filter(|p| p.join("Data/Patches").is_dir() && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("FL Studio")))
+            .filter(|p| p.join("Data/Patches").vis_dir() && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("FL Studio")))
             .collect();
         found.sort();
         found.pop()
@@ -721,7 +724,7 @@ impl SampleLibrary {
         if !reachable(&path) {
             return Some(by_name(&path).unwrap_or(path));
         }
-        if path.exists() {
+        if path.vexists() {
             return Some(path);
         }
         Some(match_case(&path).or_else(|| by_name(&path)).unwrap_or(path))
@@ -866,7 +869,7 @@ mod tests {
     #[test]
     fn mp3_decodes_in_time_and_level() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/click_sine.mp3");
-        assert_eq!(mp3_info_frame(&std::fs::read(&path).unwrap()), Some(1152));
+        assert_eq!(mp3_info_frame(&os_web::fs::read(&path).unwrap()), Some(1152));
         let s = load(&path).expect("mp3 decodes");
         assert_eq!(s.rate, 44100);
         assert_eq!(s.left, s.right, "mono is duplicated");
@@ -910,15 +913,15 @@ mod tests {
     #[test]
     fn shared_loads_reuse_a_live_decode() {
         let path = std::env::temp_dir().join(format!("os_engine_shared_{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&path).unwrap(), 48000, &[0.25; 960]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&path).unwrap(), 48000, &[0.25; 960]).unwrap();
         let a = load_shared(&path).unwrap();
         let b = load_shared(&path).unwrap();
         assert!(Arc::ptr_eq(&a, &b), "the live decode is shared");
         drop((a, b));
         let c = load_shared(&path).unwrap();
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&path).unwrap(), 48000, &[0.5; 1920]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&path).unwrap(), 48000, &[0.5; 1920]).unwrap();
         let d = load_shared(&path).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert!(!Arc::ptr_eq(&c, &d), "a changed file is decoded again");
         assert_eq!(d.frames(), 960);
     }
@@ -941,13 +944,13 @@ mod tests {
         let mut b = b"RIFF".to_vec();
         b.extend((body.len() as u32).to_le_bytes());
         b.extend(body);
-        std::fs::write(&mono, b).unwrap();
+        os_web::fs::write(&mono, b).unwrap();
         assert_eq!(length(&mono), Some((661_500, 22050)), "30 s at 22.05 kHz");
         let stereo = dir.join(format!("os_engine_length_stereo_{}.wav", std::process::id()));
-        crate::wav::write_f32_stereo(&mut std::fs::File::create(&stereo).unwrap(), 96000, &vec![0.1; 2 * 96_000]).unwrap();
+        crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&stereo).unwrap(), 96000, &vec![0.1; 2 * 96_000]).unwrap();
         assert_eq!(length(&stereo), Some((96_000, 96000)), "1 s at 96 kHz");
         for p in [mono, stereo] {
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
         let mp3 = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/click_sine.mp3");
         let (frames, rate) = length(&mp3).expect("the mp3's length");
@@ -1050,9 +1053,9 @@ mod tests {
         assert_eq!(tags(b).unwrap().unity_note, Some(61));
         // From a file; a missing file has none.
         let path = std::env::temp_dir().join(format!("os_engine_wav_tags_{}.wav", std::process::id()));
-        std::fs::write(&path, wav(&[smpl(67), acid(4, 60, 95.0)])).unwrap();
+        os_web::fs::write(&path, wav(&[smpl(67), acid(4, 60, 95.0)])).unwrap();
         assert_eq!(wav_tags(&path), WavTags { unity_note: Some(67), beats: Some(4) });
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(wav_tags(&path), none);
     }
 
@@ -1061,11 +1064,11 @@ mod tests {
     #[test]
     fn sample_paths_ignore_case() {
         let root = std::env::temp_dir().join(format!("os_engine_case_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
         let (one, two) = (root.join("FL One"), root.join("FL Two"));
         for d in [&one, &two] {
-            std::fs::create_dir_all(d.join("Data").join("Patches").join("Packs")).unwrap();
-            std::fs::write(d.join("Data").join("Patches").join("Packs").join("Kick.WAV"), wav(&[])).unwrap();
+            os_web::fs::create_dir_all(d.join("Data").join("Patches").join("Packs")).unwrap();
+            os_web::fs::write(d.join("Data").join("Patches").join("Packs").join("Kick.WAV"), wav(&[])).unwrap();
         }
         let file = one.join("Data").join("Patches").join("Packs").join("Kick.WAV");
         // Each part found as it is on disk, the exact name first.
@@ -1081,11 +1084,11 @@ mod tests {
             r"%FLSTUDIODATA%\Patches\packs\kick.wav",
         ] {
             assert!(SampleLibrary::has_placeholder(path), "{path}");
-            assert!(lib.resolve(path).is_some_and(|p| p.is_file()), "{path}");
+            assert!(lib.resolve(path).is_some_and(|p| p.vis_file()), "{path}");
         }
         assert!(!SampleLibrary::has_placeholder(&file.to_string_lossy()));
         let asked = asked.to_string_lossy().into_owned();
-        assert!(lib.resolve(&asked).is_some_and(|p| p.is_file()), "an absolute path too");
+        assert!(lib.resolve(&asked).is_some_and(|p| p.vis_file()), "an absolute path too");
         // A missing file keeps the path as written, for the message that names it.
         assert_eq!(lib.resolve("%FLStudioFactoryData%/Data/x.wav"), Some(one.join("Data").join("x.wav")));
         // Another install folder: the placeholders' samples are looked for there, the other paths stay cached.
@@ -1100,6 +1103,9 @@ mod tests {
         lib.set_factory_dir(None);
         assert!(lib.get(placeholder).is_none() && lib.failures.iter().any(|(k, _)| k == placeholder), "no folder: not found");
         drop(first);
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

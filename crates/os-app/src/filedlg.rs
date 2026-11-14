@@ -185,7 +185,7 @@ impl FileDlg {
 
     /// The folder to start in (when it exists).
     pub fn start(mut self, dir: Option<&Path>) -> FileDlg {
-        self.start = dir.filter(|d| d.is_dir()).map(Path::to_path_buf);
+        self.start = dir.filter(|d| d.vis_dir()).map(Path::to_path_buf);
         self
     }
 
@@ -202,7 +202,7 @@ impl FileDlg {
         if self.mode != Mode::Folder && !self.filters.is_empty() {
             self.filters.push(Filter::new("All files", &[]));
         }
-        let last = LAST.lock().ok().and_then(|l| l.iter().find(|(p, _)| *p == self.purpose).map(|(_, d)| d.clone())).filter(|d| d.is_dir());
+        let last = LAST.lock().ok().and_then(|l| l.iter().find(|(p, _)| *p == self.purpose).map(|(_, d)| d.clone())).filter(|d| d.vis_dir());
         let dir = self.start.clone().or(last).or_else(home).unwrap_or_else(|| PathBuf::from(if cfg!(windows) { "C:\\" } else { "/" }));
         self.places = places(self.start.as_deref());
         self.show(dir);
@@ -283,7 +283,7 @@ impl FileDlg {
         self.scroll = 0.0;
         self.last_click = None;
         let filter = self.chosen().cloned();
-        match std::fs::read_dir(&self.dir) {
+        match os_web::fs::read_dir(&self.dir) {
             Err(e) => self.error = Some(e.to_string()),
             Ok(rd) => {
                 for e in rd.flatten() {
@@ -292,7 +292,7 @@ impl FileDlg {
                         continue;
                     }
                     // Links are followed (a link to a folder opens like the folder).
-                    let Ok(md) = std::fs::metadata(e.path()) else { continue };
+                    let Ok(md) = os_web::fs::metadata(e.path()) else { continue };
                     let dir = md.is_dir();
                     if !dir && (self.mode == Mode::Folder || filter.as_ref().is_some_and(|f| !f.matches(&name))) {
                         continue;
@@ -426,7 +426,7 @@ impl FileDlg {
     /// Enter in the path field: go to the folder typed.
     pub fn path_enter(&mut self) {
         let p = clean(&self.dir.join(expand(self.path.text.trim())));
-        if p.is_dir() {
+        if p.vis_dir() {
             self.go(p);
             self.focus = Focus::Name;
         } else {
@@ -451,7 +451,7 @@ impl FileDlg {
                 return Outcome::Done(self.dir.clone());
             }
             let p = clean(&self.dir.join(expand(&typed)));
-            return if p.is_dir() {
+            return if p.vis_dir() {
                 Outcome::Done(p)
             } else {
                 self.status = Some(format!("No folder {}", p.display()));
@@ -463,14 +463,14 @@ impl FileDlg {
         }
         let mut p = clean(&self.dir.join(expand(&typed)));
         // A folder typed (or "..") is opened.
-        if p.is_dir() {
+        if p.vis_dir() {
             self.go(p);
             self.name.set("");
             return Outcome::Stay;
         }
         match self.mode {
             Mode::Open => {
-                if p.is_file() {
+                if p.vis_file() {
                     Outcome::Done(p)
                 } else {
                     self.status = Some(format!("{typed} was not found"));
@@ -490,19 +490,19 @@ impl FileDlg {
                     self.status = Some(format!("No folder {}", p.parent().unwrap_or(&p).display()));
                     return Outcome::Stay;
                 }
-                if p.is_dir() {
+                if p.vis_dir() {
                     self.go(p);
                     return Outcome::Stay;
                 }
-                if p.exists() { Outcome::Replace(p) } else { Outcome::Done(p) }
+                if p.vexists() { Outcome::Replace(p) } else { Outcome::Done(p) }
             }
         }
     }
 
     /// New folder: "New folder", "New folder 2", ... in the folder shown, then selected.
     pub fn new_folder(&mut self) {
-        let Some(name) = (1..1000).map(|k| if k == 1 { "New folder".to_string() } else { format!("New folder {k}") }).find(|n| !self.dir.join(n).exists()) else { return };
-        match std::fs::create_dir(self.dir.join(&name)) {
+        let Some(name) = (1..1000).map(|k| if k == 1 { "New folder".to_string() } else { format!("New folder {k}") }).find(|n| !self.dir.join(n).vexists()) else { return };
+        match os_web::fs::create_dir(self.dir.join(&name)) {
             Ok(()) => {
                 self.reread();
                 if let Some(i) = self.entries.iter().position(|e| e.name == name) {
@@ -516,9 +516,9 @@ impl FileDlg {
 
     /// A file dropped on the window: a folder opens, a file's folder opens with the file selected.
     pub fn dropped(&mut self, p: &Path) {
-        if p.is_dir() {
+        if p.vis_dir() {
             self.go(p.to_path_buf());
-        } else if let Some(d) = p.parent().filter(|d| d.is_dir()) {
+        } else if let Some(d) = p.parent().filter(|d| d.vis_dir()) {
             self.go(d.to_path_buf());
             let n = p.file_name().map(|n| n.to_string_lossy().into_owned());
             match n.as_ref().and_then(|n| self.entries.iter().position(|e| &e.name == n)) {
@@ -593,7 +593,7 @@ fn expand(typed: &str) -> PathBuf {
 }
 
 /// Entries the list leaves out: names starting with a dot, and on Windows hidden or system files.
-fn hidden(name: &str, _e: &std::fs::DirEntry) -> bool {
+fn hidden(name: &str, _e: &os_web::fs::DirEntry) -> bool {
     if name.starts_with('.') {
         return true;
     }
@@ -612,7 +612,7 @@ fn hidden(name: &str, _e: &std::fs::DirEntry) -> bool {
 /// The user's home folder.
 pub fn home() -> Option<PathBuf> {
     let v = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })?;
-    Some(PathBuf::from(v)).filter(|p| p.is_dir())
+    Some(PathBuf::from(v)).filter(|p| p.vis_dir())
 }
 
 /// The places column: the user's folders, the start folder, the drives / mounted volumes.
@@ -623,7 +623,7 @@ fn places(start: Option<&Path>) -> Vec<Place> {
         v.push(Place { label: "Home".into(), path: h.clone(), kind: PlaceKind::Home });
     }
     for (kind, label, path) in user_dirs(home.as_deref()) {
-        if path.is_dir() && !v.iter().any(|p: &Place| p.path == path) {
+        if path.vis_dir() && !v.iter().any(|p: &Place| p.path == path) {
             v.push(Place { label: label.into(), path, kind });
         }
     }
@@ -672,7 +672,7 @@ fn known_folder(id: &windows_sys::core::GUID) -> Option<PathBuf> {
 fn user_dirs(home: Option<&Path>) -> Vec<(PlaceKind, &'static str, PathBuf)> {
     let Some(home) = home else { return Vec::new() };
     let cfg = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".config"));
-    let text = std::fs::read_to_string(cfg.join("user-dirs.dirs")).unwrap_or_default();
+    let text = os_web::fs::read_to_string(cfg.join("user-dirs.dirs")).unwrap_or_default();
     let named = |key: &str| {
         text.lines().find_map(|l| {
             let v = l.trim().strip_prefix(key)?.trim_start().strip_prefix('=')?.trim().trim_matches('"');
@@ -697,7 +697,7 @@ fn user_dirs(home: Option<&Path>) -> Vec<(PlaceKind, &'static str, PathBuf)> {
 /// Windows: every drive letter in use.
 #[cfg(windows)]
 fn drives() -> Vec<(String, PathBuf)> {
-    (b'A'..=b'Z').map(|c| PathBuf::from(format!("{}:\\", c as char))).filter(|p| p.is_dir()).map(|p| (p.display().to_string(), p)).collect()
+    (b'A'..=b'Z').map(|c| PathBuf::from(format!("{}:\\", c as char))).filter(|p| p.vis_dir()).map(|p| (p.display().to_string(), p)).collect()
 }
 
 /// Linux: the file system and what is mounted under /media/<user>, /run/media/<user> and /mnt.
@@ -726,14 +726,14 @@ fn drives() -> Vec<(String, PathBuf)> {
 #[cfg(target_os = "macos")]
 fn drives() -> Vec<(String, PathBuf)> {
     let mut v = vec![("Computer".to_string(), PathBuf::from("/"))];
-    v.extend(sub_dirs(Path::new("/Volumes")).into_iter().filter(|(_, p)| std::fs::canonicalize(p).ok().as_deref() != Some(Path::new("/"))));
+    v.extend(sub_dirs(Path::new("/Volumes")).into_iter().filter(|(_, p)| os_web::fs::canonicalize(p).ok().as_deref() != Some(Path::new("/"))));
     v
 }
 
 #[cfg(unix)]
 fn sub_dirs(root: &Path) -> Vec<(String, PathBuf)> {
-    let Ok(rd) = std::fs::read_dir(root) else { return Vec::new() };
-    let mut v: Vec<_> = rd.flatten().filter(|e| e.path().is_dir()).map(|e| (e.file_name().to_string_lossy().into_owned(), e.path())).filter(|(n, _)| !n.starts_with('.')).collect();
+    let Ok(rd) = os_web::fs::read_dir(root) else { return Vec::new() };
+    let mut v: Vec<_> = rd.flatten().filter(|e| e.path().vis_dir()).map(|e| (e.file_name().to_string_lossy().into_owned(), e.path())).filter(|(n, _)| !n.starts_with('.')).collect();
     v.sort();
     v
 }
@@ -744,19 +744,19 @@ mod tests {
 
     fn tmp(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("os-filedlg-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let _ = os_web::fs::remove_dir_all(&d);
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
     #[test]
     fn lists_folders_first_and_filters_types() {
         let d = tmp("list");
-        std::fs::create_dir(d.join("beats")).unwrap();
-        std::fs::create_dir(d.join(".hidden")).unwrap();
-        std::fs::write(d.join("b.flp"), b"x").unwrap();
-        std::fs::write(d.join("A.flp"), b"xyz").unwrap();
-        std::fs::write(d.join("notes.txt"), b"").unwrap();
+        os_web::fs::create_dir(d.join("beats")).unwrap();
+        os_web::fs::create_dir(d.join(".hidden")).unwrap();
+        os_web::fs::write(d.join("b.flp"), b"x").unwrap();
+        os_web::fs::write(d.join("A.flp"), b"xyz").unwrap();
+        os_web::fs::write(d.join("notes.txt"), b"").unwrap();
         let f = FileDlg::new(Mode::Open, "Open", "test-list", Then::Nothing).filter("Lemon Studio project", &["flp"]).start(Some(&d)).opened();
         let names: Vec<_> = f.entries.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, ["beats", "A.flp", "b.flp"]);
@@ -770,14 +770,14 @@ mod tests {
         assert_eq!(f.entries[1].name, "notes.txt");
         let folders = FileDlg::new(Mode::Folder, "Folder", "test-list", Then::Nothing).start(Some(&d)).opened();
         assert_eq!(folders.entries.len(), 1);
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     #[test]
     fn save_adds_the_extension_and_asks_before_replacing() {
         let d = tmp("save");
-        std::fs::write(d.join("song.flp"), b"x").unwrap();
-        std::fs::create_dir(d.join("sub")).unwrap();
+        os_web::fs::write(d.join("song.flp"), b"x").unwrap();
+        os_web::fs::create_dir(d.join("sub")).unwrap();
         let mut f = FileDlg::new(Mode::Save, "Save", "test-save", Then::Nothing).filter("Lemon Studio project", &["flp"]).start(Some(&d)).name("Untitled.flp").opened();
         assert!(f.name.all, "the name starts selected");
         f.name.insert("tune");
@@ -797,15 +797,15 @@ mod tests {
         f.name.set("nowhere/x");
         assert_eq!(f.accept(), Outcome::Stay);
         assert!(f.status_text().starts_with("No folder"), "{}", f.status_text());
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     #[test]
     fn rows_select_and_double_clicks_open() {
         let d = tmp("rows");
-        std::fs::create_dir(d.join("kit")).unwrap();
-        std::fs::write(d.join("kit").join("kick.wav"), b"x").unwrap();
-        std::fs::write(d.join("a.wav"), b"x").unwrap();
+        os_web::fs::create_dir(d.join("kit")).unwrap();
+        os_web::fs::write(d.join("kit").join("kick.wav"), b"x").unwrap();
+        os_web::fs::write(d.join("a.wav"), b"x").unwrap();
         let mut f = FileDlg::new(Mode::Open, "Open", "test-rows", Then::Nothing).filter("Audio", &["wav"]).start(Some(&d)).opened();
         assert_eq!(f.click_row(1), Outcome::Stay);
         assert_eq!(f.name.text, "a.wav", "a file's name fills the field");
@@ -819,6 +819,9 @@ mod tests {
         f.up();
         assert_eq!(f.dir, d);
         assert_eq!(f.sel.map(|i| f.entries[i].name.as_str()), Some("kit"), "the folder left is selected");
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

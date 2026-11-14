@@ -334,7 +334,7 @@ mod tests {
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")));
         assert!(app.top_message().is_none(), "a small project is under every limit");
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
         prefs::set_choice(&prefs::PROJECT_DATA_SIZE_WARNING, prefs::PROJECT_DATA_SIZE_WARNING.default);
     }
 }

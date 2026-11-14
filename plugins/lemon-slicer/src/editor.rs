@@ -524,7 +524,7 @@ impl Logic {
         let frames = s.frames();
         st.slices = match how {
             Slicing::BuiltIn => {
-                let info = std::fs::read(crate::sample_file(&self.params)).map(|b| slicing::wav_info(&b)).unwrap_or_default();
+                let info = os_web::fs::read(crate::sample_file(&self.params)).map(|b| slicing::wav_info(&b)).unwrap_or_default();
                 let b = slicing::builtin(&info, frames);
                 if b.is_empty() {
                     return;
@@ -1301,7 +1301,7 @@ mod tests {
         assert_eq!((st.slices[2].root, st.slices[2].reversed()), (36, true));
         assert_eq!(l.shared.kit.lock().unwrap().as_ref().unwrap().keys[36], Some(2));
         assert!(l.menu(&MenuReq::Key).find("C3").is_some());
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     #[test]
@@ -1313,7 +1313,7 @@ mod tests {
         l.typed(BPM_ID, "60 bpm");
         assert_eq!((l.state().beats(), l.state().bpm()), (2.0, 60.0));
         assert_eq!(l.value_text(BPM_ID), "60.000");
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     /// BEATS keeps the tempo it gives in BPM's range (10 to 522): the 2 s loop takes 1/3 to 17.4 beats.
@@ -1330,20 +1330,20 @@ mod tests {
         let (x, y) = centre(&l, &Target::Beats);
         l.wheel(x, y, 1.0, Mods::default());
         assert_eq!(l.state().bpm(), 522.0);
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     /// A file that can't be read: the hint names its path once, then why.
     #[test]
     fn a_bad_file_is_named_once() {
         let p = std::env::temp_dir().join(format!("lemon-slicer-{}-bad.wav", std::process::id()));
-        std::fs::write(&p, b"not a wav").unwrap();
+        os_web::fs::write(&p, b"not a wav").unwrap();
         let path = p.to_string_lossy().into_owned();
         let mut l = logic();
         l.load(&path);
         assert!(l.hint.starts_with(&format!("{path}: ")), "{}", l.hint);
         assert_eq!(l.hint.matches(path.as_str()).count(), 1, "{}", l.hint);
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     #[test]
@@ -1360,7 +1360,7 @@ mod tests {
         l.shared.tempo.store(60f64.to_bits(), Ordering::Relaxed);
         let Some(Act::Notes(n)) = l.pick(&MenuReq::Dump, Cmd::Dump(true), 0.0, 0.0).first().cloned() else { panic!() };
         assert_eq!(n.last().map(|n| n.end), Some(2.0));
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     /// `SLICER_PNG=<dir> cargo test -p lemon-slicer -- --ignored`: the editor, empty and with a loop, as PNGs.
@@ -1389,6 +1389,6 @@ mod tests {
         l.hint = "Slice 2\tC#5".into();
         save(&mut l, "slicer_loop", 1.0);
         save(&mut l, "slicer_loop_x2", 2.0);
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 }

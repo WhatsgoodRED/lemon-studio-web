@@ -149,7 +149,7 @@ pub fn disk_label(name: &str, path: &Path, dir: bool) -> String {
 
 /// Whether a directory entry is listed in the browser: hidden and system entries, dot files, `desktop.ini` and
 /// `Thumbs.db` are not (spec §6).
-pub fn listed(name: &str, md: &std::fs::Metadata) -> bool {
+pub fn listed(name: &str, md: &os_web::fs::Metadata) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
@@ -172,7 +172,7 @@ pub fn build(roots: &[PathBuf]) -> Built {
     'roots: for (root, r) in roots.iter().enumerate() {
         let mut queue = std::collections::VecDeque::from([r.clone()]);
         while let Some(dir) = queue.pop_front() {
-            let Ok(rd) = std::fs::read_dir(&dir) else { continue };
+            let Ok(rd) = os_web::fs::read_dir(&dir) else { continue };
             for e in rd.flatten() {
                 let name = e.file_name().to_string_lossy().into_owned();
                 let Ok(md) = e.metadata() else { continue };
@@ -206,11 +206,11 @@ mod tests {
     fn finds_the_folders_holding_a_match() {
         let root = std::env::temp_dir().join(format!("os_index_{}", std::process::id()));
         let deep = root.join("Kits").join("808");
-        std::fs::create_dir_all(&deep).unwrap();
-        std::fs::create_dir_all(root.join("Loops")).unwrap();
-        std::fs::write(deep.join("Big Kick.wav"), b"").unwrap();
-        std::fs::write(root.join("Loops").join("notes.txt"), b"").unwrap();
-        std::fs::write(root.join(".hidden.wav"), b"").unwrap();
+        os_web::fs::create_dir_all(&deep).unwrap();
+        os_web::fs::create_dir_all(root.join("Loops")).unwrap();
+        os_web::fs::write(deep.join("Big Kick.wav"), b"").unwrap();
+        os_web::fs::write(root.join("Loops").join("notes.txt"), b"").unwrap();
+        os_web::fs::write(root.join(".hidden.wav"), b"").unwrap();
         let mut ix = Index::default();
         ix.start(vec![root.clone()]);
         assert!(ix.covers(std::slice::from_ref(&root)) && !ix.building());
@@ -224,6 +224,9 @@ mod tests {
         assert!(ix.match_dirs("808", false).unwrap().is_empty());
         ix.clear();
         assert!(ix.match_dirs("kick", true).is_none() && !ix.covers(std::slice::from_ref(&root)));
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

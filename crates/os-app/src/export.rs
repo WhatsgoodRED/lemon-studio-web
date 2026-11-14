@@ -318,7 +318,7 @@ pub fn write(job: &Job, rate: u32, mix: Vec<f32>, tracks: Vec<Vec<f32>>, song: u
                 continue;
             }
             if !made {
-                std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+                os_web::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
                 made = true;
             }
             let audio = shape(o, audio, song, rate, out_rate);
@@ -520,7 +520,7 @@ fn encode(o: &Options, f: usize, path: &Path, audio: &[f32], rate: u32, meta: &M
         }
         _ => ogg_bytes(audio, ch, rate, o.ogg_kbps).map_err(err)?,
     };
-    std::fs::write(path, bytes).map_err(|e| err(e.to_string()))
+    os_web::fs::write(path, bytes).map_err(|e| err(e.to_string()))
 }
 
 /// A WAV file: PCM at 16 or 24 bits (dithered when `dither`), IEEE float at 32; with `cue `, `LIST`/`adtl`, `smpl` and
@@ -808,16 +808,16 @@ mod tests {
         assert!(on.len() > off.len(), "one frame more");
         // Nothing is cut off the end: without the tag, every frame decodes, the delay in front of the audio.
         let path = std::env::temp_dir().join(format!("os-export-gapless-{}.mp3", std::process::id()));
-        std::fs::write(&path, &off).unwrap();
+        os_web::fs::write(&path, &off).unwrap();
         let frames = os_engine::sample::load(&path).unwrap().frames();
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert!(frames >= 44100 + delay as usize, "{frames} frames");
     }
 
     #[test]
     fn writes_every_format() {
         let dir = std::env::temp_dir().join(format!("lemon-export-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::create_dir_all(&dir).unwrap();
         let mut job = Job::wav(&dir.join("mix.wav"));
         job.options.formats = [true, true, true, true];
         job.options.wav_depth = 1;
@@ -833,9 +833,9 @@ mod tests {
         let files = write(&job, 44100, mix, tracks, 44100).expect("export");
         // The mix in four formats, the master and Drums stems in WAV and FLAC; the silent track is left out.
         assert_eq!(files.len(), 8, "{files:?}");
-        assert!(dir.join("mix stems").join("01 Drums.flac").exists());
-        assert!(!dir.join("mix stems").join("02 Bus 2.wav").exists());
-        let wav = std::fs::read(dir.join("mix.wav")).unwrap();
+        assert!(dir.join("mix stems").join("01 Drums.flac").vexists());
+        assert!(!dir.join("mix stems").join("02 Bus 2.wav").vexists());
+        let wav = os_web::fs::read(dir.join("mix.wav")).unwrap();
         for id in [&b"cue "[..], b"labl", b"Verse", b"smpl", b"acid"] {
             assert!(wav.windows(id.len()).any(|w| w == id), "{}", String::from_utf8_lossy(id));
         }
@@ -845,7 +845,7 @@ mod tests {
             // Lossy coders add a little padding.
             assert!((44100..44100 + 4096).contains(&frames), "{f}: {frames} frames");
         }
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Render to wave file... (the mixer track menu): only the tracks asked for, silent ones too, without the mix; one
@@ -853,8 +853,8 @@ mod tests {
     #[test]
     fn render_to_wave_file_writes_the_tracks() {
         let dir = std::env::temp_dir().join(format!("lemon-export-tracks-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let mut job = Job::wav(&dir.join("Drums.wav"));
         job.options.split = true;
         job.track_names = vec!["Master".into(), "Drums".into(), "Bass/Sub".into()];
@@ -869,7 +869,10 @@ mod tests {
         job.tracks = vec![1, 2];
         let files = write(&job, 44100, mix, tracks, 4410).expect("render");
         assert_eq!(files, [dir.join("Song - 01 Drums.wav"), dir.join("Song - 02 Bass_Sub.wav")], "the silent track too");
-        assert!(!dir.join("Song.wav").exists() && !dir.join("Song stems").exists(), "no mix, no stems folder");
-        let _ = std::fs::remove_dir_all(&dir);
+        assert!(!dir.join("Song.wav").vexists() && !dir.join("Song stems").vexists(), "no mix, no stems folder");
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

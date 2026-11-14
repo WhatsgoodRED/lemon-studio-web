@@ -3457,7 +3457,7 @@ mod tests {
         // The mixer's slot records (after the first track record, event 236): track, slot and mark (byte 40, which
         // Lemon Studio does not read).
         let records = || {
-            let file = FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+            let file = FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
             let ev = file.chunks.into_iter().find_map(|c| match c.body {
                 ChunkBody::Events(e) => Some(e),
                 _ => None,
@@ -3468,7 +3468,7 @@ mod tests {
             ev[first..].iter().filter(|e| e.id == 212).filter_map(|e| e.data()).map(|d| (le(d, 0), le(d, 4), d[40])).collect::<Vec<_>>()
         };
         saved(&mut a);
-        let mut file = FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let mut file = FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         for c in &mut file.chunks {
             if let ChunkBody::Events(ev) = &mut c.body {
                 for e in ev.iter_mut().filter(|e| e.id == 212) {
@@ -3478,7 +3478,7 @@ mod tests {
                 }
             }
         }
-        std::fs::write(&path, file.to_bytes().unwrap()).unwrap();
+        os_web::fs::write(&path, file.to_bytes().unwrap()).unwrap();
         assert_eq!(records(), vec![(2, 0, 2), (3, 0, 3), (4, 1, 4)]);
         let mut a = App::new(None);
         a.open(path.clone());
@@ -3491,7 +3491,7 @@ mod tests {
         assert_eq!(records(), vec![(2, 0, 2), (3, 1, 4)]);
         let mut opened = App::new(None);
         opened.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         let slots = |t: u16| track(&opened.state, t).unwrap().slots.clone();
         assert_eq!((slots(2)[0].clone(), slots(3)[1].clone()), (fx("Test FX", 2), fx("Other FX", 4)));
         assert!(slots(4).iter().all(Option::is_none));
@@ -3636,7 +3636,7 @@ mod tests {
     /// track (its old effects go, its name stays) and Insert from state ▸ inserts a track from it, each one undo step.
     #[test]
     fn mixer_track_states_save_open_and_insert() {
-        let _ = std::fs::remove_dir_all(crate::mixer_state::dir().unwrap());
+        let _ = os_web::fs::remove_dir_all(crate::mixer_state::dir().unwrap());
         let mut a = app();
         let file = |a: &App, n: u16| track_items(&a.state, n).into_iter().find(|i| i.label == "File").unwrap();
         let ins = |a: &App, n: u16| track_items(&a.state, n).into_iter().find(|i| i.label == "Insert from state").unwrap();
@@ -3671,7 +3671,7 @@ mod tests {
         assert_eq!(a.state.history.at(), steps + 2);
         crate::history::undo(&mut a.state);
         assert_eq!(name(&a.state, 5), "Old five");
-        let _ = std::fs::remove_dir_all(crate::mixer_state::dir().unwrap());
+        let _ = os_web::fs::remove_dir_all(crate::mixer_state::dir().unwrap());
     }
 
     /// File ▸ Render to wave file...: the Export form for the selected tracks, or the one clicked, named after it and

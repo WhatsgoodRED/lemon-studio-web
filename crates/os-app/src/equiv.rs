@@ -357,9 +357,9 @@ impl Rig {
         assert!(Path::new(&home).starts_with(traces_dir()) || std::env::var("OS_EQUIV_HOME_OK").is_ok(), "HOME must be a folder under OS_EQUIV_DIR, not {home}");
         crate::transport::headless();
         crate::anim::set_clock_at(epoch());
-        let _ = std::fs::create_dir_all(work);
+        let _ = os_web::fs::create_dir_all(work);
         let copy = work.join(project.file_name().expect("a file"));
-        std::fs::copy(project, &copy).expect("copy the project");
+        os_web::fs::copy(project, &copy).expect("copy the project");
         let mut app = App::new(None);
         app.plugins = crate::plugins::Plugins::default();
         app.plugins.available = crate::plugins::builtin();
@@ -432,9 +432,9 @@ impl Rig {
         // compare two runs that differ there.
         if std::env::var("OS_EQUIV_DUMP").ok().and_then(|v| v.parse().ok()) == Some(self.step) {
             let dir = traces_dir().join("dumps");
-            let _ = std::fs::create_dir_all(&dir);
-            let n = std::fs::read_dir(&dir).map_or(0, |d| d.count());
-            let _ = std::fs::write(dir.join(format!("{n}.txt")), format!("{:#?}\n{}", self.app.state.project, side(&self.app)));
+            let _ = os_web::fs::create_dir_all(&dir);
+            let n = os_web::fs::read_dir(&dir).map_or(0, |d| d.count());
+            let _ = os_web::fs::write(dir.join(format!("{n}.txt")), format!("{:#?}\n{}", self.app.state.project, side(&self.app)));
         }
         if self.id_fault.is_none() {
             self.id_fault = ids_fault(&self.app.state.project).map(|f| format!("step {}: {f}", self.step));
@@ -631,7 +631,7 @@ impl Rig {
                 let second = work.join("roundtrip2.flp");
                 match again.save_copy_with(second.clone(), &mut |_| {}) {
                     Some(Ok(())) => {
-                        let model = |p: &Path| std::fs::read(p).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok());
+                        let model = |p: &Path| os_web::fs::read(p).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok());
                         match (model(&copy), model(&second)) {
                             (Some(x), Some(y)) => {
                                 if let Some(d) = difference(&x, &y, false) {
@@ -858,9 +858,9 @@ fn corpus() -> (PathBuf, Vec<String>) {
     let mut v = Vec::new();
     let mut dirs = vec![root.clone()];
     while let Some(d) = dirs.pop() {
-        for e in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+        for e in os_web::fs::read_dir(&d).into_iter().flatten().flatten() {
             let p = e.path();
-            if p.is_dir() {
+            if p.vis_dir() {
                 dirs.push(p);
             } else if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("flp")) {
                 v.push(p.strip_prefix(&root).expect("inside").to_string_lossy().into_owned());
@@ -882,7 +882,7 @@ fn traces_dir() -> PathBuf {
 /// A scratch folder for one trace's copies (under the traces' folder, emptied first).
 fn work_dir(name: &str) -> PathBuf {
     let d = traces_dir().join("work").join(name);
-    let _ = std::fs::remove_dir_all(&d);
+    let _ = os_web::fs::remove_dir_all(&d);
     d
 }
 
@@ -913,7 +913,7 @@ fn record(root: &Path, project: &str, seed: u64, steps: usize) -> Trace {
     }
     let invariants = rig.invariants(&opened_project, &work);
     let kinds: String = rig.seen.iter().map(|(k, n)| format!("{k}\t{n}\t{}\t{}\n", rig.used.get(k).copied().unwrap_or(0), u8::from(rig.edits.contains(k)))).collect();
-    let _ = std::fs::write(traces_dir().join(format!("{}.kinds", trace_name(project, seed))), kinds);
+    let _ = os_web::fs::write(traces_dir().join(format!("{}.kinds", trace_name(project, seed))), kinds);
     Trace { project: project.into(), seed, opened, steps: out, invariants }
 }
 
@@ -997,7 +997,7 @@ fn findings_are_matched_against_the_accepted_list() {
 fn equiv_record() {
     let (root, projects) = corpus();
     let dir = traces_dir();
-    std::fs::create_dir_all(&dir).expect("traces folder");
+    os_web::fs::create_dir_all(&dir).expect("traces folder");
     let (seeds, steps) = (var("OS_EQUIV_SEEDS", 2u64), var("OS_EQUIV_STEPS", 300usize));
     let _ = root;
     for p in &projects {
@@ -1013,7 +1013,7 @@ fn equiv_record() {
 #[ignore = "the equivalence harness: replays recorded traces (see the module's doc)"]
 fn equiv_replay() {
     let (root, _) = corpus();
-    let mut names: Vec<PathBuf> = std::fs::read_dir(traces_dir()).expect("traces").flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "trace")).collect();
+    let mut names: Vec<PathBuf> = os_web::fs::read_dir(traces_dir()).expect("traces").flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "trace")).collect();
     names.sort();
     let mut failed = 0;
     let _ = root;
@@ -1042,7 +1042,7 @@ fn equiv_twice() {
             let name = trace_name(p, seed);
             let recorded = isolated(&name, &format!("record\t{p}\t{seed}\t{steps}"));
             let path = traces_dir().join(format!("{name}.trace"));
-            let t = Trace::read(&std::fs::read_to_string(&path).expect("recorded")).expect("a trace");
+            let t = Trace::read(&os_web::fs::read_to_string(&path).expect("recorded")).expect("a trace");
             assert_eq!(Trace::read(&t.write()).map(|a| a.write()), Some(t.write()), "the trace format round-trips");
             match isolated(&name, &format!("replay\t{}", path.display())).as_str() {
                 "same" => eprintln!("deterministic: {p} seed {seed}, {recorded}"),
@@ -1062,8 +1062,8 @@ fn equiv_twice() {
 /// process-wide switches): what it reports.
 fn isolated(name: &str, job: &str) -> String {
     let home = traces_dir().join("homes").join(name);
-    let _ = std::fs::remove_dir_all(&home);
-    let _ = std::fs::create_dir_all(&home);
+    let _ = os_web::fs::remove_dir_all(&home);
+    let _ = os_web::fs::create_dir_all(&home);
     let bin = no_programs(&home);
     let out = std::process::Command::new(std::env::current_exe().expect("the test binary"))
         .args(["equiv::equiv_one", "--exact", "--ignored", "--nocapture", "--test-threads=1"])
@@ -1082,12 +1082,12 @@ fn isolated(name: &str, job: &str) -> String {
         .env_remove("WAYLAND_DISPLAY")
         .env_remove("CARGO")
         .output();
-    if let Ok(started) = std::fs::read_to_string(home.join("started")) {
+    if let Ok(started) = os_web::fs::read_to_string(home.join("started")) {
         for l in started.lines() {
             eprintln!("STARTED {name}: {l}");
         }
     }
-    let _ = std::fs::remove_dir_all(&home);
+    let _ = os_web::fs::remove_dir_all(&home);
     let Ok(out) = out else { return "did not start".into() };
     let err = String::from_utf8_lossy(&out.stderr);
     err.lines().find_map(|l| l.strip_prefix("EQUIV-RESULT ")).map_or_else(
@@ -1100,16 +1100,16 @@ fn isolated(name: &str, job: &str) -> String {
 /// Anything else the app tries to start is not found. What it returns is the trace's whole `PATH`.
 fn no_programs(home: &std::path::Path) -> std::path::PathBuf {
     let bin = home.join("bin");
-    let _ = std::fs::create_dir_all(&bin);
-    let _ = std::fs::create_dir_all(home.join("run"));
+    let _ = os_web::fs::create_dir_all(&bin);
+    let _ = os_web::fs::create_dir_all(home.join("run"));
     let log = home.join("started");
     for p in ["xdg-open", "open", "explorer", "pw-play", "cargo", "gio", "notify-send"] {
         let f = bin.join(p);
-        let _ = std::fs::write(&f, format!("#!/bin/sh\necho \"{p} $*\" >> '{}'\n", log.display()));
+        let _ = os_web::fs::write(&f, format!("#!/bin/sh\necho \"{p} $*\" >> '{}'\n", log.display()));
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o755));
+            let _ = os_web::fs::set_permissions(&f, os_web::fs::Permissions::from_mode(0o755));
         }
     }
     bin
@@ -1126,17 +1126,17 @@ fn equiv_one() {
         ["record", project, seed, steps] => {
             let (seed, steps) = (seed.parse().expect("seed"), steps.parse().expect("steps"));
             let t = record(&root, project, seed, steps);
-            std::fs::write(traces_dir().join(format!("{}.trace", trace_name(project, seed))), t.write()).expect("write trace");
+            os_web::fs::write(traces_dir().join(format!("{}.trace", trace_name(project, seed))), t.write()).expect("write trace");
             let new = unaccepted(&t.invariants);
             format!("{} steps, findings {new:?} ({} accepted)", t.steps.len(), t.invariants.len() - new.len())
         }
         ["check", project, seed, kind, path] => {
             let steps: Option<Vec<Vec<Input>>> =
-                std::fs::read_to_string(path).expect("read").lines().map(|l| l.split("; ").map(Input::parse).collect()).collect();
+                os_web::fs::read_to_string(path).expect("read").lines().map(|l| l.split("; ").map(Input::parse).collect()).collect();
             fails_here(&root, project, seed.parse().expect("a seed"), &steps.expect("a candidate"), kind).map_or_else(|| "holds".into(), |f| format!("fails: {f}"))
         }
         ["replay", path] => {
-            let t = Trace::read(&std::fs::read_to_string(path).expect("read")).expect("a trace");
+            let t = Trace::read(&os_web::fs::read_to_string(path).expect("read")).expect("a trace");
             replay(&root, &t).unwrap_or_else(|| "same".into())
         }
         _ => format!("unknown job {job:?}"),
@@ -1150,7 +1150,7 @@ fn equiv_one() {
 fn fails(_root: &Path, project: &str, seed: u64, steps: &[Vec<Input>], kind: &str) -> Option<String> {
     let file = traces_dir().join("shrink-candidate.txt");
     let text: String = steps.iter().map(|s| s.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ") + "\n").collect();
-    std::fs::write(&file, text).expect("write the candidate");
+    os_web::fs::write(&file, text).expect("write the candidate");
     let r = isolated("shrink", &format!("check\t{project}\t{seed}\t{kind}\t{}", file.display()));
     r.strip_prefix("fails: ").map(String::from)
 }
@@ -1182,7 +1182,7 @@ fn equiv_shrink() {
     let path = std::env::var("OS_EQUIV_TRACE").expect("OS_EQUIV_TRACE: a trace file");
     let kind = std::env::var("OS_EQUIV_KIND")
         .expect("OS_EQUIV_KIND: the start of a finding as the accepted list writes it, e.g. undo-to-start or roundtrip(arrangements[].clips");
-    let t = Trace::read(&std::fs::read_to_string(&path).expect("read")).expect("a trace");
+    let t = Trace::read(&os_web::fs::read_to_string(&path).expect("read")).expect("a trace");
     let mut steps: Vec<Vec<Input>> = t.steps.into_iter().map(|(i, _)| i).collect();
     // The shortest failing prefix first: the steps after it play no part.
     let (mut lo, mut hi) = (0, steps.len());
@@ -1231,7 +1231,7 @@ fn equiv_shrink() {
 fn equiv_show() {
     let (root, _) = corpus();
     let path = std::env::var("OS_EQUIV_TRACE").expect("OS_EQUIV_TRACE: a trace file");
-    let t = Trace::read(&std::fs::read_to_string(&path).expect("read")).expect("a trace");
+    let t = Trace::read(&os_web::fs::read_to_string(&path).expect("read")).expect("a trace");
     let work = work_dir(&trace_name(&t.project, t.seed));
     let mut rig = Rig::open(&root.join(&t.project), &work);
     let mut start = rig.app.state.project.clone();
@@ -1281,12 +1281,12 @@ fn equiv_show() {
 fn equiv_coverage() {
     let mut all: std::collections::BTreeMap<String, (u64, u64, u64, u64)> = Default::default();
     let mut traces = 0;
-    for e in std::fs::read_dir(traces_dir()).expect("traces folder").flatten() {
+    for e in os_web::fs::read_dir(traces_dir()).expect("traces folder").flatten() {
         if e.path().extension().is_none_or(|x| x != "kinds") {
             continue;
         }
         traces += 1;
-        for l in std::fs::read_to_string(e.path()).unwrap_or_default().lines() {
+        for l in os_web::fs::read_to_string(e.path()).unwrap_or_default().lines() {
             let f: Vec<&str> = l.split('\t').collect();
             let [k, seen, used, edited] = f[..] else { continue };
             let a = all.entry(k.to_string()).or_default();
@@ -1309,3 +1309,6 @@ fn equiv_coverage() {
         }
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

@@ -304,10 +304,10 @@ impl Recorder {
     /// Starts writing what `drain` hands over (stereo frames, appended to its argument) into `file`.
     pub fn start_from(file: PathBuf, rate: u32, mut drain: impl FnMut(&mut Vec<f32>) + Send + 'static) -> Result<Recorder, String> {
         if let Some(d) = file.parent() {
-            std::fs::create_dir_all(d).map_err(|e| format!("{}: {e}", d.display()))?;
+            os_web::fs::create_dir_all(d).map_err(|e| format!("{}: {e}", d.display()))?;
         }
         let part = file.with_extension("wav.part");
-        let raw = std::fs::File::create(&part).map_err(|e| format!("{}: {e}", part.display()))?;
+        let raw = os_web::fs::File::create(&part).map_err(|e| format!("{}: {e}", part.display()))?;
         let stop = Arc::new(AtomicBool::new(false));
         let head = Arc::new(AtomicI64::new(0));
         let rate = Arc::new(AtomicU32::new(rate));
@@ -336,7 +336,7 @@ impl Recorder {
                 let frames = samples / 2;
                 let head = h.load(Ordering::Acquire);
                 let n = to_wav(&part, &file, r.load(Ordering::Acquire), head, frames).map_err(|e| e.to_string());
-                let _ = std::fs::remove_file(&part);
+                let _ = os_web::fs::remove_file(&part);
                 Ok((file, n?))
             })
             .map_err(|e| e.to_string())?;
@@ -372,10 +372,10 @@ fn to_wav(part: &Path, wav: &Path, rate: u32, head: i64, frames: u64) -> std::io
     let skip = head.max(0) as u64;
     let pad = (-head).max(0) as u64;
     let n = frames.saturating_sub(skip) + pad;
-    let mut out = BufWriter::new(std::fs::File::create(wav)?);
+    let mut out = BufWriter::new(os_web::fs::File::create(wav)?);
     os_engine::wav::write_f32_stereo_header(&mut out, rate, n)?;
     out.write_all(&vec![0u8; (pad * 8) as usize])?;
-    let mut r = std::fs::File::open(part)?;
+    let mut r = os_web::fs::File::open(part)?;
     r.seek(SeekFrom::Start(skip.min(frames) * 8))?;
     std::io::copy(&mut r.take(frames.saturating_sub(skip) * 8), &mut out)?;
     out.flush()?;
@@ -414,20 +414,20 @@ mod tests {
     #[test]
     fn a_wav_from_the_head_on() {
         let dir = std::env::temp_dir().join(format!("lemon_capture_{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::create_dir_all(&dir).unwrap();
         let part = dir.join("t.wav.part");
         let raw: Vec<u8> = (0..8).flat_map(|i| (i as f32).to_le_bytes()).collect();
-        std::fs::write(&part, raw).unwrap();
+        os_web::fs::write(&part, raw).unwrap();
         let wav = dir.join("t.wav");
         assert_eq!(to_wav(&part, &wav, 48000, 1, 4).unwrap(), 3);
-        let b = std::fs::read(&wav).unwrap();
+        let b = os_web::fs::read(&wav).unwrap();
         let data: Vec<f32> = b[44..].chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect();
         assert_eq!(data, [2.0, 3.0, 4.0, 5.0, 6.0, 7.0]);
         assert_eq!(to_wav(&part, &wav, 48000, -1, 4).unwrap(), 5);
-        let b = std::fs::read(&wav).unwrap();
+        let b = os_web::fs::read(&wav).unwrap();
         assert_eq!(b.len(), 44 + 5 * 8);
         assert_eq!(&b[44..52], &[0u8; 8]);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// A real input device takes in (needs one: `cargo test -- --ignored`).

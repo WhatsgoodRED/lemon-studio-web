@@ -376,10 +376,10 @@ mod tests {
     #[test]
     fn corpus_patcher_states_read() {
         let Some(list) = std::env::var_os("OPENSTUDIO_FLP_CORPUS") else { return };
-        let text = std::fs::read_to_string(list).unwrap();
+        let text = os_web::fs::read_to_string(list).unwrap();
         let (mut states, mut chains) = (0, 0);
         for path in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
-            let file = crate::FlpFile::parse(&std::fs::read(path).unwrap()).unwrap();
+            let file = crate::FlpFile::parse(&os_web::fs::read(path).unwrap()).unwrap();
             let project = crate::project::load(&file).unwrap();
             for slot in project.mixer.iter().flat_map(|m| m.slots.iter().flatten()).filter(|s| s.name == PATCHER) {
                 let p = parse(&slot.state).unwrap_or_else(|| panic!("{path}: a Patcher state reads"));

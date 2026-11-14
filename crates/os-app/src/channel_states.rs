@@ -63,7 +63,7 @@ fn save_as(app: &mut App, row: usize) -> Option<String> {
         return Some("This channel has no state to save".into());
     }
     let dir = root()?;
-    let _ = std::fs::create_dir_all(&dir);
+    let _ = os_web::fs::create_dir_all(&dir);
     let name = crate::presets::folder_name(&crate::rack::channel_name(&app.state, row));
     let dlg = crate::filedlg::FileDlg::new(crate::filedlg::Mode::Save, "Save channel state as", "channel state", crate::dialog::Then::SaveChannelState(row))
         .filter("Lemon Studio channel state", &[EXT])
@@ -77,7 +77,7 @@ fn save_as(app: &mut App, row: usize) -> Option<String> {
 pub fn save_chosen(app: &mut App, row: usize, target: PathBuf) -> Option<String> {
     let target = if is_state_file(&target) { target } else { target.with_extension(EXT) };
     let shown = target.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    Some(match state_bytes(app, row).and_then(|b| std::fs::write(&target, b).map_err(|e| e.to_string())) {
+    Some(match state_bytes(app, row).and_then(|b| os_web::fs::write(&target, b).map_err(|e| e.to_string())) {
         Ok(()) => {
             app.state.browser_dirs.borrow_mut().clear();
             format!("Saved channel state {shown}")
@@ -115,7 +115,7 @@ pub fn state_bytes(app: &mut App, row: usize) -> Result<Vec<u8>, String> {
 
 /// The channel a channel state file holds.
 pub fn read(path: &Path) -> Result<os_model::Channel, String> {
-    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let bytes = os_web::fs::read(path).map_err(|e| e.to_string())?;
     let file = os_flp::FlpFile::parse(&bytes).map_err(|e| e.to_string())?;
     let p = os_flp::project::load(&file).map_err(|e| e.to_string())?;
     p.channels.into_iter().next().ok_or_else(|| "it holds no channel".into())
@@ -150,7 +150,7 @@ pub const LOAD: &str = "Load channel state";
 /// Browse channel states: the browser shows, on its All tab, Channel presets opened (the folder made when missing).
 fn browse(app: &mut App) -> Option<String> {
     if let Some(dir) = root() {
-        let _ = std::fs::create_dir_all(dir);
+        let _ = os_web::fs::create_dir_all(dir);
     }
     let s = &mut app.state;
     s.show_browser = true;
@@ -181,8 +181,8 @@ pub(crate) mod tests {
     #[test]
     fn save_add_and_browse() {
         let dir = std::env::temp_dir().join(format!("ls_channel_states_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         ROOT.with(|r| *r.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
         app.state.project = crate::app::test_project();
@@ -197,7 +197,7 @@ pub(crate) mod tests {
         let m = save_chosen(&mut app, row, path.clone()).unwrap();
         assert_eq!(m, "Saved channel state Snare top");
         let file = path.with_extension(EXT);
-        assert!(file.exists());
+        assert!(file.vexists());
         let back = read(&file).unwrap();
         assert_eq!((back.name.as_deref(), back.kind, back.volume), (Some("Snare top"), app.state.project.channels[row].kind, 0.25));
 
@@ -217,6 +217,9 @@ pub(crate) mod tests {
         assert!(app.state.show_browser && app.state.browser_open.contains(&key));
         let rows = crate::views::browser::rows(&app.state);
         assert!(rows.iter().any(|r| r.label == "Snare top.oschannel" && r.item == crate::views::browser::Item::Preset(file.to_string_lossy().into_owned())), "{:?}", rows.iter().map(|r| &r.label).collect::<Vec<_>>());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

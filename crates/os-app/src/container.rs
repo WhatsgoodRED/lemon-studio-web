@@ -2099,7 +2099,7 @@ mod tests {
 
         // Saved and opened again.
         let d = std::env::temp_dir().join(format!("lemon-container-{}", std::process::id()));
-        std::fs::create_dir_all(&d).unwrap();
+        os_web::fs::create_dir_all(&d).unwrap();
         let path = d.join("Channel.lemon");
         a.save_to(path.clone());
         let saved = members(&a.state, 0, CHANNEL).unwrap();
@@ -2112,7 +2112,7 @@ mod tests {
         assert_eq!(members(&back.state, 0, CHANNEL), Some(saved));
         assert_eq!(back.plugins.containers[&0].fx.lock().unwrap().members.len(), 3);
         assert!(back.plugins.containers[&0].keys.iter().all(Option::is_some));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// Wrapping moves the wrapped effects' automation and links onto their members (spec §4.5): an automation clip, a
@@ -2362,7 +2362,7 @@ mod tests {
 
         // Saved in a .lemon file and opened again.
         let d = std::env::temp_dir().join(format!("lemon-container-own-{}", std::process::id()));
-        std::fs::create_dir_all(&d).unwrap();
+        os_web::fs::create_dir_all(&d).unwrap();
         let path = d.join("Own.lemon");
         a.save_to(path.clone());
         let saved = members(&a.state, 2, 1).unwrap();
@@ -2374,7 +2374,7 @@ mod tests {
         let opened = members(&back.state, 2, 1).unwrap();
         assert_eq!(opened, saved);
         assert_eq!((opened[1].label.as_deref(), opened[1].icon, opened[1].cpu.smart_disable), (Some("Echo"), Some(icon), true));
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
 
         // A version 3 state: the members' defaults.
         let mut v3 = encode(&[Member { id: 1, uid: "clap:a".into(), name: "A".into(), wet: 1.0, ..Member::default() }]);

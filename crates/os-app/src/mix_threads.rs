@@ -71,7 +71,7 @@ fn physical_cores() -> Option<usize> {
 /// Linux: the distinct (package, core) pairs `/proc/cpuinfo` lists.
 #[cfg(not(any(windows, target_os = "macos")))]
 fn physical_cores() -> Option<usize> {
-    let text = std::fs::read_to_string("/proc/cpuinfo").ok()?;
+    let text = os_web::fs::read_to_string("/proc/cpuinfo").ok()?;
     let mut cores = std::collections::BTreeSet::new();
     let mut package = "";
     for line in text.lines() {

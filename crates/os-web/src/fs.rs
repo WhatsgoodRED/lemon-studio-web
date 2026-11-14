@@ -23,6 +23,34 @@ pub fn is_dir(p: impl AsRef<Path>) -> bool {
     metadata(p).is_ok_and(|m| m.is_dir())
 }
 
+/// `Path::exists`, `is_file` and `is_dir` that ask this file system (`std`'s on native, the same calls).
+pub trait VPath {
+    fn vexists(&self) -> bool;
+    fn vis_file(&self) -> bool;
+    fn vis_dir(&self) -> bool;
+}
+
+impl<T: AsRef<Path> + ?Sized> VPath for T {
+    fn vexists(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        return self.as_ref().exists();
+        #[cfg(target_arch = "wasm32")]
+        exists(self)
+    }
+    fn vis_file(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        return self.as_ref().is_file();
+        #[cfg(target_arch = "wasm32")]
+        is_file(self)
+    }
+    fn vis_dir(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        return self.as_ref().is_dir();
+        #[cfg(target_arch = "wasm32")]
+        is_dir(self)
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 pub use web::*;
 
@@ -33,13 +61,13 @@ mod web {
     use std::ffi::OsString;
     use std::io::{self, Read, Seek, SeekFrom, Write};
     use std::path::{Component, Path, PathBuf};
-    use std::rc::Rc;
+    use std::sync::{Arc, Mutex};
     use std::time::SystemTime;
 
     use wasm_bindgen::prelude::*;
 
     struct Node {
-        data: Rc<RefCell<Vec<u8>>>,
+        data: Arc<Mutex<Vec<u8>>>,
         modified: SystemTime,
     }
 
@@ -100,18 +128,18 @@ mod web {
             let mut fs = fs.borrow_mut();
             add_parents(&mut fs, &p);
             fs.version += 1;
-            fs.files.insert(p, Node { data: Rc::new(RefCell::new(data)), modified: now() });
+            fs.files.insert(p, Node { data: Arc::new(Mutex::new(data)), modified: now() });
         });
     }
 
-    fn get(p: &Path) -> Option<Rc<RefCell<Vec<u8>>>> {
+    fn get(p: &Path) -> Option<Arc<Mutex<Vec<u8>>>> {
         let p = norm(p);
         FS.with(|fs| fs.borrow().files.get(&p).map(|n| n.data.clone()))
     }
 
     pub fn read(p: impl AsRef<Path>) -> io::Result<Vec<u8>> {
         let p = p.as_ref();
-        get(p).map(|d| d.borrow().clone()).ok_or_else(|| not_found(p))
+        get(p).map(|d| d.lock().unwrap().clone()).ok_or_else(|| not_found(p))
     }
 
     pub fn read_to_string(p: impl AsRef<Path>) -> io::Result<String> {
@@ -211,6 +239,12 @@ mod web {
         pub fn modified(&self) -> io::Result<SystemTime> {
             Ok(self.modified)
         }
+        pub fn accessed(&self) -> io::Result<SystemTime> {
+            Ok(self.modified)
+        }
+        pub fn created(&self) -> io::Result<SystemTime> {
+            Ok(self.modified)
+        }
         pub fn file_type(&self) -> FileType {
             FileType { dir: self.dir }
         }
@@ -238,7 +272,7 @@ mod web {
         FS.with(|fs| {
             let fs = fs.borrow();
             if let Some(n) = fs.files.get(&p) {
-                return Ok(Metadata { len: n.data.borrow().len() as u64, dir: false, modified: n.modified });
+                return Ok(Metadata { len: n.data.lock().unwrap().len() as u64, dir: false, modified: n.modified });
             }
             if p == Path::new("/") || fs.dirs.contains(&p) {
                 return Ok(Metadata { len: 0, dir: true, modified: SystemTime::UNIX_EPOCH });
@@ -297,7 +331,7 @@ mod web {
 
     /// An open file: its bytes are shared with the file system, so what is written shows at once.
     pub struct File {
-        data: Rc<RefCell<Vec<u8>>>,
+        data: Arc<Mutex<Vec<u8>>>,
         pos: u64,
         append: bool,
     }
@@ -316,10 +350,13 @@ mod web {
             OpenOptions::new()
         }
         pub fn metadata(&self) -> io::Result<Metadata> {
-            Ok(Metadata { len: self.data.borrow().len() as u64, dir: false, modified: now() })
+            Ok(Metadata { len: self.data.lock().unwrap().len() as u64, dir: false, modified: now() })
         }
         pub fn set_len(&self, n: u64) -> io::Result<()> {
-            self.data.borrow_mut().resize(n as usize, 0);
+            self.data.lock().unwrap().resize(n as usize, 0);
+            Ok(())
+        }
+        pub fn set_times(&self, _times: std::fs::FileTimes) -> io::Result<()> {
             Ok(())
         }
         pub fn sync_all(&self) -> io::Result<()> {
@@ -332,7 +369,7 @@ mod web {
 
     impl Read for File {
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            let d = self.data.borrow();
+            let d = self.data.lock().unwrap();
             let at = (self.pos as usize).min(d.len());
             let n = buf.len().min(d.len() - at);
             buf[..n].copy_from_slice(&d[at..at + n]);
@@ -343,7 +380,7 @@ mod web {
 
     impl Write for File {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            let mut d = self.data.borrow_mut();
+            let mut d = self.data.lock().unwrap();
             if self.append {
                 self.pos = d.len() as u64;
             }
@@ -362,7 +399,7 @@ mod web {
 
     impl Seek for File {
         fn seek(&mut self, to: SeekFrom) -> io::Result<u64> {
-            let len = self.data.borrow().len() as i64;
+            let len = self.data.lock().unwrap().len() as i64;
             let p = match to {
                 SeekFrom::Start(n) => n as i64,
                 SeekFrom::End(n) => len + n,
@@ -416,7 +453,7 @@ mod web {
             match get(p) {
                 Some(d) => {
                     if self.truncate {
-                        d.borrow_mut().clear();
+                        d.lock().unwrap().clear();
                     }
                     Ok(File { data: d, pos: 0, append: self.append })
                 }
@@ -464,7 +501,7 @@ mod web {
             let mut out = String::new();
             for (k, n) in fs.files.iter().filter(|(k, _)| k.starts_with(&d)) {
                 let ms = n.modified.duration_since(SystemTime::UNIX_EPOCH).map_or(0, |t| t.as_millis());
-                out.push_str(&format!("{}\t{}\t{}\n", k.display(), n.data.borrow().len(), ms));
+                out.push_str(&format!("{}\t{}\t{}\n", k.display(), n.data.lock().unwrap().len(), ms));
             }
             out
         })

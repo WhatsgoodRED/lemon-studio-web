@@ -78,8 +78,8 @@ fn dir_in(root: &Path, plugin: &str) -> PathBuf {
     let dir = root.join(folder_name(plugin));
     for (old, _) in crate::plugins::OLD_NAMES.iter().filter(|(_, now)| *now == plugin) {
         let old = root.join(folder_name(old));
-        if old.is_dir() && !dir.exists() {
-            let _ = std::fs::rename(old, &dir);
+        if old.vis_dir() && !dir.vexists() {
+            let _ = os_web::fs::rename(old, &dir);
         }
     }
     dir
@@ -108,11 +108,11 @@ fn sorted(mut loose: Vec<Preset>, mut nested: Vec<Preset>) -> Vec<Preset> {
 /// the loose ones).
 pub fn list_in(dir: &Path) -> Vec<Preset> {
     let mut out = Vec::new();
-    let Ok(rd) = std::fs::read_dir(dir) else { return out };
+    let Ok(rd) = os_web::fs::read_dir(dir) else { return out };
     let mut subdirs = Vec::new();
     for e in rd.flatten() {
         let p = e.path();
-        if p.is_dir() {
+        if p.vis_dir() {
             subdirs.push(p);
         } else if is_own(&p) {
             out.push(Preset { name: shown_name(&p), path: p, factory: false });
@@ -121,10 +121,10 @@ pub fn list_in(dir: &Path) -> Vec<Preset> {
     let mut nested = Vec::new();
     for d in subdirs {
         let folder = d.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        if let Ok(rd) = std::fs::read_dir(&d) {
+        if let Ok(rd) = os_web::fs::read_dir(&d) {
             for e in rd.flatten() {
                 let p = e.path();
-                if p.is_file() && is_own(&p) {
+                if p.vis_file() && is_own(&p) {
                     nested.push(Preset { name: format!("{folder}/{}", shown_name(&p)), path: p, factory: false });
                 }
             }
@@ -195,7 +195,7 @@ fn read(path: &Path) -> Result<Vec<u8>, String> {
     if is_factory(path) {
         return factory_bytes_in(FACTORY, path).map(<[u8]>::to_vec).ok_or_else(|| format!("{} is not a factory preset", shown_name(path)));
     }
-    std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))
+    os_web::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// The presets of `plugin`: the user's, then the factory ones.
@@ -285,9 +285,9 @@ pub fn save(path: &Path, h: &Header, state: &[u8]) -> std::io::Result<()> {
 /// Writes a preset holding `body` (creating its folder).
 pub fn save_body(path: &Path, h: &Header, body: &Body) -> std::io::Result<()> {
     if let Some(d) = path.parent() {
-        std::fs::create_dir_all(d)?;
+        os_web::fs::create_dir_all(d)?;
     }
-    std::fs::write(path, match body {
+    os_web::fs::write(path, match body {
         Body::State(s) => encode(h, s),
         Body::Params(p) => encode_params(h, p),
     })
@@ -388,7 +388,7 @@ pub fn file_for(dir: &Path, name: &str) -> PathBuf {
 fn free_file(dir: &Path, name: &str) -> PathBuf {
     let mut p = file_for(dir, name);
     let mut n = 2;
-    while p.exists() {
+    while p.vexists() {
         p = file_for(dir, &format!("{name} {n}"));
         n += 1;
     }
@@ -450,7 +450,7 @@ fn header(app: &App, key: usize) -> Option<Header> {
 /// deleted; factory presets and files dropped from elsewhere cannot).
 fn own_current(app: &App, key: usize) -> Option<PathBuf> {
     let p = app.plugins.presets.get(&key)?;
-    (!is_factory(p) && p.is_file() && root().is_some_and(|r| p.starts_with(r))).then(|| p.clone())
+    (!is_factory(p) && p.vis_file() && root().is_some_and(|r| p.starts_with(r))).then(|| p.clone())
 }
 
 /// Rows of the presets in `list`: sub-folder presets in one submenu per folder when `nested`, else "Folder/name" rows.
@@ -695,7 +695,7 @@ fn save_as(app: &mut App, key: usize) -> Option<String> {
         return Some(format!("{} has no state to save", h.plugin));
     }
     let dir = dir_for(&h.plugin)?;
-    let _ = std::fs::create_dir_all(&dir);
+    let _ = os_web::fs::create_dir_all(&dir);
     let start = app.plugins.presets.get(&key).map(|p| shown_name(p)).unwrap_or_else(|| "New preset".into());
     let dlg = crate::filedlg::FileDlg::new(crate::filedlg::Mode::Save, "Save preset as", "preset", crate::dialog::Then::SavePreset(key))
         .filter("Lemon Studio preset", &[EXT])
@@ -759,7 +759,7 @@ pub fn rename_chosen(app: &mut App, key: usize, old: PathBuf, target: PathBuf) -
     if target == old {
         return None;
     }
-    Some(match std::fs::rename(&old, &target) {
+    Some(match os_web::fs::rename(&old, &target) {
         Ok(()) => {
             if app.plugins.presets.get(&key) == Some(&old) {
                 app.plugins.set_preset(key, Some(target.clone()));
@@ -772,7 +772,7 @@ pub fn rename_chosen(app: &mut App, key: usize, old: PathBuf, target: PathBuf) -
 
 /// Delete preset... answered Yes for preset `path`. Returns the status message.
 pub fn delete_chosen(app: &mut App, key: usize, path: PathBuf) -> Option<String> {
-    Some(match std::fs::remove_file(&path) {
+    Some(match os_web::fs::remove_file(&path) {
         Ok(()) => {
             if app.plugins.presets.get(&key) == Some(&path) {
                 app.plugins.set_preset(key, None);
@@ -861,7 +861,7 @@ pub fn dropped(app: &mut App, path: &Path) -> Option<String> {
         app.plugins.preset_waits.push((crate::plugins::fx_key(t, k), path.to_path_buf(), web_time::Instant::now()));
         return Some(format!("Loading {name} in a new effect"));
     }
-    let plugin = std::fs::read(path).ok().and_then(|b| decode(&b).map(|(h, _)| h.plugin)).filter(|p| !p.is_empty());
+    let plugin = os_web::fs::read(path).ok().and_then(|b| decode(&b).map(|(h, _)| h.plugin)).filter(|p| !p.is_empty());
     Some(format!("{name} is for {}, which is not installed", plugin.unwrap_or_else(|| "a plugin".into())))
 }
 
@@ -886,8 +886,8 @@ mod tests {
 
     fn tmp(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("os-presets-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let _ = os_web::fs::remove_dir_all(&d);
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -914,7 +914,7 @@ mod tests {
         assert_eq!(state_of(load(&p, "org.openstudio.open-sampler")), state);
         assert!(load(&p, "some.other.plugin").is_err(), "presets of another plugin are refused");
         assert!(load(&p, "").is_ok());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     // spec: plugins/presets.md "File format": a parameter list instead of the state.
@@ -926,7 +926,7 @@ mod tests {
         assert!(std::str::from_utf8(&b).unwrap().ends_with("body=params\nDecay time = 25\nWet = level = -0.5\n"));
         let dir = tmp("params");
         let p = dir.join("Hall.ospreset");
-        std::fs::write(&p, &b).unwrap();
+        os_web::fs::write(&p, &b).unwrap();
         assert_eq!(load(&p, "clap:x").unwrap().1, Body::Params(params.clone()));
         assert_eq!(parse_params("# a comment\n\n  Mix = 1e2 \r\n").unwrap(), [("Mix".to_string(), 100.0)]);
         // Windows line ends, as a text editor (or a Git checkout) may leave them.
@@ -937,7 +937,7 @@ mod tests {
         assert!(parse_params("Mix: 1").is_err());
         assert!(parse_params("= 1").is_err());
         assert!(parse_params("Mix = loud").is_err());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -948,7 +948,7 @@ mod tests {
             save(&file_for(&dir, n), &h, b"x").unwrap();
         }
         save(&file_for(&dir.join("Pads"), "warm"), &h, b"x").unwrap();
-        std::fs::write(dir.join("readme.txt"), "x").unwrap();
+        os_web::fs::write(dir.join("readme.txt"), "x").unwrap();
         let l = list_in(&dir);
         let names: Vec<&str> = l.iter().map(|p| p.name.as_str()).collect();
         assert_eq!(names, ["A", "b", "c", "Pads/warm"]);
@@ -960,7 +960,7 @@ mod tests {
         assert_eq!(folder_name("a/b:c. "), "a_b_c");
         assert_eq!(free_file(&dir, "b"), dir.join("b 2.ospreset"));
         assert_eq!(free_file(&dir, "d"), dir.join("d.ospreset"));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     // spec: plugins/presets.md "Factory presets"
@@ -1039,7 +1039,7 @@ mod tests {
         let vst3 = desc("Vee", "0123456789ABCDEF0123456789ABCDEF", os_host::Format::Vst3);
         let bytes = os_vst3::preset::Preset { class_id: vst3.id.clone(), component: b"comp".to_vec(), controller: vec![] }.to_bytes();
         let p = dir.join("Shiny.vstpreset");
-        std::fs::write(&p, &bytes).unwrap();
+        os_web::fs::write(&p, &bytes).unwrap();
         assert_eq!(read_any(&p, &vst3).unwrap(), [("Shiny".to_string(), Body::State(bytes.clone()))]);
         assert_eq!(uid_of(&p).unwrap(), vst3.uid());
         let other = os_host::Descriptor { id: "F".repeat(32), ..vst3.clone() };
@@ -1066,13 +1066,13 @@ mod tests {
         bank.extend(program("Pluck", 0.25));
         bank.extend(program("", 0.5));
         let f = dir.join("Set.fxb");
-        std::fs::write(&f, &bank).unwrap();
+        os_web::fs::write(&f, &bank).unwrap();
         let got = read_any(&f, &vst2).unwrap();
         assert_eq!(got.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["Pluck", "Set 2"]);
         assert_eq!(got[0].1, Body::State(os_vst2::state::Saved::Params { program: None, values: vec![0.25] }.to_bytes()));
         assert_eq!(uid_of(&f).as_deref(), Some("vst2:41424344"));
         assert!(read_any(&f, &vst3).is_err());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Presets saved under a built-in plugin's earlier names move to its folder; another plugin's folder stays.
@@ -1084,16 +1084,16 @@ mod tests {
         let dir = dir_in(&root, crate::osc3::LEMON_TRIO);
         assert_eq!(dir, root.join("Lemon Trio"));
         assert_eq!(list_in(&dir)[0].name, "Lead");
-        assert!(root.join("Open 3x Osc").exists());
+        assert!(root.join("Open 3x Osc").vexists());
         save(&file_for(&root.join("Open Sampler"), "Kick"), &Header::default(), b"x").unwrap();
         save(&file_for(&root.join("Open Thing"), "Pad"), &Header::default(), b"x").unwrap();
         let dir = dir_in(&root, crate::plugins::LEMON_SAMPLER);
         assert_eq!(dir, root.join("Lemon Sampler"));
         assert_eq!(list_in(&dir).len(), 1);
-        assert!(!root.join("Open Sampler").exists());
+        assert!(!root.join("Open Sampler").vexists());
         assert_eq!(dir_in(&root, "Thing"), root.join("Thing"));
-        assert!(root.join("Open Thing").exists());
-        let _ = std::fs::remove_dir_all(&root);
+        assert!(root.join("Open Thing").vexists());
+        let _ = os_web::fs::remove_dir_all(&root);
     }
 
     /// Held by the tests that point `OPENSTUDIO_PRESETS` (process-wide) at their own folder.
@@ -1146,7 +1146,7 @@ mod tests {
         assert!(p.children.iter().filter(|i| !i.head).count() >= 2);
         assert!(m.items.iter().any(|i| i.cmd == Cmd::Preset(PCmd::SaveAs(0))));
         assert!(m.items.iter().any(|i| i.cmd == Cmd::Preset(PCmd::Browse(0))));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// An effect inside a container has its presets as a slot's effect has (Lemon Studio's design: spec
@@ -1173,7 +1173,7 @@ mod tests {
         assert!(p.children.iter().any(|i| i.cmd == Cmd::Preset(PCmd::Load(key, rim.clone())) && i.mark == Mark::Check(true)));
         assert!(m.items.iter().any(|i| i.cmd == Cmd::Preset(PCmd::SaveAs(key))));
         assert!(popup(&app, key, 0.0, 0.0).items.iter().any(|i| i.label == "Rim"));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Copy to B keeps a copy of the state; Swap A / B (greyed until then) swaps the state in use
@@ -1210,7 +1210,7 @@ mod tests {
         let m = crate::mixer::slot_menu(&app, 0, 0.0, 0.0);
         assert!(m.items.iter().any(|i| i.cmd == Cmd::Preset(PCmd::StoreSpare(key))));
         assert!(m.items.iter().any(|i| i.cmd == Cmd::Preset(PCmd::FlipSpare(key)) && !i.enabled), "no instance in the slot");
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Display preset name in preset selector: ticked by default; unticked, the window's Presets box shows no name.
@@ -1233,7 +1233,7 @@ mod tests {
         assert_eq!((it.mark, it.cmd), (Mark::Check(false), Cmd::Preset(PCmd::ShowName(0, true))));
         run(&mut app, PCmd::ShowName(0, true));
         assert_eq!(app.plugins.shown_preset(0).as_deref(), Some("Rim"));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The Presets box popup's commands: Rename and Delete only for one of the user's presets; rename, delete, import
@@ -1252,21 +1252,21 @@ mod tests {
         assert!(enabled(&app, "Rename preset...") && enabled(&app, "Delete preset..."));
         let renamed = mine.with_file_name("Ours.ospreset");
         rename_chosen(&mut app, 0, mine.clone(), renamed.with_extension(""));
-        assert!(!mine.exists() && renamed.exists());
+        assert!(!mine.vexists() && renamed.vexists());
         assert_eq!(app.plugins.preset_name(0).as_deref(), Some("Ours"));
         assert_eq!(delete_chosen(&mut app, 0, renamed.clone()).as_deref(), Some("Deleted preset Ours"));
-        assert!(!renamed.exists());
+        assert!(!renamed.vexists());
         assert_eq!(app.plugins.preset_name(0), None);
         // Import: a preset from elsewhere is copied into the plugin's folder and loads.
         let elsewhere = tmp("box-elsewhere").join("Snare.ospreset");
         save(&elsewhere, &h, &crate::plugins::with_sample_path(&state, "C:/x/snare.wav").unwrap()).unwrap();
         assert_eq!(import_chosen(&mut app, 0, elsewhere.clone()).as_deref(), Some("Imported preset Snare"));
         let copy = file_for(&dir_for(&h.plugin).unwrap(), "Snare");
-        assert!(copy.exists());
+        assert!(copy.vexists());
         assert_eq!(app.plugins.presets.get(&0), Some(&copy));
         assert_eq!(app.plugins.sampler_path(0).as_deref(), Some("C:/x/snare.wav"));
         import_chosen(&mut app, 0, elsewhere.clone());
-        assert!(copy.with_file_name("Snare 2.ospreset").exists(), "a second import does not replace the first");
+        assert!(copy.with_file_name("Snare 2.ospreset").vexists(), "a second import does not replace the first");
         // Browse presets: the browser shows its Plugin presets at the plugin.
         app.state.show_browser = false;
         run(&mut app, PCmd::Browse(0));
@@ -1274,8 +1274,8 @@ mod tests {
         assert_eq!(app.state.browser_sel.as_deref(), Some(format!("{}/Lemon Sampler", crate::views::browser::presets_key()).as_str()));
         let rows = crate::views::browser::rows(&app.state);
         assert!(rows.iter().any(|r| r.label == "Snare" && matches!(&r.item, crate::views::browser::Item::Preset(p) if Path::new(p) == copy)));
-        let _ = std::fs::remove_dir_all(&dir);
-        let _ = std::fs::remove_dir_all(elsewhere.parent().unwrap());
+        let _ = os_web::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(elsewhere.parent().unwrap());
     }
 
     // spec: ui/settings-choices.md "Miscellaneous: naming, detached plugins and startup"
@@ -1335,7 +1335,7 @@ mod tests {
         prefs::set_check(&AUTO_NAME_EFFECT_SLOTS, true);
         run(&mut app, PCmd::Load(fx, bandpass));
         assert_eq!(slot(&app), "Bandpass", "the next preset");
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// A parameter-list preset sets the listed parameters and puts the others back to their defaults; names the
@@ -1348,10 +1348,13 @@ mod tests {
         let knob = infos.iter().find(|i| !i.read_only && !i.hidden && !i.bypass && i.steps == 0 && i.max > i.min).expect("a knob").clone();
         let mid = knob.min + (knob.max - knob.min) * 0.25;
         let p = dir.join("Quarter.ospreset");
-        std::fs::write(&p, encode_params(&h, &[(knob.name.clone(), mid), ("No such knob".into(), 1.0)])).unwrap();
+        os_web::fs::write(&p, encode_params(&h, &[(knob.name.clone(), mid), ("No such knob".into(), 1.0)])).unwrap();
         let msg = run(&mut app, PCmd::Load(0, p)).unwrap();
         assert!(msg.starts_with("Preset: Quarter") && msg.contains("No such knob"), "{msg}");
         assert!((app.plugins.param_value(0, knob.id).unwrap() - 0.25).abs() < 1e-3);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

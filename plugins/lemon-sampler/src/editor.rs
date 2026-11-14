@@ -1253,7 +1253,7 @@ fn env_point_ids(p: &str, i: u8) -> Vec<String> {
 
 /// Recently loaded samples (newest first), `sampler-history.txt` in the user folder.
 pub fn history() -> Vec<String> {
-    history_file().and_then(|p| std::fs::read_to_string(p).ok()).map(|t| t.lines().filter(|l| !l.is_empty()).map(str::to_string).collect()).unwrap_or_default()
+    history_file().and_then(|p| os_web::fs::read_to_string(p).ok()).map(|t| t.lines().filter(|l| !l.is_empty()).map(str::to_string).collect()).unwrap_or_default()
 }
 
 fn history_file() -> Option<PathBuf> {
@@ -1270,9 +1270,9 @@ pub fn remember(path: &str) {
     h.insert(0, path.to_string());
     h.truncate(12);
     if let Some(d) = f.parent() {
-        let _ = std::fs::create_dir_all(d);
+        let _ = os_web::fs::create_dir_all(d);
     }
-    let _ = std::fs::write(f, h.join("\n"));
+    let _ = os_web::fs::write(f, h.join("\n"));
 }
 
 /// A 16-bit PCM (clipboard) or 32-bit float WAV file of a sample.
@@ -1309,7 +1309,7 @@ pub fn wav_bytes(s: &os_engine::Sample, float: bool) -> Vec<u8> {
 /// Where pasted audio is kept so the plugin state can name it.
 pub fn paste_path() -> Option<PathBuf> {
     let d = os_paths::user_file("samples")?;
-    std::fs::create_dir_all(&d).ok()?;
+    os_web::fs::create_dir_all(&d).ok()?;
     let t = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     Some(d.join(format!("Pasted audio {t}.wav")))
 }
@@ -1945,7 +1945,7 @@ mod win32 {
                         let s = self.shared.whole();
                         if let (Some(s), Some(path)) = (s, file_dialog(self.hwnd, true)) {
                             let path = if path.to_ascii_lowercase().ends_with(".wav") { path } else { format!("{path}.wav") };
-                            self.logic.hint = match std::fs::write(&path, super::wav_bytes(&s, true)) {
+                            self.logic.hint = match os_web::fs::write(&path, super::wav_bytes(&s, true)) {
                                 Ok(()) => format!("Saved {path}"),
                                 Err(e) => format!("Could not save: {e}"),
                             };
@@ -1970,7 +1970,7 @@ mod win32 {
                     }
                     Act::PasteAudio => {
                         if let (Some(bytes), Some(path)) = (clipboard_wave(self.hwnd), super::paste_path()) {
-                            if std::fs::write(&path, bytes).is_ok() {
+                            if os_web::fs::write(&path, bytes).is_ok() {
                                 self.load(&path.to_string_lossy());
                             }
                         }
@@ -2466,6 +2466,8 @@ mod win32 {
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 mod gui {
+    #[allow(unused_imports)]
+    use os_web::fs::VPath;
     use std::sync::atomic::Ordering;
     use std::sync::Arc;
 
@@ -2774,7 +2776,7 @@ mod gui {
                         let s = self.shared.whole();
                         if let (Some(s), Some(path)) = (s, file_dialog(&self.win, true)) {
                             let path = if path.to_ascii_lowercase().ends_with(".wav") { path } else { format!("{path}.wav") };
-                            self.logic.hint = match std::fs::write(&path, super::wav_bytes(&s, true)) {
+                            self.logic.hint = match os_web::fs::write(&path, super::wav_bytes(&s, true)) {
                                 Ok(()) => format!("Saved {path}"),
                                 Err(e) => format!("Could not save: {e}"),
                             };
@@ -2784,7 +2786,7 @@ mod gui {
                     Act::Locate => {
                         // The sample's folder in the file manager (on macOS a Finder window with the sample picked).
                         let p = self.params.sample_path.read().map(|p| p.clone()).unwrap_or_default();
-                        if let Some(dir) = std::path::Path::new(&p).parent().filter(|d| !p.is_empty() && d.is_dir()) {
+                        if let Some(dir) = std::path::Path::new(&p).parent().filter(|d| !p.is_empty() && d.vis_dir()) {
                             #[cfg(target_os = "macos")]
                             let _ = (dir, std::process::Command::new("open").arg("-R").arg(&p).spawn());
                             #[cfg(not(target_os = "macos"))]
@@ -2803,7 +2805,7 @@ mod gui {
                     #[cfg(target_os = "macos")]
                     Act::PasteAudio => {
                         if let (Some(bytes), Some(path)) = (self.win.paste_audio(), super::paste_path()) {
-                            if std::fs::write(&path, bytes).is_ok() {
+                            if os_web::fs::write(&path, bytes).is_ok() {
                                 self.load(&path.to_string_lossy());
                             }
                         }
@@ -3226,3 +3228,6 @@ mod tests {
         }
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

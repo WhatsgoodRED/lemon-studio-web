@@ -98,7 +98,7 @@ impl Editor for TeslaEditor {
 /// A sample file: WAV with its chunks (Edison's and Tesla's own), else whatever the host's decoders read (AIFF, FLAC,
 /// OGG...); a decoded file whose channels are equal comes in mono.
 pub fn load_file(path: &str) -> Result<Sample, String> {
-    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let bytes = os_web::fs::read(path).map_err(|e| e.to_string())?;
     if wav::is_wav(&bytes) {
         if let Ok(s) = wav::read(&bytes) {
             return Ok(s);
@@ -124,12 +124,12 @@ fn gate_db(v: f32) -> String {
 
 fn out_path(title: &str) -> PathBuf {
     let dir = std::env::temp_dir().join("Tesla");
-    let _ = std::fs::create_dir_all(&dir);
+    let _ = os_web::fs::create_dir_all(&dir);
     let stem = file_stem(title);
     let mut p = dir.join(format!("{stem}.wav"));
     let mut k = 2;
     // A file handed out before may be used by the host (a clip, a channel's sample): never overwritten, a new name.
-    while p.exists() {
+    while p.vexists() {
         p = dir.join(format!("{stem} {k}.wav"));
         k += 1;
     }
@@ -1442,7 +1442,7 @@ impl Logic {
     fn drag_out(&mut self) -> Vec<Act> {
         let Some((s, title)) = self.doc(|d| d.copy().map(|s| (s, d.title()))) else { return vec![] };
         let p = out_path(&title);
-        if std::fs::write(&p, wav::write(&s, Depth::Own)).is_err() {
+        if os_web::fs::write(&p, wav::write(&s, Depth::Own)).is_err() {
             self.hint = "Could not write the sample".into();
             return vec![Act::Repaint];
         }
@@ -2382,7 +2382,7 @@ impl Logic {
             Cmd::Send(to) => {
                 if let Some((s, title)) = self.doc(|d| d.copy().map(|s| (s, d.title()))) {
                     let p = out_path(&title);
-                    if std::fs::write(&p, wav::write(&s, Depth::Own)).is_ok() {
+                    if os_web::fs::write(&p, wav::write(&s, Depth::Own)).is_ok() {
                         acts.push(Act::Send(p, to));
                     }
                 }
@@ -2539,7 +2539,7 @@ impl Logic {
         if !path.to_ascii_lowercase().ends_with(".wav") {
             path.push_str(".wav");
         }
-        match std::fs::write(&path, wav::write(&s, depth)) {
+        match os_web::fs::write(&path, wav::write(&s, depth)) {
             Ok(()) => {
                 self.doc(|d| d.path = path.clone());
                 self.hint = format!("Saved {}", Path::new(&path).file_name().map_or(path.clone().into(), |f| f.to_string_lossy()));
@@ -3444,7 +3444,7 @@ mod gui {
                     }
                     // No drag source here yet: the sample goes to the clipboard instead.
                     Act::DragOut(path) => {
-                        if let Ok(bytes) = std::fs::read(&path) {
+                        if let Ok(bytes) = os_web::fs::read(&path) {
                             self.act(vec![Act::Clipboard(bytes)]);
                         }
                         self.logic.hint = "Copied to the clipboard (dragging out is Windows only so far)".into();
@@ -3837,7 +3837,7 @@ mod tests {
     #[test]
     fn files_round_trip() {
         let dir = std::env::temp_dir().join(format!("tesla-editor-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::create_dir_all(&dir).unwrap();
         let mut l = logic();
         load(&mut l, sine(500));
         l.typed(&Prompt::Marker, "m");
@@ -3851,7 +3851,7 @@ mod tests {
         assert_eq!(l.save_name(), "a.wav");
         l.open(&dir.join("missing.wav").to_string_lossy());
         assert!(l.hint.starts_with("Could not load the file"));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     fn rms(x: &[f32]) -> f64 {
@@ -4744,3 +4744,6 @@ mod tests {
         save(&mut l, "tesla_big_armed", 1.0);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

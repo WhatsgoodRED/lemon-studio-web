@@ -20,7 +20,7 @@ const AHEAD = 4 * BLOCK;    // frames kept queued in the worklet (about 43 ms at
 const web = window.lemonWeb = {
   ctx: null, out: null, mic: null, analyser: null,
   produced: 0, read: 0, peak: 0, maxPeak: 0, under: 0, played: 0, renders: 0, micFrames: 0,
-  ready: false, error: null,
+  ready: false, error: null, lemon,
 };
 
 async function startAudio() {

@@ -89,7 +89,7 @@ pub(crate) fn saved_at(file: &str, name: &str, what: &str) -> Option<(u32, u32, 
 /// Deletes the oldest autosaves of `name` in `dir` beyond `max` (by the time in their names). Other projects' backups
 /// and "overwritten on" copies are left alone.
 pub fn prune(dir: &Path, name: &str, max: usize) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = os_web::fs::read_dir(dir) else { return };
     let mut found: Vec<_> = entries
         .flatten()
         .filter_map(|e| {
@@ -100,7 +100,7 @@ pub fn prune(dir: &Path, name: &str, max: usize) {
     if found.len() > max {
         found.sort();
         for (_, p) in &found[..found.len() - max] {
-            let _ = std::fs::remove_file(p);
+            let _ = os_web::fs::remove_file(p);
         }
     }
 }
@@ -108,10 +108,10 @@ pub fn prune(dir: &Path, name: &str, max: usize) {
 /// Before the project is saved over `target`: an existing file there is copied to the backup folder `dir` as
 /// `<name> (overwritten on ...).flp` (a copy of that name made earlier in the same minute is kept).
 pub fn keep_overwritten(target: &Path, dir: Option<PathBuf>) {
-    let Some(dir) = dir.filter(|_| target.is_file()) else { return };
+    let Some(dir) = dir.filter(|_| target.vis_file()) else { return };
     let to = dir.join(file_name(&project_name(Some(target)), "overwritten", chrono::Local::now().naive_local()));
-    if !to.exists() && std::fs::create_dir_all(&dir).is_ok() {
-        let _ = std::fs::copy(target, to);
+    if !to.vexists() && os_web::fs::create_dir_all(&dir).is_ok() {
+        let _ = os_web::fs::copy(target, to);
     }
 }
 
@@ -154,10 +154,10 @@ impl App {
         let Some(dir) = crate::data_folder::backup_folder(&self.state, self.state.path.as_deref()) else { return Some(Err("no user folder".into())) };
         let name = project_name(self.state.path.as_deref());
         let target = dir.join(file_name(&name, "autosaved", t));
-        if target.exists() {
+        if target.vexists() {
             return Some(Ok(target));
         }
-        if let Err(e) = std::fs::create_dir_all(&dir) {
+        if let Err(e) = os_web::fs::create_dir_all(&dir) {
             return Some(Err(format!("{}: {e}", dir.display())));
         }
         let snap = (self.state.project.clone(), self.state.tempo);
@@ -183,13 +183,13 @@ mod tests {
     /// A fresh folder for this test's backups (this thread's `folder`).
     fn scratch(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("os_backup_{tag}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         TEST_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         dir
     }
 
     fn names(dir: &Path) -> Vec<String> {
-        let mut v: Vec<String> = std::fs::read_dir(dir).map(|r| r.flatten().filter_map(|e| e.file_name().into_string().ok()).collect()).unwrap_or_default();
+        let mut v: Vec<String> = os_web::fs::read_dir(dir).map(|r| r.flatten().filter_map(|e| e.file_name().into_string().ok()).collect()).unwrap_or_default();
         v.sort();
         v
     }
@@ -213,7 +213,7 @@ mod tests {
     #[test]
     fn prune_keeps_the_newest() {
         let dir = scratch("prune");
-        std::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::create_dir_all(&dir).unwrap();
         let files = [
             file_name("a", "autosaved", at(9, 30, 23, 59)),
             file_name("a", "autosaved", at(10, 1, 0, 0)),
@@ -223,13 +223,13 @@ mod tests {
             file_name("ab", "autosaved", at(1, 1, 0, 0)),
         ];
         for f in &files {
-            std::fs::write(dir.join(f), b"x").unwrap();
+            os_web::fs::write(dir.join(f), b"x").unwrap();
         }
         prune(&dir, "a", 2);
         let mut want = vec![files[2].clone(), files[3].clone(), files[4].clone(), files[5].clone()];
         want.sort();
         assert_eq!(names(&dir), want);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// After the interval, a changed project is backed up once; unchanged or just saved, it is not. A backup is not a
@@ -265,7 +265,7 @@ mod tests {
         app.backup_tick(t0 + 4 * minute);
         app.backup_tick(t0 + 9 * minute);
         assert_eq!(names(&dir).len(), 1);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Backups are named for their time; past Maximum the oldest go. Saving over a file keeps the old one.
@@ -274,16 +274,16 @@ mod tests {
         let dir = scratch("files");
         let mut app = App::new(None);
         let work = dir.join("work");
-        std::fs::create_dir_all(&work).unwrap();
+        os_web::fs::create_dir_all(&work).unwrap();
         let song = work.join("song.flp");
         app.save_to(song.clone());
-        assert!(song.is_file());
+        assert!(song.vis_file());
         assert_eq!(names(&dir), ["work"], "a new file: nothing saved over");
         app.state.tempo = 99.0;
         app.save_to(song.clone());
         let over: Vec<String> = names(&dir).into_iter().filter(|n| n.starts_with("song (overwritten on ")).collect();
         assert_eq!(over.len(), 1, "{:?}", names(&dir));
-        assert_ne!(std::fs::read(dir.join(&over[0])).unwrap(), std::fs::read(&song).unwrap(), "the file as it was");
+        assert_ne!(os_web::fs::read(dir.join(&over[0])).unwrap(), os_web::fs::read(&song).unwrap(), "the file as it was");
         // Autosaves of "song", newest kept: 100 by default, here 5.
         assert_eq!(prefs::number(&prefs::BACKUP_MAXIMUM), 100);
         prefs::set_number(&prefs::BACKUP_MAXIMUM, 5);
@@ -305,7 +305,7 @@ mod tests {
         assert_eq!(auto, [file_name("song", "autosaved", at(10, 1, 12, 6)), file_name("song", "autosaved", at(10, 1, 13, 0))]);
         prefs::set_number(&prefs::BACKUP_MAXIMUM, prefs::BACKUP_MAXIMUM.default);
         assert_eq!(app.state.path.as_deref(), Some(song.as_path()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// File ▸ Backup: Autosave and Location are live combos, Maximum a live value box the wheel moves within 1 to 999.
@@ -340,3 +340,6 @@ mod tests {
         prefs::set_number(&prefs::BACKUP_MAXIMUM, prefs::BACKUP_MAXIMUM.default);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

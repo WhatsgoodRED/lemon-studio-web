@@ -112,7 +112,7 @@ pub fn load() -> Level {
         return Level::Playful;
     }
     os_paths::user_file("animations.txt")
-        .and_then(|f| std::fs::read_to_string(f).ok())
+        .and_then(|f| os_web::fs::read_to_string(f).ok())
         .and_then(|t| Level::from_name(&t))
         .unwrap_or(Level::Playful)
 }
@@ -123,8 +123,8 @@ pub fn save(l: Level) {
         return;
     }
     if let Some(dir) = os_paths::user_dir() {
-        let _ = std::fs::create_dir_all(&dir);
-        let _ = std::fs::write(dir.join("animations.txt"), l.name());
+        let _ = os_web::fs::create_dir_all(&dir);
+        let _ = os_web::fs::write(dir.join("animations.txt"), l.name());
     }
 }
 

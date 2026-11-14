@@ -648,7 +648,7 @@ mod tests {
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved") && !m.contains("not stored")), "{:?}", a.state.message);
 
         // The file: a wrapped plugin channel and a wrapped slot.
-        let file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         let saved = os_flp::project::load(&file).unwrap();
         let ch = &saved.channels[row];
         assert_eq!((ch.kind, ch.plugin.as_deref()), (ChannelKind::Plugin, Some(WRAPPER)));
@@ -678,8 +678,8 @@ mod tests {
         assert!(b.plugins.load_sample(row, "C:/samples/two.wav"));
         b.save_to(path.clone());
         assert!(b.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", b.state.message);
-        let again = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let again = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         let r2 = wrapped_channel(&again.channels[row]).unwrap();
         assert_eq!(Some(r2.state), b.plugins.state(row));
         assert_eq!(again.mixer[3].slots[2], saved.mixer[3].slots[2]);
@@ -753,7 +753,7 @@ mod tests {
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved") && !m.contains("not stored")), "{:?}", a.state.message);
 
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         for (k, name) in LINKED_EFFECTS.iter().enumerate() {
             let (t, slot) = at(k);
             let r = wrapped_slot(saved.mixer[usize::from(t)].slots[usize::from(slot)].as_ref().unwrap()).unwrap_or_else(|| panic!("{name} wrapped"));
@@ -766,7 +766,7 @@ mod tests {
         b.plugins.effects = crate::plugins::builtin_effects();
         b.open(path.clone());
         b.sync_wrapped();
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         for (k, name) in LINKED_EFFECTS.iter().enumerate() {
             assert_eq!(crate::mixer::slot_name(&b.state, at(k).0, at(k).1).as_deref(), Some(*name));
             assert!(b.plugins.descriptor(key(k)).is_some_and(|d| is_builtin(&d)), "{name} hosted, built in");
@@ -809,7 +809,7 @@ mod tests {
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved") && !m.contains("not stored")), "{:?}", a.state.message);
         let mut b = App::new(None);
         b.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(b.state.project.mixer, a.state.project.mixer);
         assert_eq!(crate::mixer::inserts(&b.state), crate::mixer::inserts(&a.state));
     }
@@ -832,7 +832,7 @@ mod tests {
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved") && !m.contains("not stored")), "{:?}", a.state.message);
         let mut b = App::new(None);
         b.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(b.state.project.mixer, a.state.project.mixer);
         assert_eq!(b.state.project.channels[4].mixer_track, 5);
     }
@@ -937,8 +937,8 @@ mod tests {
         );
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(saved.mixer[2].slots[1], Some(SlotPlugin { id: os_model::Id::NONE, name: "Fruity Balance".into(), state: vec![9, 8, 7, 6] }));
         assert_eq!(a.state.project.mixer[2].slots[1], saved.mixer[2].slots[1]);
     }
@@ -986,8 +986,8 @@ mod tests {
         assert!(a.plugins.set_state(harmor, &[11, 12]) && a.plugins.set_state(balance, &[13]) && a.plugins.set_state(gross, &[14]));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!((saved.channels[harmor].plugin.as_deref(), saved.channels[harmor].plugin_state.as_deref()), (Some("Harmor"), Some(&[11, 12][..])));
         assert_eq!((saved.channels[sytrus].plugin.as_deref(), saved.channels[sytrus].plugin_state.as_deref()), (Some("Sytrus"), Some(&[4][..])));
         assert_eq!(saved.mixer[2].slots[1], Some(SlotPlugin { id: os_model::Id::NONE, name: "Fruity Balance".into(), state: vec![13] }));
@@ -1115,7 +1115,7 @@ mod tests {
 
         // Saved untouched: the VST2 plugin's wrapper is written as the file had it; the CLAP plugin as itself.
         let path = std::env::temp_dir().join(format!("openstudio-stand-in-{}.flp", std::process::id()));
-        let reload = |path: &std::path::Path| os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(path).unwrap()).unwrap()).unwrap();
+        let reload = |path: &std::path::Path| os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(path).unwrap()).unwrap()).unwrap();
         let named = a.state.project.mixer[2].slots[0].clone();
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
@@ -1149,7 +1149,7 @@ mod tests {
         assert!(a.plugins.set_state(fx_key(2, 0), &start));
         a.save_to(path.clone());
         let r = wrapped_slot(reload(&path).mixer[2].slots[0].as_ref().unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!((std::path::PathBuf::from(&r.path), r.state), (exe, start));
     }
 

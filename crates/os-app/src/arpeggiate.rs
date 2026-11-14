@@ -295,7 +295,7 @@ pub fn parse(bytes: &[u8]) -> Option<(u32, Vec<Row>)> {
 
 /// Load a pattern file.
 pub fn load(path: &Path) -> Result<Pattern, String> {
-    let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let bytes = os_web::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let (ppq, rows) = parse(&bytes).ok_or_else(|| format!("{}: not a pattern file", path.display()))?;
     let name = path.file_stem().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
     Ok(Pattern { name, path: Some(path.to_path_buf()), ppq, rows })
@@ -345,9 +345,9 @@ fn natural(a: &str, b: &str) -> Ordering {
 /// The pattern files and sub-folders of `dir`, each sorted naturally.
 pub(crate) fn listing(dir: &Path) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let (mut files, mut dirs) = (Vec::new(), Vec::new());
-    for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+    for e in os_web::fs::read_dir(dir).into_iter().flatten().flatten() {
         let p = e.path();
-        if p.is_dir() {
+        if p.vis_dir() {
             dirs.push(p);
         } else if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("fsc")) {
             files.push(p);
@@ -897,3 +897,6 @@ mod tests {
         assert_eq!(v, ["1 note", "2 notes", "10 notes", "Riff machine"]);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

@@ -68,7 +68,7 @@ pub fn fst_state(path: &Path, plugin: &str) -> Option<Result<Vec<u8>, String>> {
         return None;
     }
     Some(
-        std::fs::read(path)
+        os_web::fs::read(path)
             .map_err(|e| format!("{}: {e}", path.display()))
             .and_then(|b| {
                 smith::state_from_fst(&b)
@@ -178,14 +178,14 @@ mod tests {
         assert!(a.state.hosted_rows.contains(&row));
         assert_eq!(a.plugins.ogun_file_state(row), Some(Vec::new()));
         a.save_to(path.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         assert_eq!((saved.channels[row].plugin.as_deref(), saved.channels[row].plugin_state.as_deref()), (Some(FILE_NAME), None));
 
         // A patch goes in (as a preset load does), the project is saved and reopened.
         let fl = patch();
         assert!(a.plugins.set_state(row, &smith::plugin_state_from_fl(&fl)));
         a.save_to(path.clone());
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         assert_eq!(saved.channels[row].plugin_state.as_deref(), Some(fl.as_slice()));
         let mut b = App::new(None);
         b.plugins.available = crate::plugins::builtin();
@@ -194,8 +194,8 @@ mod tests {
         assert!(b.state.hosted_rows.contains(&row), "{:?}", b.state.message);
         assert_eq!(b.plugins.ogun_file_state(row), Some(fl.clone()));
         b.save_to(path.clone());
-        let again = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let again = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(again.channels[row], saved.channels[row]);
     }
 
@@ -214,19 +214,19 @@ mod tests {
     #[test]
     fn fst_presets_are_read_for_smith() {
         let dir = std::env::temp_dir().join(format!("openstudio-smith-fst-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let fl = patch();
         let good = dir.join("Good.fst");
-        std::fs::write(&good, citrus::preset::test_fst(&fl)).unwrap();
+        os_web::fs::write(&good, citrus::preset::test_fst(&fl)).unwrap();
         let st = fst_state(&good, SMITH).unwrap().unwrap();
         assert_eq!(smith::fl_from_plugin_state(&st), Some(fl));
         assert!(fst_state(&good, crate::citrus::CITRUS).is_none());
         assert!(fst_state(&dir.join("notes.txt"), SMITH).is_none());
-        std::fs::write(dir.join("Bad.fst"), b"nope").unwrap();
+        os_web::fs::write(dir.join("Bad.fst"), b"nope").unwrap();
         assert!(fst_state(&dir.join("Bad.fst"), SMITH).unwrap().is_err());
-        std::fs::write(dir.join("Other.fst"), citrus::preset::test_fst(&[1, 2, 3])).unwrap();
+        os_web::fs::write(dir.join("Other.fst"), citrus::preset::test_fst(&[1, 2, 3])).unwrap();
         assert!(fst_state(&dir.join("Other.fst"), SMITH).unwrap().is_err());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 }

@@ -63,8 +63,8 @@ impl App {
             return;
         };
         let Some(dir) = crate::midi_file::clipboard_dir() else { return };
-        let path = (1..).map(|n| dir.join(format!("Audio clipboard {n}.wav"))).find(|p| !p.exists()).expect("a free name");
-        match std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&path, bytes)) {
+        let path = (1..).map(|n| dir.join(format!("Audio clipboard {n}.wav"))).find(|p| !p.vexists()).expect("a free name");
+        match os_web::fs::create_dir_all(&dir).and_then(|()| os_web::fs::write(&path, bytes)) {
             Ok(()) => {
                 self.add_browser_folder(dir);
                 self.state.message = Some(format!("Saved {}", path.display()));
@@ -182,14 +182,17 @@ mod tests {
         super::set_for_test(Some(audio.clone()));
         assert!(active(&app.state, TOOLS_MENU, entry));
         let dir = crate::midi_file::clipboard_dir().unwrap();
-        let _ = std::fs::remove_file(dir.join("Audio clipboard 1.wav"));
-        let _ = std::fs::remove_file(dir.join("Audio clipboard 2.wav"));
+        let _ = os_web::fs::remove_file(dir.join("Audio clipboard 1.wav"));
+        let _ = os_web::fs::remove_file(dir.join("Audio clipboard 2.wav"));
         app.menu_item(TOOLS_MENU, at);
         app.menu_item(TOOLS_MENU, at);
-        assert_eq!(std::fs::read(dir.join("Audio clipboard 2.wav")).unwrap(), audio);
-        assert!(dir.join("Audio clipboard 1.wav").exists() && app.state.browser_folders.contains(&dir));
-        let _ = std::fs::remove_file(dir.join("Audio clipboard 1.wav"));
-        let _ = std::fs::remove_file(dir.join("Audio clipboard 2.wav"));
+        assert_eq!(os_web::fs::read(dir.join("Audio clipboard 2.wav")).unwrap(), audio);
+        assert!(dir.join("Audio clipboard 1.wav").vexists() && app.state.browser_folders.contains(&dir));
+        let _ = os_web::fs::remove_file(dir.join("Audio clipboard 1.wav"));
+        let _ = os_web::fs::remove_file(dir.join("Audio clipboard 2.wav"));
         super::set_for_test(None);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

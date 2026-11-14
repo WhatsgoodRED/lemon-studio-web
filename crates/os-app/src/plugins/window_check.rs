@@ -82,7 +82,7 @@ pub fn run(args: &[String]) -> i32 {
         return 2;
     };
     let dir = PathBuf::from(dir);
-    let _ = std::fs::create_dir_all(&dir);
+    let _ = os_web::fs::create_dir_all(&dir);
     let mut builder = EventLoop::<()>::with_user_event();
     builder.with_activation_policy(ActivationPolicy::Accessory).with_activate_ignoring_other_apps(false).with_default_menu(false);
     let mut el = builder.build().expect("event loop");

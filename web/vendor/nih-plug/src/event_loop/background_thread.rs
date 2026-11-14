@@ -50,7 +50,7 @@ use parking_lot::Mutex;
 use std::sync::{Arc, LazyLock, Weak};
 use std::thread::{self, JoinHandle};
 
-use super::MainThreadExecutor;
+use super::super::MainThreadExecutor;
 use crate::util::permit_alloc;
 
 /// See the module's documentation. This is a background thread that can be used to run tasks on.
@@ -119,7 +119,7 @@ static HANDLE_MAP: LazyLock<Mutex<anymap3::Map<dyn std::any::Any + Send>>> =
 
 impl<T: Send + 'static, E: MainThreadExecutor<T> + 'static> WorkerThread<T, E> {
     fn spawn() -> Self {
-        let (tasks_sender, tasks_receiver) = channel::bounded(super::TASK_QUEUE_CAPACITY);
+        let (tasks_sender, tasks_receiver) = channel::bounded(super::super::TASK_QUEUE_CAPACITY);
         let join_handle = thread::Builder::new()
             .name(String::from("bg-worker"))
             .spawn(move || worker_thread(tasks_receiver))

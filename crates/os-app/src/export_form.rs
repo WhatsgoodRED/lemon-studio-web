@@ -287,9 +287,9 @@ impl App {
             o.formats = [false, false, true, false];
         }
         let name = s.path.as_ref().and_then(|p| p.file_stem()).map_or_else(|| "Untitled".to_string(), |n| n.to_string_lossy().into_owned());
-        let folder = match crate::settings_file::get("export_folder").map(PathBuf::from).filter(|d| d.is_dir()) {
+        let folder = match crate::settings_file::get("export_folder").map(PathBuf::from).filter(|d| d.vis_dir()) {
             // The project's folder first, else the last one used.
-            _ if s.path.as_ref().and_then(|p| p.parent()).is_some_and(|d| d.is_dir()) => s.path.as_ref().and_then(|p| p.parent()).unwrap().to_path_buf(),
+            _ if s.path.as_ref().and_then(|p| p.parent()).is_some_and(|d| d.vis_dir()) => s.path.as_ref().and_then(|p| p.parent()).unwrap().to_path_buf(),
             Some(d) => d,
             None => crate::save_form::default_root().unwrap_or_else(std::env::temp_dir),
         };
@@ -393,7 +393,7 @@ impl App {
     /// The folder button: a folder picker, starting in the form's folder.
     fn export_folder_pick(&mut self) {
         use crate::filedlg::{FileDlg, Mode};
-        let start = top(self).map(|f| f.folder.clone()).filter(|d| d.is_dir());
+        let start = top(self).map(|f| f.folder.clone()).filter(|d| d.vis_dir());
         let dlg = FileDlg::new(Mode::Folder, "Export to", "export", Then::ExportFolder).start(start.as_deref());
         self.file_dialog(dlg);
     }
@@ -589,7 +589,7 @@ mod tests {
         assert_eq!(form(&app).unwrap().o.formats, [true, true, false, false], "WAV (the default) and FLAC");
         app.dialog_key(&Key::Named(NamedKey::Escape), false, false);
         for e in ["wav", "flac"] {
-            let _ = std::fs::remove_file(form_folder().join(format!("Untitled.{e}")));
+            let _ = os_web::fs::remove_file(form_folder().join(format!("Untitled.{e}")));
         }
     }
 
@@ -667,3 +667,6 @@ mod tests {
         .expect("the Export form")
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

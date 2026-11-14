@@ -15,7 +15,7 @@
 //!
 // spec: plugins/lemon-sampler.md "Keep on disk (Lemon Studio)"
 
-use std::fs::File;
+use os_web::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
@@ -825,7 +825,7 @@ mod tests {
     fn dir() -> PathBuf {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let d = std::env::temp_dir().join(format!("lemon-sampler-stream-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
-        std::fs::create_dir_all(&d).unwrap();
+        os_web::fs::create_dir_all(&d).unwrap();
         d
     }
 
@@ -929,7 +929,7 @@ mod tests {
         for (what, bytes) in cases {
             let ext = if what.starts_with("ai") { "aif" } else { "wav" };
             let p = d.join(format!("x.{ext}"));
-            std::fs::write(&p, &bytes).unwrap();
+            os_web::fs::write(&p, &bytes).unwrap();
             let want = os_engine::sample::load(&p).unwrap_or_else(|e| panic!("{what}: {e}"));
             let l = Layout::of(&p).unwrap_or_else(|| panic!("{what}: streams"));
             assert_eq!((l.frames, l.rate), (want.frames(), want.rate), "{what}");
@@ -942,7 +942,7 @@ mod tests {
             assert_eq!(bits(&a), bits(&want.left), "{what}: left");
             assert_eq!(bits(&b), bits(&want.right), "{what}: right");
         }
-        std::fs::remove_dir_all(&d).ok();
+        os_web::fs::remove_dir_all(&d).ok();
     }
 
     // Files that do not stream: compressed, unused bits, frames missing.
@@ -963,11 +963,11 @@ mod tests {
             ("not audio", b"hello there, this is no sound file".to_vec()),
         ];
         for (what, bytes) in cases {
-            std::fs::write(&p, &bytes).unwrap();
+            os_web::fs::write(&p, &bytes).unwrap();
             assert_eq!(Layout::of(&p), None, "{what}");
             assert_eq!(length(&p), None, "{what}: decoded for its length");
         }
-        std::fs::remove_dir_all(&d).ok();
+        os_web::fs::remove_dir_all(&d).ok();
     }
 
     // The summary keeps every step-th frame and the tones of the whole.
@@ -976,7 +976,7 @@ mod tests {
         let d = dir();
         let p = d.join("x.wav");
         let frames = Summary::POINTS + 70_000;
-        std::fs::write(&p, wav_file(1, 2, 16, 16, 44100, &noise(frames, 2, 2))).unwrap();
+        os_web::fs::write(&p, wav_file(1, 2, 16, 16, 44100, &noise(frames, 2, 2))).unwrap();
         let want = os_engine::sample::load(&p).unwrap();
         let s = Summary::read(&p, &Layout::of(&p).unwrap()).unwrap();
         assert_eq!(s.step, 2);
@@ -985,6 +985,6 @@ mod tests {
         assert!(s.right.iter().enumerate().all(|(i, &v)| v == want.right[i * 2]));
         assert!(s.stereo);
         assert_eq!(s.tones, Tones::analyse_stereo(&want.left, &want.right, want.rate));
-        std::fs::remove_dir_all(&d).ok();
+        os_web::fs::remove_dir_all(&d).ok();
     }
 }

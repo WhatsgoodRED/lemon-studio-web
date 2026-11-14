@@ -6168,10 +6168,10 @@ mod tests {
     #[test]
     fn corpus_clips_and_automation_reencode_exactly() {
         let Some(list) = std::env::var_os("OPENSTUDIO_FLP_CORPUS") else { return };
-        let text = std::fs::read_to_string(list).unwrap();
+        let text = os_web::fs::read_to_string(list).unwrap();
         let (mut lists, mut autos) = (0, 0);
         for path in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
-            let file = FlpFile::parse(&std::fs::read(path).unwrap()).unwrap();
+            let file = FlpFile::parse(&os_web::fs::read(path).unwrap()).unwrap();
             for e in events_of(&file).unwrap() {
                 match e.id {
                     id::ARR_CLIPS => {
@@ -6369,7 +6369,7 @@ mod tests {
         let back3 = load(&FlpFile::parse(&file.to_bytes().unwrap()).unwrap()).unwrap();
         assert_eq!(back3.arrangements[0].tracks[3].name, None);
         if let Some(keep) = std::env::var_os("OS_KEEP_FLP") {
-            let _ = std::fs::write(keep, file.to_bytes().unwrap());
+            let _ = os_web::fs::write(keep, file.to_bytes().unwrap());
         }
     }
 

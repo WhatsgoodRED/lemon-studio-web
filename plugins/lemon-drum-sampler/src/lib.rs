@@ -285,7 +285,7 @@ pub(crate) mod tests {
         file.extend((body.len() as u32).to_le_bytes());
         file.extend(body);
         let p = std::env::temp_dir().join(format!("lemon-drums-{}-{name}.wav", std::process::id()));
-        std::fs::write(&p, file).unwrap();
+        os_web::fs::write(&p, file).unwrap();
         p
     }
 
@@ -308,7 +308,7 @@ pub(crate) mod tests {
         e.render(&mut l, &mut r);
         assert!(l.iter().any(|v| v.abs() > 0.2));
         assert!(sh.load(&params, 2, "Z:\\nowhere.wav").is_err());
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 
     /// The host's files for the layers follow their layers through edits.

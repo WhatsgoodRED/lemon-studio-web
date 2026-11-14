@@ -1818,7 +1818,7 @@ impl App {
         // that layout (spec: flp/layouts.md "Converting to the newer layout"). One the conversion cannot handle gets a
         // dialog that says so, not just a line in the hint bar.
         let mut legacy = None;
-        let result = std::fs::read(&path)
+        let result = os_web::fs::read(&path)
             .map_err(|e| e.to_string())
             .and_then(|b| os_flp::FlpFile::parse(&b).map_err(|e| e.to_string()))
             .and_then(|mut f| match os_flp::project::upgrade(&mut f).and_then(|_| os_flp::project::load(&f)) {
@@ -2528,7 +2528,7 @@ impl App {
         };
         let dir = path.parent().map(PathBuf::from).unwrap_or_default();
         let ext = crate::project_files::EXT;
-        let target = (n + 1..).map(|k| dir.join(format!("{base}_{k}.{ext}"))).find(|p| !p.exists()).expect("a free name");
+        let target = (n + 1..).map(|k| dir.join(format!("{base}_{k}.{ext}"))).find(|p| !p.vexists()).expect("a free name");
         self.save_to(target);
     }
 
@@ -4904,7 +4904,7 @@ impl App {
             self.state.message = crate::presets::dropped(self, &path);
             return self.invalidate();
         }
-        if path.is_dir() {
+        if path.vis_dir() {
             return self.add_browser_folder(path);
         }
         if ext == "flstheme" || ext == "txt" && path.file_name().is_some_and(|n| n == "theme.txt") {
@@ -5154,7 +5154,7 @@ impl App {
         let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let fl = path.extension().is_some_and(|e| e.eq_ignore_ascii_case("flstheme"));
         let loaded = if fl {
-            std::fs::read(path).map(|b| String::from_utf8_lossy(&b).into_owned()).map_err(|e| e.to_string()).map(|text| {
+            os_web::fs::read(path).map(|b| String::from_utf8_lossy(&b).into_owned()).map_err(|e| e.to_string()).map(|text| {
                 // A picture named relative to the theme file stays found once the theme is kept elsewhere
                 // (`wallpaper::absolute_names`).
                 let dir = std::path::absolute(path).ok().and_then(|p| p.parent().map(std::path::Path::to_path_buf));
@@ -5184,10 +5184,10 @@ impl App {
                 }
                 // Kept as the text taken in: its picture names made absolute.
                 if remember && fl && let (Some(d), Some(text)) = (os_paths::user_dir(), &self.state.fl_text) {
-                    let _ = std::fs::create_dir_all(&d);
+                    let _ = os_web::fs::create_dir_all(&d);
                     let keep = d.join("current.flstheme");
                     if keep.as_path() != path {
-                        let _ = std::fs::write(keep, text);
+                        let _ = os_web::fs::write(keep, text);
                     }
                 }
                 self.sync_preset();
@@ -5231,8 +5231,8 @@ impl App {
         self.theme = os_theme::Theme::new(&self.theme.name.clone(), palette, self.theme.adjust);
         os_theme::set_current(&self.theme.colors);
         if let Some(d) = theme_dir() {
-            let _ = std::fs::create_dir_all(&d);
-            let _ = std::fs::write(d.join("current.flstheme"), &text);
+            let _ = os_web::fs::create_dir_all(&d);
+            let _ = os_web::fs::write(d.join("current.flstheme"), &text);
         }
         self.state.fl_text = Some(text);
         self.sync_preset();
@@ -5775,7 +5775,7 @@ impl App {
                 self.theme = design_theme(self.design(), false);
                 os_theme::set_current(&self.theme.colors);
                 if let Some(d) = theme_dir() {
-                    let _ = std::fs::remove_file(d.join("current.flstheme"));
+                    let _ = os_web::fs::remove_file(d.join("current.flstheme"));
                 }
                 self.state.fl_text = None;
                 self.state.theme_base = None;
@@ -5791,8 +5791,8 @@ impl App {
                     self.state.theme_base = Some(text.clone());
                     // Remembered like an imported theme (loaded at the next start).
                     if let Some(d) = theme_dir() {
-                        let _ = std::fs::create_dir_all(&d);
-                        let _ = std::fs::write(d.join("current.flstheme"), &text);
+                        let _ = os_web::fs::create_dir_all(&d);
+                        let _ = os_web::fs::write(d.join("current.flstheme"), &text);
                     }
                     self.sync_preset();
                     self.state.message = Some(format!("Theme: {name}"));
@@ -9918,7 +9918,7 @@ impl App {
         use crate::toolbar::{Layout, PresetId, PRESETS};
         let l = match &id {
             PresetId::Factory(i) => PRESETS.get(*i).map(|p| p.layout()),
-            PresetId::User(path) => std::fs::read_to_string(path).ok().and_then(|t| Layout::parse(&t)),
+            PresetId::User(path) => os_web::fs::read_to_string(path).ok().and_then(|t| Layout::parse(&t)),
         };
         match l {
             Some(l) => {
@@ -9939,7 +9939,7 @@ impl App {
             self.state.message = Some("Toolbar presets need a user folder".into());
             return;
         };
-        let _ = std::fs::create_dir_all(&dir);
+        let _ = os_web::fs::create_dir_all(&dir);
         let start = self.state.bar.user_current().map_or_else(|| "My toolbar".to_string(), |p| p.name.clone());
         let dlg = FileDlg::new(Mode::Save, "Save toolbar preset as", "toolbar preset", crate::dialog::Then::SaveToolbarPreset)
             .filter("Lemon Studio toolbar preset", &[EXT])
@@ -9971,7 +9971,7 @@ impl App {
 
     /// The delete question answered Yes: the preset's file goes. The layout stays on the toolbar.
     fn toolbar_deleted(&mut self, path: PathBuf) {
-        self.state.message = Some(match std::fs::remove_file(&path) {
+        self.state.message = Some(match os_web::fs::remove_file(&path) {
             Ok(()) => format!("Toolbar preset deleted: {}", crate::toolbar::preset_name(&path)),
             Err(e) => format!("Toolbar preset not deleted: {e}"),
         });
@@ -10227,7 +10227,7 @@ fn monitor_cfg_path() -> Option<PathBuf> {
 /// Monitor settings from `monitor.txt` in the user folder (written by the debug panel's Save), else defaults.
 fn load_monitor_cfg() -> crate::monitor::Settings {
     let mut cfg = crate::monitor::Settings::default();
-    if let Some(text) = monitor_cfg_path().and_then(|p| std::fs::read_to_string(p).ok()) {
+    if let Some(text) = monitor_cfg_path().and_then(|p| os_web::fs::read_to_string(p).ok()) {
         cfg.load(&text);
     }
     cfg
@@ -10241,7 +10241,7 @@ fn cable_cfg_path() -> Option<PathBuf> {
 /// defaults.
 fn load_cable_cfg() -> crate::cable::Tuning {
     let mut t = crate::cable::Tuning::default();
-    if let Some(text) = cable_cfg_path().and_then(|p| std::fs::read_to_string(p).ok()) {
+    if let Some(text) = cable_cfg_path().and_then(|p| os_web::fs::read_to_string(p).ok()) {
         t.load(&text);
     }
     t
@@ -10250,24 +10250,24 @@ fn load_cable_cfg() -> crate::cable::Tuning {
 fn save_cable_cfg(t: &crate::cable::Tuning) -> Result<PathBuf, String> {
     let p = cable_cfg_path().ok_or("no user folder")?;
     if let Some(d) = p.parent() {
-        std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
+        os_web::fs::create_dir_all(d).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&p, t.dump()).map_err(|e| e.to_string())?;
+    os_web::fs::write(&p, t.dump()).map_err(|e| e.to_string())?;
     Ok(p)
 }
 
 fn save_monitor_cfg(cfg: &crate::monitor::Settings) -> Result<PathBuf, String> {
     let p = monitor_cfg_path().ok_or("no user folder")?;
     if let Some(d) = p.parent() {
-        std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
+        os_web::fs::create_dir_all(d).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&p, cfg.dump()).map_err(|e| e.to_string())?;
+    os_web::fs::write(&p, cfg.dump()).map_err(|e| e.to_string())?;
     Ok(p)
 }
 
 /// Read a `.flstheme` (spec ui/flstheme.md) or a Lemon Studio theme text file.
 pub fn theme_from_file(path: &std::path::Path) -> Result<Theme, String> {
-    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let bytes = os_web::fs::read(path).map_err(|e| e.to_string())?;
     let text = String::from_utf8_lossy(&bytes);
     let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
     if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("flstheme")) {
@@ -10293,8 +10293,8 @@ pub fn move_old_settings() {
         return;
     }
     let (Some(old), Some(new)) = (os_paths::legacy_dir(), os_paths::user_dir()) else { return };
-    if old.is_dir() && !new.exists() {
-        let _ = std::fs::rename(&old, &new);
+    if old.vis_dir() && !new.vexists() {
+        let _ = os_web::fs::rename(&old, &new);
     }
 }
 
@@ -10304,7 +10304,7 @@ pub fn saved_design() -> Design {
         return Design::Citrus;
     }
     os_paths::user_file("design.txt")
-        .and_then(|f| std::fs::read_to_string(f).ok())
+        .and_then(|f| os_web::fs::read_to_string(f).ok())
         .and_then(|t| Design::parse(&t))
         .unwrap_or(Design::Lemon)
 }
@@ -10314,8 +10314,8 @@ fn save_design(d: Design) {
         return;
     }
     if let Some(dir) = os_paths::user_dir() {
-        let _ = std::fs::create_dir_all(&dir);
-        let _ = std::fs::write(dir.join("design.txt"), d.name());
+        let _ = os_web::fs::create_dir_all(&dir);
+        let _ = os_web::fs::write(dir.join("design.txt"), d.name());
     }
 }
 
@@ -10339,10 +10339,10 @@ pub fn skin_theme(d: Design, name: &str, fl: Option<&str>) -> Theme {
 /// comes first, or there is none). Tests have none.
 fn saved_fl_text() -> Option<String> {
     let dir = theme_dir()?;
-    if dir.join("theme.txt").exists() {
+    if dir.join("theme.txt").vexists() {
         return None;
     }
-    std::fs::read(dir.join("current.flstheme")).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
+    os_web::fs::read(dir.join("current.flstheme")).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
 /// The folder `current.flstheme` is kept in: the user folder; in tests this thread's folder, none unless one is set
@@ -10367,7 +10367,7 @@ fn load_theme_inner() -> Theme {
     let Some(dir) = os_paths::user_dir() else { return Theme::default() };
     for f in ["theme.txt", "current.flstheme"] {
         let p = dir.join(f);
-        if p.exists() {
+        if p.vexists() {
             match theme_from_file(&p) {
                 Ok(t) => return t,
                 Err(e) => eprintln!("theme {f}: {e}; using the default"),
@@ -10564,8 +10564,8 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lemon-fl-recreations-{}.flp", std::process::id()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         for (t, k, file, _, fl) in &cases {
             let slot = saved.mixer[usize::from(*t)].slots[usize::from(*k)].clone().unwrap();
             assert_eq!((slot.name.as_str(), &slot.state), (*file, fl));
@@ -10599,8 +10599,8 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lemon-wave-candy-{}.flp", std::process::id()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         let slot = saved.mixer[2].slots[3].clone().unwrap();
         assert_eq!((slot.name.as_str(), &slot.state), ("Wave Candy", &fl));
     }
@@ -10635,8 +10635,8 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lemon-fl-modulation-{}.flp", std::process::id()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         for (t, k, file, _, fl) in &cases {
             let slot = saved.mixer[usize::from(*t)].slots[usize::from(*k)].clone().unwrap();
             assert_eq!((slot.name.as_str(), &slot.state), (*file, fl));
@@ -10667,8 +10667,8 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lemon-fl-peak-controller-{}.flp", std::process::id()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         let slot = saved.mixer[1].slots[0].clone().unwrap();
         assert_eq!((slot.name.as_str(), &slot.state), ("Fruity Peak Controller", &fl));
         assert_eq!(saved.controller_links, vec![link]);
@@ -10704,8 +10704,8 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lemon-vocodex-{}.flp", std::process::id()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         let slot = saved.mixer[1].slots[0].clone().unwrap();
         assert_eq!((slot.name.as_str(), &slot.state), (VOCODEX_FILE_NAME, &fl));
     }
@@ -10738,8 +10738,8 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lemon-fl-formula-controller-{}.flp", std::process::id()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         let slot = saved.mixer[1].slots[0].clone().unwrap();
         assert_eq!((slot.name.as_str(), &slot.state), ("Fruity Formula Controller", &fl));
         assert_eq!(saved.controller_links, vec![link]);
@@ -10775,7 +10775,7 @@ mod tests {
     fn a_sent_sample_lands_on_the_playlist_or_the_channel() {
         let path = std::env::temp_dir().join(format!("openstudio-sent-{}.wav", std::process::id()));
         let s = tesla::sample::Sample::from_channels(44100, vec![vec![0.5; 44100]], tesla::sample::Format::Int16);
-        std::fs::write(&path, tesla::wav::write(&s, tesla::wav::Depth::Own)).unwrap();
+        os_web::fs::write(&path, tesla::wav::write(&s, tesla::wav::Depth::Own)).unwrap();
         let p = path.to_string_lossy().into_owned();
         let mut a = App::new(None);
         a.state.project = test_project();
@@ -10795,7 +10795,7 @@ mod tests {
         a.state.selected_channel = row;
         a.sample_from_plugin(p.clone(), os_hostlink::AudioTo::Channel);
         assert!(a.state.project.channels[row].sample_path.as_deref().is_some_and(|s| s.ends_with(".wav")));
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
     }
 
     /// Writes the toolbar with a live-looking signal to OS_MONITOR_SHOT (a look-and-feel check, not an assertion).
@@ -10904,12 +10904,12 @@ mod tests {
         let path = std::env::temp_dir().join(format!("openstudio-new-{}.flp", std::process::id()));
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved") && !m.contains("not stored")), "{:?}", app.state.message);
-        let file = os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap();
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
         if let Some(keep) = std::env::var_os("OS_KEEP_FLP") {
-            let _ = std::fs::copy(&path, keep); // for checking the file in FL by hand
+            let _ = os_web::fs::copy(&path, keep); // for checking the file in FL by hand
         }
         let back = os_flp::project::load(&file).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(back.tempo, Some(111.0));
         assert_eq!(back.channels.len(), 5);
         assert_eq!(back.patterns[0].notes.len(), 1);
@@ -10919,8 +10919,8 @@ mod tests {
         // Saving again goes through apply on the same file.
         app.state.project.patterns[0].notes.push(Note::step(1, 96));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(back.patterns[0].notes.len(), 2);
         assert_eq!(back.mixer[3].name.as_deref(), Some("Drums"));
     }
@@ -11004,7 +11004,7 @@ mod tests {
         opened.save_to(path.clone());
         let mut again = App::new(None);
         again.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!((again.state.project.bar, again.state.project.play_truncated), (Some((7, 1)), false));
         assert_eq!(again.state.project.signature(), Some((7, 16)));
     }
@@ -11017,14 +11017,14 @@ mod tests {
     fn theme_picture_covers_the_workspace() {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("lemon-theme-picture-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("pics")).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(dir.join("pics")).unwrap();
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut pm = tiny_skia::Pixmap::new(4, 2).unwrap();
         pm.fill(tiny_skia::Color::from_rgba8(0x7a, 0x3c, 0x91, 0xff));
-        std::fs::write(dir.join("pics").join("wall.png"), pm.encode_png().unwrap()).unwrap();
+        os_web::fs::write(dir.join("pics").join("wall.png"), pm.encode_png().unwrap()).unwrap();
         let file = dir.join("Wall.flstheme");
-        std::fs::write(&file, format!("{}BackPicFilename=pics\\wall.png\n", os_theme::fl::DARK_TEXT)).unwrap();
+        os_web::fs::write(&file, format!("{}BackPicFilename=pics\\wall.png\n", os_theme::fl::DARK_TEXT)).unwrap();
         let mut app = App::new(None);
         // No windows: the whole workspace shows.
         app.state.z.clear();
@@ -11047,11 +11047,11 @@ mod tests {
         let off = pic.iter().filter(|&&p| p != 0x7a3c91).count();
         assert_eq!(off, 0, "the picture everywhere, no logo or version line");
         // The solid colour mode: the plain workspace again.
-        std::fs::write(&file, format!("{}BackPicFilename=pics\\wall.png\nBackMode=1\n", os_theme::fl::DARK_TEXT)).unwrap();
+        os_web::fs::write(&file, format!("{}BackPicFilename=pics\\wall.png\nBackMode=1\n", os_theme::fl::DARK_TEXT)).unwrap();
         app.load_theme_file_ex(&file, false);
         assert!(work(&mut app, &mut c) == plain);
         THEME_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Theme ▸ Options (spec: ui/settings-choices.md "Light mode and clip note colours"): the clip note colours check
@@ -11063,9 +11063,9 @@ mod tests {
         use crate::views::settings::{SAct, NOTE_COLORS_CHECK, THEME};
         use os_theme::{FlTheme, Palette};
         let dir = std::env::temp_dir().join(format!("lemon-theme-options-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
-        let saved = || std::fs::read_to_string(dir.join("current.flstheme")).unwrap_or_default();
+        let saved = || os_web::fs::read_to_string(dir.join("current.flstheme")).unwrap_or_default();
         let checks = |app: &App| -> Vec<(&'static str, bool)> {
             let rows = views::settings::page(THEME, &app.state).into_iter().flat_map(|g| g.rows);
             rows.filter_map(|r| match r {
@@ -11089,7 +11089,7 @@ mod tests {
         // rewrites only its own key.
         let file = dir.join("Night.flstheme");
         let night = "\u{feff}Hue=-18\r\nSaturation=6\r\nLightness=-57\r\nContrast=40\r\nLightmode=0\r\nSelected=-4546441\r\n";
-        std::fs::write(&file, night).unwrap();
+        os_web::fs::write(&file, night).unwrap();
         app.load_theme_file_ex(&file, false);
         let lit = night.replace("Lightmode=0", "Lightmode=1");
         assert_eq!(app.theme.base, os_theme::fl::palette(&FlTheme::parse(&lit)));
@@ -11107,7 +11107,7 @@ mod tests {
         // The next start reads it back.
         assert_eq!(App::new(None).state.fl_text.as_deref(), Some(want.as_str()));
         THEME_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Settings > Theme's Skins and Themes (spec: ui/theme-presets.md "Settings"): a theme colours either skin and
@@ -11118,7 +11118,7 @@ mod tests {
         use crate::views::settings::{SAct, THEME};
         use os_theme::{presets::PRESETS, FlTheme, Palette};
         let dir = std::env::temp_dir().join(format!("lemon-skins-themes-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
         app.open_settings(THEME);
@@ -11130,7 +11130,7 @@ mod tests {
         let (name, text) = PRESETS[2];
         app.settings_act(SAct::Preset(4));
         assert_eq!(app.theme.colors, os_theme::fl::palette(&FlTheme::parse(text)));
-        assert_eq!(std::fs::read_to_string(dir.join("current.flstheme")).unwrap(), text);
+        assert_eq!(os_web::fs::read_to_string(dir.join("current.flstheme")).unwrap(), text);
         app.settings_act(SAct::Skin(0));
         assert_eq!(app.design(), Design::Lemon);
         assert_eq!(app.theme.colors, os_theme::design::palette(Design::Lemon, Some(&FlTheme::parse(text))));
@@ -11155,7 +11155,7 @@ mod tests {
         // Reset: no theme, the skin's own colours; the theme file is dropped and the skin's own tile is framed.
         app.settings_act(SAct::Button("Reset"));
         assert_eq!(app.theme.colors, lemon_own);
-        assert!(app.state.fl_text.is_none() && !dir.join("current.flstheme").exists());
+        assert!(app.state.fl_text.is_none() && !dir.join("current.flstheme").vexists());
         assert_eq!(app.state.settings.preset, 0);
         app.settings_act(SAct::Skin(1));
         assert_eq!((&app.theme.colors, app.state.settings.preset), (&Palette::default(), 1));
@@ -11172,7 +11172,7 @@ mod tests {
             }
         }
         THEME_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Save preset... writes the applied theme into the user `themes` folder under a typed name and frames its new tile;
@@ -11185,7 +11185,7 @@ mod tests {
         use winit::keyboard::{Key, NamedKey};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("lemon-theme-library-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let themes = dir.join("themes");
         let mut app = App::new(None);
@@ -11205,11 +11205,11 @@ mod tests {
         // A built-in theme's name is refused; the panel stays.
         app.state.settings.name_edit.as_mut().unwrap().text.set("frost");
         app.key(&Key::Named(NamedKey::Enter), false, false);
-        assert!(app.state.settings.name_edit.is_some() && !themes.exists());
+        assert!(app.state.settings.name_edit.is_some() && !themes.vexists());
         app.state.settings.name_edit.as_mut().unwrap().text.set("Mine");
         app.key(&Key::Named(NamedKey::Enter), false, false);
         assert!(app.state.settings.name_edit.is_none());
-        assert_eq!(std::fs::read_to_string(themes.join("Mine.flstheme")).ok(), app.state.fl_text.clone());
+        assert_eq!(os_web::fs::read_to_string(themes.join("Mine.flstheme")).ok(), app.state.fl_text.clone());
         let st = &app.state.settings;
         let mine = st.themes.iter().position(|(n, _)| n == "Mine").expect("its tile");
         assert_eq!((st.user_from, st.preset), (mine, mine), "after the built-in tiles, and framed");
@@ -11226,7 +11226,7 @@ mod tests {
         app.state.playlist.popup = None;
         // Duplicate, rename, delete.
         app.theme_cmd(ThemeCmd::Duplicate(0));
-        assert_eq!(std::fs::read_to_string(themes.join("Lemon copy.flstheme")).ok().as_deref(), Some(app.state.settings.themes[0].1.as_str()));
+        assert_eq!(os_web::fs::read_to_string(themes.join("Lemon copy.flstheme")).ok().as_deref(), Some(app.state.settings.themes[0].1.as_str()));
         let mine = app.state.settings.themes.iter().position(|(n, _)| n == "Mine").unwrap();
         app.theme_cmd(ThemeCmd::Rename(mine));
         assert_eq!(name(&app).as_deref(), Some("Mine"));
@@ -11238,15 +11238,15 @@ mod tests {
         app.theme_cmd(ThemeCmd::Rename(mine));
         app.state.settings.name_edit.as_mut().unwrap().text.set("Ours");
         app.key(&Key::Named(NamedKey::Enter), false, false);
-        assert!(themes.join("Ours.flstheme").exists() && !themes.join("Mine.flstheme").exists());
+        assert!(themes.join("Ours.flstheme").vexists() && !themes.join("Mine.flstheme").vexists());
         let ours = app.state.settings.themes.iter().position(|(n, _)| n == "Ours").unwrap();
         assert_eq!(app.state.settings.preset, ours, "still framed");
         app.theme_cmd(ThemeCmd::Delete(ours));
         app.name_ok();
-        assert!(!themes.join("Ours.flstheme").exists());
+        assert!(!themes.join("Ours.flstheme").vexists());
         assert!(app.state.settings.themes.iter().all(|(n, _)| n != "Ours"));
         THEME_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y on the Theme page step back and forward through theme changes; a run of wheel
@@ -11257,7 +11257,7 @@ mod tests {
         use winit::keyboard::Key;
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("lemon-theme-undo-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
         app.open_settings(THEME);
@@ -11280,7 +11280,7 @@ mod tests {
         app.key(&z, true, false);
         assert_eq!(app.state.settings.preset, 2);
         app.key(&z, true, false);
-        assert!(app.state.fl_text.is_none() && !dir.join("current.flstheme").exists());
+        assert!(app.state.fl_text.is_none() && !dir.join("current.flstheme").vexists());
         assert_eq!(app.theme.colors, none, "the skin's own colours");
         app.shift = true;
         app.key(&z, true, false);
@@ -11289,14 +11289,14 @@ mod tests {
         app.key(&Key::Character("y".into()), true, false);
         app.key(&Key::Character("y".into()), true, false);
         assert_eq!(app.state.fl_text, wheeled);
-        assert_eq!(std::fs::read_to_string(dir.join("current.flstheme")).ok(), wheeled, "kept");
+        assert_eq!(os_web::fs::read_to_string(dir.join("current.flstheme")).ok(), wheeled, "kept");
         // A new change empties the redo list.
         app.key(&z, true, false);
         app.settings_act(SAct::Preset(7));
         app.key(&Key::Character("y".into()), true, false);
         assert_eq!(app.state.settings.preset, 7);
         THEME_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// A theme whose text is too faint on its surfaces gets a warning on the Theme page; Fix text changes only its text
@@ -11306,7 +11306,7 @@ mod tests {
         use crate::views::settings::{SAct, FIX_TEXT, THEME};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("lemon-theme-faint-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
         // On Citrus, which draws a theme's text colour as given.
@@ -11327,7 +11327,7 @@ mod tests {
         frame(&mut app, &mut c, None);
         assert!(!app.hits.iter().any(|h| h.action == Action::Settings(SAct::Button(FIX_TEXT))), "the warning is gone");
         THEME_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Theme ▸ Adjustments (spec: ui/theme-presets.md §C): the knobs show the applied theme's values and edit them live
@@ -11341,7 +11341,7 @@ mod tests {
         use os_theme::{presets::PRESETS, FlTheme};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("lemon-theme-adjust-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
         app.open_settings(THEME);
@@ -11359,7 +11359,7 @@ mod tests {
         assert_eq!(app.theme.colors, os_theme::design::palette(app.design(), Some(&app.state.fl_theme())), "live");
         assert_eq!(app.state.settings.preset, 2, "the tile it came from stays framed");
         app.mouse_up();
-        assert_eq!(std::fs::read_to_string(dir.join("current.flstheme")).unwrap(), app.state.fl_text.clone().unwrap(), "kept");
+        assert_eq!(os_web::fs::read_to_string(dir.join("current.flstheme")).unwrap(), app.state.fl_text.clone().unwrap(), "kept");
         // The wheel steps Hue by 5 degrees; a middle click restores the theme's value.
         frame(&mut app, &mut c, None);
         let hue = hit_rect(&app, &Action::Settings(SAct::ThemeKnob(0)));
@@ -11400,7 +11400,7 @@ mod tests {
         click(&mut app, &mut c, r);
         assert!(app.state.settings.picker.is_none());
         THEME_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// General settings ▸ Animations (spec: ui/animations.md "Levels"): four levels, highest first, the current one
@@ -11525,7 +11525,7 @@ mod tests {
         app.save_to(path.clone());
         let mut opened = App::new(None);
         opened.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!((opened.state.project.bar, opened.state.project.bar_as_signature), (Some((5, 3)), Some(false)));
         opened.open_settings(PROJECT);
         assert_eq!(shown(&opened), (some(SET_AS_DIVISION), None, None, some("5"), some("3")));
@@ -11605,8 +11605,8 @@ mod tests {
         project_pick(&mut app, &mut c, TIMEBASE, "72", 11);
         let path = std::env::temp_dir().join(format!("lemon-project-timebase-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!((back.ppq, back.patterns[0].notes[0].position, back.patterns[0].notes[0].length), (72, 54, 207));
         assert_eq!((back.arrangements[0].clips[0].position, back.arrangements[0].markers[0].position), (144, 72));
     }
@@ -11699,14 +11699,14 @@ mod tests {
         // A file without event 44 opens without one (shown off), whatever the setting.
         let mut p = test_project();
         p.auto_crossfades = None;
-        std::fs::write(&path, os_flp::project::create(&p).unwrap().to_bytes().unwrap()).unwrap();
+        os_web::fs::write(&path, os_flp::project::create(&p).unwrap().to_bytes().unwrap()).unwrap();
         for on in [false, true] {
             prefs::set_check(&AUTO_CROSSFADES_NEW, on);
             let mut app = App::new(None);
             app.open(path.clone());
             assert_eq!((app.state.project.auto_crossfades, shown(&app)), (None, Some(false)), "setting {on}");
         }
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
     }
 
     /// Settings > Audio ▸ Mixer (spec: ui/settings-choices.md "Transport: Play truncated notes and Reset plugins"):
@@ -11871,11 +11871,11 @@ mod tests {
         use crate::browser::BCmd;
         use crate::prefs::{self, AUTO_NAME_CHANNELS};
         let dir = std::env::temp_dir().join(format!("os_auto_name_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let wav = |n: &str| {
             let p = dir.join(format!("{n}.wav"));
-            os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&p).unwrap(), 44100, &[0.0; 8]).unwrap();
+            os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&p).unwrap(), 44100, &[0.0; 8]).unwrap();
             p.to_string_lossy().into_owned()
         };
         let (kick6, kick12) = (wav("Grv Kick 06"), wav("Grv Kick 12"));
@@ -11911,7 +11911,7 @@ mod tests {
         app.sample_to_rack(kick12.clone(), views::rack::rect(&app.state).bottom() + 40.0);
         assert_eq!(app.state.project.channels.len(), n + 1);
         assert_eq!(app.state.project.channels[app.state.selected_channel].name.as_deref(), Some("Grv Kick 12"));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// A middle click on a browser sample selects its row and loads the sample into the selected channel, as "Send to
@@ -11921,10 +11921,10 @@ mod tests {
         use crate::views::browser::{rows, Item};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("os_middle_send_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let p = dir.join("Grv Clap 03.wav");
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&p).unwrap(), 44100, &[0.0; 8]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&p).unwrap(), 44100, &[0.0; 8]).unwrap();
         let path = p.to_string_lossy().into_owned();
         let mut app = App::new(None);
         app.state.browser_folders.push(dir.clone());
@@ -11941,7 +11941,7 @@ mod tests {
         assert_eq!(app.state.browser_sel.as_ref(), Some(&rows(&app.state)[i].key), "the row is selected");
         app.key(&winit::keyboard::Key::Character("z".into()), true, false);
         assert_eq!(app.state.project.channels[r].sample_path, before, "one undo step");
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Settings > Project ▸ Advanced ▸ Panning law (spec: ui/settings-choices.md "Project", audio/gain-laws.md
@@ -11987,8 +11987,8 @@ mod tests {
         crate::playlist::run(&mut opened, crate::playlist::Cmd::PanningLaw(0));
         assert!(opened.unsaved());
         opened.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(back.panning_law, Some(0));
     }
 
@@ -12709,7 +12709,7 @@ mod tests {
         // An audio clip (spec: ui/playlist.md §9a): hovering it shows its handles, a handle under the mouse lights,
         // dragging the fade-in triangle repaints that clip and the hint bar only.
         let wav = std::env::temp_dir().join(format!("os-repaint-clip-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.4; 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.4; 96000]).unwrap();
         crate::playlist::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 4, 384).expect("audio clip");
         app.state.playlist.sel.clear();
         app.state.playlist_bar_w = 240.0;
@@ -12752,7 +12752,7 @@ mod tests {
         app.mouse_move(r.right() + 60.0, r.bottom() - 6.0);
         check(&mut app, &mut a, &mut b, "stretch resize");
         app.mouse_up();
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Scrolling the playlist moves the pixels drawn for it and paints only what scrolled in (`App::playlist_scrolled`).
@@ -12768,13 +12768,13 @@ mod tests {
                 (t * 2.0).sin() * (t * 900.0 * (1.0 + t)).sin()
             })
             .collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &audio).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &audio).unwrap();
         for scale in [1.0, 1.5] {
             for design in Design::ALL {
                 scroll_moves_at(&wav, scale, design);
             }
         }
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     fn scroll_moves_at(wav: &std::path::Path, scale: f32, design: Design) {
@@ -14453,10 +14453,10 @@ mod tests {
             }
         }
         let path = std::env::temp_dir().join(format!("lemon-legacy-{}.flp", std::process::id()));
-        std::fs::write(&path, file.to_bytes().expect("bytes")).expect("write");
+        os_web::fs::write(&path, file.to_bytes().expect("bytes")).expect("write");
         let mut app = App::new(None);
         app.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert!(app.state.dialogs.is_empty() && !app.modal_open());
         assert_eq!(app.state.project.channels.len(), test_project().channels.len());
         // The file kept for saving is the converted one: every channel block has its end event again.
@@ -14503,8 +14503,8 @@ mod tests {
         // Saving a project never saved goes to the file dialog without Lemon Studio's Save as form (`crate::save_form`).
         crate::prefs::set_choice(&crate::prefs::ASK_DATA_FOLDER, crate::save_form::DONT_ASK);
         let dir = std::env::temp_dir().join(format!("os_dialog_unsaved_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         for design in [Design::Citrus, Design::Lemon] {
             let mut app = App::new(None);
             app.set_design(design, false);
@@ -14547,7 +14547,7 @@ mod tests {
             assert!(!app.want_exit);
             named(&mut app, NamedKey::Enter);
             let saved = dir.join(format!("Tune {design:?}.lemon"));
-            assert!(saved.exists() && !app.unsaved(), "saved with the type's extension: {:?}", app.state.message);
+            assert!(saved.vexists() && !app.unsaved(), "saved with the type's extension: {:?}", app.state.message);
             assert!(app.want_exit && !app.modal_open(), "then the window closes");
             // Save as onto that file: the replace question starts on No; Yes replaces.
             app.want_exit = false;
@@ -14567,7 +14567,7 @@ mod tests {
             assert!(!app.modal_open() && !app.unsaved(), "replaced");
         }
         fake::live(false);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The file dialog (spec: ui/dialogs.md §4): rows, double clicks, Up / Back, the type combo, the wheel, the caption
@@ -14581,13 +14581,13 @@ mod tests {
         let Ok(mut c) = Canvas::new(1280, 800, 1.0) else { return };
         fake::live(true);
         let dir = std::env::temp_dir().join(format!("os_dialog_browse_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("Beats")).unwrap();
-        std::fs::write(dir.join("Beats").join("Loop.flp"), b"not a project").unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(dir.join("Beats")).unwrap();
+        os_web::fs::write(dir.join("Beats").join("Loop.flp"), b"not a project").unwrap();
         for i in 0..40 {
-            std::fs::write(dir.join(format!("Song {i:02}.flp")), b"x").unwrap();
+            os_web::fs::write(dir.join(format!("Song {i:02}.flp")), b"x").unwrap();
         }
-        std::fs::write(dir.join("Zebra.txt"), b"x").unwrap();
+        os_web::fs::write(dir.join("Zebra.txt"), b"x").unwrap();
         for design in [Design::Citrus, Design::Lemon] {
             let mut app = App::new(None);
             app.set_design(design, false);
@@ -14651,7 +14651,7 @@ mod tests {
             assert!(!app.modal_open());
         }
         fake::live(false);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Look check for the dialogs in both designs: `OS_SHOT_DIR=dir cargo test -p os-app dialog_shots -- --ignored`.
@@ -14664,11 +14664,11 @@ mod tests {
         let Ok(mut c) = Canvas::new(1280, 800, 1.0) else { return };
         fake::live(true);
         let dir = std::env::temp_dir().join(format!("os_dialog_shots_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("Drums")).unwrap();
-        std::fs::create_dir_all(dir.join("Vocals")).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(dir.join("Drums")).unwrap();
+        os_web::fs::create_dir_all(dir.join("Vocals")).unwrap();
         for (n, len) in [("Club mix.flp", 48_213), ("Demo.flp", 9_120), ("Night drive.flp", 131_072), ("Sketch 3.flp", 2_048)] {
-            std::fs::write(dir.join(n), vec![0u8; len]).unwrap();
+            os_web::fs::write(dir.join(n), vec![0u8; len]).unwrap();
         }
         for design in [Design::Citrus, Design::Lemon] {
             let name = format!("{design:?}").to_lowercase();
@@ -14706,7 +14706,7 @@ mod tests {
             app.modal_changed();
         }
         fake::live(false);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The wheel in an open menu (spec: ui/menus.md "The wheel in menus"): a notch lights the next row that can be
@@ -15761,13 +15761,13 @@ mod tests {
             let v = ((i as f32 * 440.0 * std::f32::consts::TAU / rate as f32).sin() * 16000.0) as i16;
             wav.extend(&v.to_le_bytes());
         }
-        std::fs::write(&path, wav).unwrap();
+        os_web::fs::write(&path, wav).unwrap();
         let p = preview_project(&path.to_string_lossy());
         let mut library = os_engine::SampleLibrary::default();
         let mut e = os_engine::Engine::new(&p, &mut library, 48000, os_engine::PlayMode::Pattern(1));
         let mut buf = vec![0.0f32; 48000];
         e.process(&mut buf);
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert!(buf.iter().any(|v| v.abs() > 0.05), "preview is silent");
     }
 
@@ -15779,7 +15779,7 @@ mod tests {
         app.plugins = crate::plugins::Plugins::default();
         app.plugins.available = crate::plugins::builtin();
         let wav = std::env::temp_dir().join(format!("os-app-audio-clip-channel-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
         let path = wav.to_string_lossy().into_owned();
         crate::playlist::add_audio_clip(&mut app.state, &path, 0, 0).expect("audio clip added");
         let row = app.state.project.channels.len() - 1;
@@ -15838,7 +15838,7 @@ mod tests {
         bytes.extend(words.iter().flat_map(|w| w.to_le_bytes()));
         let riff = (bytes.len() - 8) as u32;
         bytes[4..8].copy_from_slice(&riff.to_le_bytes());
-        std::fs::write(&wav, &bytes).unwrap();
+        os_web::fs::write(&wav, &bytes).unwrap();
         crate::playlist::add_audio_clip(&mut a.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ch = a.state.project.channels.last_mut().unwrap();
         assert_eq!(ch.sound.sampler_flags, Some(os_model::ChannelSound::AUDIO_CLIP_FLAGS), "FL's clip channel flags");
@@ -15857,9 +15857,9 @@ mod tests {
                 _ => std::thread::sleep(Duration::from_millis(10)),
             }
         }
-        let bytes = std::fs::read(&out).expect("file written");
-        let _ = std::fs::remove_file(&out);
-        let _ = std::fs::remove_file(&wav);
+        let bytes = os_web::fs::read(&out).expect("file written");
+        let _ = os_web::fs::remove_file(&out);
+        let _ = os_web::fs::remove_file(&wav);
         let left: Vec<f32> = bytes[44..].chunks_exact(8).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
         // Every quarter second: the sample's level while it plays, silence after it.
         let wrong: Vec<(f32, f32, f32)> = (0..left.len())
@@ -15889,7 +15889,7 @@ mod tests {
                 [0.3 * tone(220.0) + 0.1 * tone(661.0), 0.3 * tone(331.0) + 0.1 * tone(997.0)]
             })
             .collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 44100, &src).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &src).unwrap();
         let export = |keep: bool| -> Vec<u8> {
             let mut a = App::new(None);
             a.plugins = crate::plugins::Plugins::default();
@@ -15926,12 +15926,12 @@ mod tests {
             // Playing from disk, nothing holds the decoded file: the engine that rendered the export (and its sample
             // library, which plays on) kept only the length. From memory, the instance holds it.
             assert_eq!(os_engine::sample::held(&wav), !keep, "the decoded file is held: keep on disk {keep}");
-            let bytes = std::fs::read(&out).expect("file written");
-            let _ = std::fs::remove_file(&out);
+            let bytes = os_web::fs::read(&out).expect("file written");
+            let _ = os_web::fs::remove_file(&out);
             bytes
         };
         let (ram, disk) = (export(false), export(true));
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
         assert_eq!(ram.len(), disk.len());
         let frames = |b: &[u8]| b[44..].chunks_exact(4).map(|v| f32::from_le_bytes([v[0], v[1], v[2], v[3]])).collect::<Vec<f32>>();
         let (a, b) = (frames(&ram), frames(&disk));
@@ -15953,7 +15953,7 @@ mod tests {
         a.plugins.available = crate::plugins::builtin();
         a.plugins.set_rate(48000);
         let wav = std::env::temp_dir().join(format!("os-app-crossfade-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         crate::playlist::add_audio_clip(&mut a.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let row = a.state.project.channels.len() - 1;
         a.plugin_tick();
@@ -15979,9 +15979,9 @@ mod tests {
                 _ => std::thread::sleep(Duration::from_millis(10)),
             }
         }
-        let bytes = std::fs::read(&out).expect("file written");
-        let _ = std::fs::remove_file(&out);
-        let _ = std::fs::remove_file(&wav);
+        let bytes = os_web::fs::read(&out).expect("file written");
+        let _ = os_web::fs::remove_file(&out);
+        let _ = os_web::fs::remove_file(&wav);
         let left: Vec<f32> = bytes[44..].chunks_exact(8).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
         let at = |t: u32| os_engine::Clock::frame_of_tick(48000, p.ppq, f64::from(a.state.tempo), u64::from(t)) as usize;
         let level = left[at(first.length / 4)];
@@ -16085,7 +16085,7 @@ mod tests {
         b.plugins = crate::plugins::Plugins::default();
         b.plugins.available = crate::plugins::builtin();
         b.open(flp.clone());
-        let _ = std::fs::remove_file(&flp);
+        let _ = os_web::fs::remove_file(&flp);
         let t0 = web_time::Instant::now();
         while !b.state.hosted_rows.contains(&row) && t0.elapsed() < web_time::Duration::from_secs(20) {
             b.plugin_tick();
@@ -16141,7 +16141,7 @@ mod tests {
     fn sampler_loop_points_are_frames_of_the_file() {
         use serde_json::json;
         let wav = std::env::temp_dir().join(format!("os_loop_points_{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 44100, &[0.25; 4002]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &[0.25; 4002]).unwrap();
         let mut pl = crate::plugins::Plugins::default();
         pl.available = crate::plugins::builtin();
         let index = pl.index_of(crate::plugins::LEMON_SAMPLER).unwrap();
@@ -16167,7 +16167,7 @@ mod tests {
         pl.create_with(0, index, Some(&crate::plugins::sampler_state(&ch))).unwrap();
         let st = crate::plugins::with_params(&pl.state(0).unwrap(), &[("loop_end", json!({ "f32": 0.5 }))]).unwrap();
         crate::plugins::store_sampler(&mut ch, &st);
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
         assert_eq!(ch.sound.loop_points, Some([0, 1000]));
     }
 
@@ -16177,7 +16177,7 @@ mod tests {
     fn opened_projects_load_their_samplers_first() {
         let flp = std::env::temp_dir().join(format!("os_loading_{}.flp", std::process::id()));
         let wav = std::env::temp_dir().join(format!("os_loading_{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.25; 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.25; 96000]).unwrap();
         let wav = wav.to_string_lossy().into_owned();
         let mut app = App::new(None);
         for c in app.state.project.channels.iter_mut().filter(|c| c.kind.is_sampler()) {
@@ -16189,7 +16189,7 @@ mod tests {
         app.plugins = crate::plugins::Plugins::default();
         app.plugins.available = crate::plugins::builtin();
         app.open(flp.clone());
-        let _ = std::fs::remove_file(&flp);
+        let _ = os_web::fs::remove_file(&flp);
         assert!(app.loading(), "opening starts loading");
         assert!(app.animating(), "the panel keeps ticking");
         let mut canvas = Canvas::new(1920, 1080, 1.0).unwrap();
@@ -16204,7 +16204,7 @@ mod tests {
             assert!(app.state.hosted_rows.contains(&r), "row {r} has its Lemon Sampler");
             assert_eq!(app.plugins.sampler_path(r).as_deref(), Some(wav.as_str()));
         }
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// The Misc tab's values are saved with the channel and come back on open (spec: audio/channel-misc.md
@@ -16304,7 +16304,7 @@ mod tests {
         }
         let want = b.state.project.channels[row].misc;
         let c = reopen(&mut b);
-        let _ = std::fs::remove_file(&flp);
+        let _ = os_web::fs::remove_file(&flp);
         assert_eq!(c.state.project.channels[row].misc, want);
     }
 
@@ -16312,8 +16312,8 @@ mod tests {
     #[test]
     fn unsaved_changes_and_new_versions() {
         let dir = std::env::temp_dir().join(format!("os_versions_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let mut app = App::new(None);
         assert!(!app.unsaved(), "a fresh project");
         app.save_to(dir.join("Song.lemon"));
@@ -16339,8 +16339,8 @@ mod tests {
         assert_eq!(app.state.path.as_deref(), Some(dir.join("Song_2.lemon").as_path()));
         app.act(Action::MenuItem(0, views::menus::FILE_SAVE_VERSION));
         assert_eq!(app.state.path.as_deref(), Some(dir.join("Song_3.lemon").as_path()));
-        assert!(dir.join("Song_2.lemon").exists() && dir.join("Song_3.lemon").exists());
-        let _ = std::fs::remove_dir_all(&dir);
+        assert!(dir.join("Song_2.lemon").vexists() && dir.join("Song_3.lemon").vexists());
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Projects save as .lemon files that open again; one opened from an FLP is never saved over: Save asks for a name,
@@ -16349,15 +16349,15 @@ mod tests {
     fn flps_migrate_to_lemon_files() {
         use crate::dialog::fake;
         let dir = std::env::temp_dir().join(format!("os_lemon_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let mut app = App::new(None);
         app.state.tempo = 123.0;
         let flp = dir.join("Old.flp");
         app.save_to(flp.clone());
-        let plain = os_flp::FlpFile::parse(&std::fs::read(&flp).unwrap()).unwrap();
+        let plain = os_flp::FlpFile::parse(&os_web::fs::read(&flp).unwrap()).unwrap();
         assert!(!os_flp::lemon::is_lemon(&plain), "a target named .flp is still written as an FLP");
-        let before = std::fs::read(&flp).unwrap();
+        let before = os_web::fs::read(&flp).unwrap();
         let mut app = App::new(None);
         app.open(flp.clone());
         assert_eq!(app.state.tempo, 123.0);
@@ -16367,15 +16367,15 @@ mod tests {
         fake::answer(None);
         app.act(Action::MenuItem(0, views::menus::FILE_SAVE));
         assert_eq!(fake::shown().1, asked + 1, "Save on an FLP asks for a name");
-        assert!(!lemon.exists(), "cancelled: nothing written");
-        assert_eq!(std::fs::read(&flp).unwrap(), before, "the FLP is not written");
+        assert!(!lemon.vexists(), "cancelled: nothing written");
+        assert_eq!(os_web::fs::read(&flp).unwrap(), before, "the FLP is not written");
         assert!(app.unsaved());
         fake::answer(Some(lemon.clone()));
         app.act(Action::MenuItem(0, views::menus::FILE_SAVE));
         assert_eq!(app.state.path.as_deref(), Some(lemon.as_path()), "the project now lives in the .lemon file");
         assert!(!app.unsaved());
-        assert_eq!(std::fs::read(&flp).unwrap(), before, "the FLP is still not written");
-        let file = os_flp::FlpFile::parse(&std::fs::read(&lemon).unwrap()).unwrap();
+        assert_eq!(os_web::fs::read(&flp).unwrap(), before, "the FLP is still not written");
+        let file = os_flp::FlpFile::parse(&os_web::fs::read(&lemon).unwrap()).unwrap();
         assert_eq!(os_flp::lemon::version(&file), Some(os_flp::lemon::VERSION));
         assert_eq!(os_flp::lemon::saved_by_text(&file), Some(format!("Lemon Studio {}", crate::version::VERSION)));
         // Save again: in place, no dialog.
@@ -16385,7 +16385,7 @@ mod tests {
         let mut back = App::new(None);
         back.open(lemon.clone());
         assert_eq!((back.state.tempo, back.state.path.as_deref()), (125.0, Some(lemon.as_path())));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
 
@@ -16526,15 +16526,15 @@ mod tests {
         use crate::dialog::fake;
         use winit::keyboard::Key;
         let dir = std::env::temp_dir().join(format!("os_save_as_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
         let mut app = App::new(None);
         app.state.project = test_project();
         // Something to export, so Ctrl+R gets as far as its file dialog.
         app.state.project.patterns[0].notes.push(Note::step(0, 0));
         let song = dir.join("Song.lemon");
         app.save_to(song.clone());
-        let before = std::fs::read(&song).unwrap();
+        let before = os_web::fs::read(&song).unwrap();
         let key = |app: &mut App, k: &str, shift: bool| {
             app.shift = shift;
             app.key(&Key::Character(k.into()), true, false);
@@ -16544,14 +16544,14 @@ mod tests {
         app.state.tempo = 99.0;
         key(&mut app, "S", true);
         assert_eq!(fake::shown(), (0, 1), "Save as asks where");
-        assert_eq!(std::fs::read(&song).unwrap(), before, "cancelled: the open file is not written");
+        assert_eq!(os_web::fs::read(&song).unwrap(), before, "cancelled: the open file is not written");
         assert!(app.unsaved());
         let other = dir.join("Other.lemon");
         fake::answer(Some(other.clone()));
         key(&mut app, "S", true);
         assert_eq!(app.state.path.as_deref(), Some(other.as_path()));
-        assert!(other.exists() && !app.unsaved(), "saved to the chosen file");
-        assert_eq!(std::fs::read(&song).unwrap(), before, "the old file is left as it was");
+        assert!(other.vexists() && !app.unsaved(), "saved to the chosen file");
+        assert_eq!(os_web::fs::read(&song).unwrap(), before, "the old file is left as it was");
 
         let export_form = |app: &App| {
             matches!(app.state.dialogs.last().map(|d| &d.body), Some(crate::dialog::Body::Project(crate::project_forms::Form::Export(_))))
@@ -16565,20 +16565,20 @@ mod tests {
         escape(&mut app);
         assert_eq!(fake::shown(), (0, 2), "no open or file dialog");
         assert!(app.export.is_none());
-        assert!(!dir.join("Other_2.lemon").exists(), "no new version");
+        assert!(!dir.join("Other_2.lemon").vexists(), "no new version");
 
         app.state.tempo = 100.0;
         key(&mut app, "s", false);
         assert_eq!(fake::shown(), (0, 2), "Ctrl+S does not ask");
         assert!(!app.unsaved(), "Ctrl+S saved in place");
         key(&mut app, "n", false);
-        assert!(dir.join("Other_2.lemon").exists(), "Ctrl+N still saves a new version");
+        assert!(dir.join("Other_2.lemon").vexists(), "Ctrl+N still saves a new version");
         key(&mut app, "o", false);
         assert_eq!(fake::shown(), (1, 2), "Ctrl+O still asks for a file");
         key(&mut app, "r", false);
         assert!(export_form(&app), "Ctrl+R opens the Export form");
         escape(&mut app);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// An effect dragged from the plugin database onto the mixer goes into the current track's first free slot
@@ -16709,11 +16709,11 @@ mod tests {
         use crate::views::browser::{rows, Item};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("os_browser_test_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("Kicks")).unwrap();
-        std::fs::write(dir.join("Kicks").join("Kick 01.wav"), b"x").unwrap();
-        std::fs::write(dir.join("readme.txt"), b"hello").unwrap();
-        std::fs::write(dir.join(".hidden"), b"").unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(dir.join("Kicks")).unwrap();
+        os_web::fs::write(dir.join("Kicks").join("Kick 01.wav"), b"x").unwrap();
+        os_web::fs::write(dir.join("readme.txt"), b"hello").unwrap();
+        os_web::fs::write(dir.join(".hidden"), b"").unwrap();
         let mut app = App::new(None);
         frame(&mut app, &mut c, None);
         app.drop_file(dir.clone());
@@ -16740,7 +16740,7 @@ mod tests {
         app.mouse_down_right();
         pick(&mut app, &mut c, "Remove from browser");
         assert!(app.state.browser_folders.is_empty());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The arrows over the browser walk the tree (issue #169): Up / Down a row, Right opens a node and steps into it,
@@ -16752,11 +16752,11 @@ mod tests {
         use winit::keyboard::{Key, NamedKey};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("os_browser_arrows_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("Kicks")).unwrap();
-        std::fs::write(dir.join("Kicks").join("Kick 01.wav"), b"x").unwrap();
-        std::fs::write(dir.join("Kicks").join("Kick 02.wav"), b"x").unwrap();
-        std::fs::write(dir.join("readme.txt"), b"hello").unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(dir.join("Kicks")).unwrap();
+        os_web::fs::write(dir.join("Kicks").join("Kick 01.wav"), b"x").unwrap();
+        os_web::fs::write(dir.join("Kicks").join("Kick 02.wav"), b"x").unwrap();
+        os_web::fs::write(dir.join("readme.txt"), b"hello").unwrap();
         let mut app = App::new(None);
         frame(&mut app, &mut c, None);
         app.drop_file(dir.clone());
@@ -16812,7 +16812,7 @@ mod tests {
         assert!(!app.over_browser());
         arrow(&mut app, NamedKey::ArrowUp);
         assert_eq!(app.state.browser_sel, before);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Clicks entry `label` of the open popup.
@@ -16831,9 +16831,9 @@ mod tests {
         use crate::views::browser::{disk_key, rows, Item, Row};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("os_browser_menu_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(dir.join("Snare 01.wav")).unwrap(), 44100, &[0.0; 8]).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(dir.join("Snare 01.wav")).unwrap(), 44100, &[0.0; 8]).unwrap();
         let mut app = App::new(None);
         app.state.project = test_project();
         app.state.project.patterns.push(os_model::Pattern { number: 2, name: Some("Verse".into()), ..Default::default() });
@@ -16890,7 +16890,7 @@ mod tests {
         right(&mut app, &mut c, |r| r.item == Item::Channel(1));
         pick(&mut app, &mut c, "Collapse structure");
         assert!(!app.state.browser_open.iter().any(|k| k.starts_with("1:")));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The browser's splitter (spec: ui/browser.md §9): a drag widens the browser and the workspace starts right of it,
@@ -16936,10 +16936,10 @@ mod tests {
         use crate::views::browser::{disk_key, rows};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("os_browser_marquee_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("A very long file name that does not fit in the browser.txt"), b"x").unwrap();
-        std::fs::write(dir.join("Short.txt"), b"x").unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(&dir).unwrap();
+        os_web::fs::write(dir.join("A very long file name that does not fit in the browser.txt"), b"x").unwrap();
+        os_web::fs::write(dir.join("Short.txt"), b"x").unwrap();
         let mut app = App::new(None);
         app.state.browser_folders.push(dir.clone());
         app.state.browser_open.insert(disk_key(&dir));
@@ -16965,7 +16965,7 @@ mod tests {
         app.mouse_move(short.cx(), short.cy());
         frame(&mut app, &mut c, None);
         assert!(app.state.browser_marquee.borrow().is_none());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -19543,7 +19543,7 @@ mod tests {
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", app.state.message);
         app.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         app.state.z = vec![Win::PianoRoll];
         app.state.selected_channel = 0;
         assert_eq!(piano::pattern_mut(&mut app.state).markers, vec![os_model::TimeMarker::new(192, "Marker 1")]);
@@ -19783,7 +19783,7 @@ mod tests {
         app.state.playlist_bar_w = 200.0;
         app.state.playlist.snap = crate::snap::EditorSnap::Grid(pl::Snap::None);
         let wav = std::env::temp_dir().join(format!("os-app-stretch-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ci = pl::clips(&app.state).len() - 1;
         let row = app.state.project.channels.len() - 1;
@@ -19814,7 +19814,7 @@ mod tests {
         app.state.project.channels[row].sound.set_stretch_multiplier(2.0);
         let path = std::env::temp_dir().join(format!("os-app-stretch-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let ch = back.channels.iter().find(|c| c.kind == ChannelKind::AudioClip).expect("the audio clip channel");
         assert_eq!(ch.sound.stretch, [0, 0, 10000, 0]);
         // And changed in that existing file (its event 215 patched).
@@ -19822,9 +19822,9 @@ mod tests {
         let row2 = app2.state.project.channels.iter().position(|c| c.kind == ChannelKind::AudioClip).unwrap();
         app2.state.project.channels[row2].sound.set_stretch_multiplier(0.5);
         app2.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         assert_eq!(back.channels[row2].sound.stretch, [0, 0, (-10000i32) as u32, 0]);
-        let _ = (std::fs::remove_file(&path), std::fs::remove_file(&wav));
+        let _ = (os_web::fs::remove_file(&path), os_web::fs::remove_file(&wav));
     }
 
     // spec: ui/settings-choices.md "Display: Colorful waveforms (2026-10-16)"
@@ -19844,7 +19844,7 @@ mod tests {
                 [v, v]
             })
             .collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &sine).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &sine).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let clip = *pl::clips(&app.state).last().unwrap();
         let (w, h) = (1920, 1080);
@@ -19880,7 +19880,7 @@ mod tests {
         assert_ne!(map, multiband, "Color map has colours of its own");
         set_choice(&COLORFUL_WAVEFORMS, 0);
         assert!(shot(&mut app, &mut c) == off, "Off: as before");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Audio clips follow their channel (spec: ui/playlist.md §9c): the length is worked out from the trims and the
@@ -19896,7 +19896,7 @@ mod tests {
         app.state.tempo = 130.0;
         app.state.playlist.reset();
         let wav = std::env::temp_dir().join(format!("os-app-fit-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 282240]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 282240]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let row = app.state.project.channels.len() - 1;
         let src = ClipSource::Channel(app.state.project.channels[row].index);
@@ -19944,7 +19944,7 @@ mod tests {
         app.state.project.channels[row].sound.stretch = [0; 4];
         app.tick();
         assert!(app.unsaved(), "a stretch edit is");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// The tempo counts the bar's beats (spec: audio/timing.md "The tempo counts the bar's beats"): FL 26 gives a 4 s
@@ -19959,7 +19959,7 @@ mod tests {
         app.state.tempo = 140.0;
         app.state.playlist.reset();
         let wav = std::env::temp_dir().join(format!("os-app-fit-bar-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 176400]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 176400]).unwrap();
         app.state.project.bar = Some((3, 2));
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let row = app.state.project.channels.len() - 1;
@@ -19973,7 +19973,7 @@ mod tests {
         app.state.project.channels[row].sound.stretch = [488f32.to_bits(), 0, 0, 0];
         pl::fit_audio(&mut app.state);
         assert_eq!(len(&app), 244, "TIME 0:10:04 in 3/8");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// The playlist draws with a 3/8 project bar and a time-signature marker (bars of another length): no panic, the
@@ -20042,7 +20042,7 @@ mod tests {
         assert!(m.starts_with("Exported 1 track"), "{m}");
         let t1 = os_engine::sample::load(&dir.join("01 Track 1.wav")).expect("track file");
         assert!(loud(&t1), "the plugin channel's track is not silent");
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         // Consolidate: the clip is muted, a new audio clip carries the sound.
         app.state.playlist.sel = vec![0];
         pl::run(&mut app, pl::Cmd::Consolidate).unwrap();
@@ -20055,7 +20055,7 @@ mod tests {
         let path = m.trim_start_matches("Consolidated to ").to_string();
         let r = os_engine::sample::load(std::path::Path::new(&path)).expect("render file");
         assert!(loud(&r), "the consolidated file is not silent");
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
     }
 
     /// Tools menu (spec: ui/playlist.md §10): quick quantize moves clip starts onto the snap grid (one undo step);
@@ -20093,7 +20093,7 @@ mod tests {
         let f = |t: u32| os_engine::laws::tick_to_frame(f64::from(t), 96, app.state.tempo, 44100) as usize;
         assert!(loud(&t1, f(step), f(step + ppq)) && !loud(&t3, f(step), f(step + ppq)), "track 1's clip only in its file");
         assert!(loud(&t3, f(2 * bar), f(2 * bar + ppq)), "track 3's clip in its file");
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Arrangements (spec: ui/playlist.md §12): add, rename, clone, merge, delete, switch; saved and read back with
@@ -20134,7 +20134,7 @@ mod tests {
         // Saved and read back with "Verse" shown.
         let path = std::env::temp_dir().join(format!("os-app-arrangements-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let names: Vec<_> = back.arrangements.iter().map(|a| a.name.clone().unwrap_or_default()).collect();
         assert_eq!(names, vec!["Arrangement".to_string(), "Verse".to_string()]);
         assert_eq!(back.arrangement().unwrap().name.as_deref(), Some("Verse"));
@@ -20145,11 +20145,11 @@ mod tests {
         pl::run(&mut app2, pl::Cmd::ArrAdd);
         pl::commit_edit(&mut app2.state);
         app2.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let names: Vec<_> = back.arrangements.iter().map(|a| a.name.clone().unwrap_or_default()).collect();
         assert_eq!(names, vec!["Verse".to_string(), "Arrangement 2".to_string()], "removed and added in an existing file");
         assert!(back.arrangements[0].clips.iter().any(|c| c.position == bar), "the kept arrangement keeps its clips");
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
     }
 
     /// An audio clip's handles fade in over 120 ms as the mouse comes over the clip and out over 200 ms as it leaves
@@ -20161,7 +20161,7 @@ mod tests {
         let (mut app, _, _, _) = ruler_app(&mut c);
         app.state.playlist_bar_w = 400.0;
         let wav = std::env::temp_dir().join(format!("os-app-handle-fades-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ci = pl::clips(&app.state).len() - 1;
         frame(&mut app, &mut c, None);
@@ -20198,7 +20198,7 @@ mod tests {
         assert!(seen.windows(2).all(|w| w[1] <= w[0]) && seen[5] < on && seen[5] > off, "it fades out: {seen:?}");
         assert_eq!(*seen.last().unwrap(), off);
         crate::anim::set_clock(false);
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// While a project's samples load, its audio clips show a highlight sweeping across them left to right every
@@ -20210,7 +20210,7 @@ mod tests {
         let (mut app, _, _, _) = ruler_app(&mut c);
         app.state.playlist_bar_w = 400.0;
         let wav = std::env::temp_dir().join(format!("os-app-loading-sweep-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ci = pl::clips(&app.state).len() - 1;
         app.state.playlist.wave_wait = true;
@@ -20253,7 +20253,7 @@ mod tests {
         crate::anim::set_level(crate::anim::Level::Playful);
         crate::anim::set_clock(false);
         app.state.playlist.wave_wait = false;
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Audio clip handles (spec: ui/playlist.md §9a): dragging the fade triangles sets the fades, the tension ring
@@ -20265,7 +20265,7 @@ mod tests {
         let (mut app, _, _, _) = ruler_app(&mut c);
         app.state.playlist_bar_w = 400.0;
         let wav = std::env::temp_dir().join(format!("os-app-clip-fades-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ci = pl::clips(&app.state).len() - 1;
         assert_eq!(pl::clips(&app.state)[ci].gain(), 1.0, "a new audio clip stores gain 1.0");
@@ -20311,7 +20311,7 @@ mod tests {
         assert_eq!(pl::clips(&app.state)[ci].gain(), 1.0);
         app.key(&winit::keyboard::Key::Character("z".into()), true, false);
         assert_eq!(pl::clips(&app.state)[ci].fade_in().unwrap().1, 0.0);
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Automatic crossfades (spec: audio/audio-clips.md "Automatic crossfades", ui/playlist.md §9a): with the switch
@@ -20330,7 +20330,7 @@ mod tests {
         app.state.project.auto_crossfades = Some(true);
         app.state.tempo = 130.0;
         let wav = std::env::temp_dir().join(format!("os-app-crossfades-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &vec![0.5; 2 * 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.5; 2 * 96000]).unwrap();
         // Two 2 s clips (416 ticks at 130 BPM), the second from tick 192: 224 ticks of overlap.
         let path = wav.to_string_lossy().into_owned();
         pl::add_audio_clip(&mut app.state, &path, 0, 0).expect("audio clip added");
@@ -20436,11 +20436,11 @@ mod tests {
         assert!(!opened.unsaved(), "an opened project's crossfades are not a change");
         assert_eq!(bytes(&opened.state.project), read);
         opened.save_to(flp.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&flp).unwrap()).unwrap()).unwrap();
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&flp).unwrap()).unwrap()).unwrap();
         assert_eq!(bytes(&back), read);
         assert_eq!(back.auto_crossfades, Some(true));
-        let _ = std::fs::remove_file(&flp);
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&flp);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// Track groups (spec: ui/playlist.md §6a): grouped tracks follow their group track; a collapsed group's members
@@ -20620,7 +20620,7 @@ mod tests {
         let wav = std::env::temp_dir().join(format!("os-app-unique-{}.wav", std::process::id()));
         // A ramp: its second half is louder than its first.
         let ramp: Vec<f32> = (0..96000).flat_map(|i| [i as f32 / 96000.0; 2]).collect();
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
         let i = pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 1, 0).expect("audio clip added");
         let rows = app.state.project.channels.len();
         let os_model::ClipSource::Channel(ch) = pl::clips(&app.state)[i].source else { panic!("an audio clip") };
@@ -20656,8 +20656,8 @@ mod tests {
         app.key(&winit::keyboard::Key::Character("z".into()), true, false);
         assert_eq!(app.state.project.channels.len(), rows);
         assert_eq!(pl::clips(&app.state)[i].source, os_model::ClipSource::Channel(ch));
-        let _ = std::fs::remove_file(&wav);
-        let _ = std::fs::remove_file(&made);
+        let _ = os_web::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&made);
     }
 
     /// Double-clicking an audio clip opens its channel's Lemon Sampler and selects the channel in the rack; one
@@ -20667,7 +20667,7 @@ mod tests {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let (mut app, ruler, g, bar) = ruler_app(&mut c);
         let wav = std::env::temp_dir().join(format!("os-app-clip-dblclick-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         crate::playlist::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 1, 0).expect("audio clip added");
         let row = app.state.project.channels.len() - 1;
         app.state.project.arrangements[0].clips.push(os_model::Clip::new(0, bar, 2, os_model::ClipSource::Pattern(1)));
@@ -20692,7 +20692,7 @@ mod tests {
         tap(&mut app, &mut c, 2);
         assert_eq!(app.state.pending_open, None, "a pattern clip opens no sampler");
         assert!(app.state.shown(Win::PianoRoll) && app.state.pattern == 1, "it opens its pattern in the piano roll");
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// A playlist with nothing on it (`gone`) to put clips on, and repaint frame by frame, every partial repaint checked
@@ -21208,7 +21208,7 @@ mod tests {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let (mut app, _, g, _) = ruler_app(&mut c);
         let wav = std::env::temp_dir().join(format!("os-app-clip-dblclick-sc-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         crate::playlist::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 1, 0).expect("audio clip added");
         let row = app.state.project.channels.len() - 1;
         frame(&mut app, &mut c, None);
@@ -21239,7 +21239,7 @@ mod tests {
         f.apply();
         assert_eq!(double(&mut app, &mut c, true), None, "(disabled) never fires");
         assert_eq!(double(&mut app, &mut c, false), None);
-        let _ = std::fs::remove_file(&wav);
+        let _ = os_web::fs::remove_file(&wav);
     }
 
     /// A pattern playing when the ruler is clicked goes on as the song from the clicked position (needs an audio
@@ -21380,8 +21380,8 @@ mod tests {
         // Save (new project) and read back.
         let path = std::env::temp_dir().join(format!("openstudio-pl-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         let arr = back.arrangement().expect("arrangement saved");
         assert_eq!(arr.clips.len(), pl::clips(&app.state).len());
         assert!(!arr.tracks[0].enabled);
@@ -21727,8 +21727,8 @@ mod tests {
         // The group survives saving.
         let path = std::env::temp_dir().join(format!("openstudio-pl-groups-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         let saved: Vec<u16> = back.arrangement().unwrap().clips.iter().map(|c| c.group()).collect();
         assert_eq!(saved.iter().filter(|&&g| g == orig.group()).count(), 2, "{saved:?}");
         // Alt+G and Alt+U take groups apart.
@@ -21863,7 +21863,7 @@ mod tests {
         app.state.playlist_scroll = (180.0, 24.0);
         let path = std::env::temp_dir().join(format!("openstudio-pl-view-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let v = back.playlist_view.expect("view saved");
         assert_eq!((v.row_px(), v.height(), v.scroll_y()), (60, 22, 24));
         assert!((v.ticks_per_px() - f64::from(bar) / 90.0).abs() < 1e-9 && (v.left() - 180.0 * f64::from(bar) / 90.0).abs() < 1e-6);
@@ -21871,7 +21871,7 @@ mod tests {
         app.state.playlist_bar_w = w0;
         app.state.playlist_scroll = (0.0, 0.0);
         app.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(app.state.playlist.row_h, 60.0);
         assert!((app.state.playlist_bar_w - 90.0).abs() < 1e-3 && (app.state.playlist_scroll.0 - 180.0).abs() < 1e-2);
         assert_eq!(app.state.playlist_scroll.1, 24.0);
@@ -22459,17 +22459,17 @@ mod tests {
         // Save: Save as... (the save dialog even with a file), Save new version on the right.
         let path = std::env::temp_dir().join(format!("os_toolbar_save_{}_song.lemon", std::process::id()));
         let next = path.with_file_name(format!("os_toolbar_save_{}_song_2.lemon", std::process::id()));
-        let _ = std::fs::remove_file(&next);
+        let _ = os_web::fs::remove_file(&next);
         app.save_to(path.clone());
         let save = hit_rect(&app, &Action::Util(Util::Save));
         let saves = crate::dialog::fake::shown().1;
         crate::dialog::fake::answer(None);
         click(&mut app, &mut c, save);
         assert_eq!(crate::dialog::fake::shown().1, saves + 1);
-        assert!(!next.exists());
+        assert!(!next.vexists());
         right(&mut app, &mut c, save, (save.cx(), save.cy()));
-        assert!(next.exists(), "{:?}", app.state.message);
-        let _ = (std::fs::remove_file(&path), std::fs::remove_file(&next));
+        assert!(next.vexists(), "{:?}", app.state.message);
+        let _ = (os_web::fs::remove_file(&path), os_web::fs::remove_file(&next));
         // Playlist and piano roll: shown maximized and in front; a second right click leaves them maximized.
         for w in [Win::Playlist, Win::PianoRoll] {
             app.state.hide(w);
@@ -22972,7 +22972,7 @@ mod tests {
         use views::menus::{pick, FILE_SAVE};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let dir = std::env::temp_dir().join(format!("lemon-toolbar-presets-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
         frame(&mut app, &mut c, None);
@@ -23008,7 +23008,7 @@ mod tests {
             click(app, c, hit_rect(app, &Action::PlPopup(i)));
         };
         editor_pick(&mut app, &mut c, "Save preset as...");
-        assert_eq!(std::fs::read_to_string(&path).ok().and_then(|t| Layout::parse(&t)), Some(mine.clone()));
+        assert_eq!(os_web::fs::read_to_string(&path).ok().and_then(|t| Layout::parse(&t)), Some(mine.clone()));
         assert_eq!(app.state.bar.name(), "Mine");
         let items = views::menus::toolbar_items(&app.state);
         let user: Vec<_> = items.iter().skip_while(|i| i.label != "User presets").skip(1).map(|i| (i.label.to_string(), i.mark)).collect();
@@ -23025,13 +23025,13 @@ mod tests {
         assert_eq!(app.state.bar.layout, mine);
         // Delete preset: asked first; Yes removes the file, the layout stays.
         editor_pick(&mut app, &mut c, "Delete preset");
-        assert!(app.modal_open() && path.exists());
+        assert!(app.modal_open() && path.vexists());
         let r = hit_rect(&app, &Action::Dlg(DHit::Button(0)));
         click(&mut app, &mut c, r);
-        assert!(!path.exists() && app.state.bar.user.is_empty());
+        assert!(!path.vexists() && app.state.bar.user.is_empty());
         assert_eq!((app.state.bar.layout.clone(), app.state.bar.name()), (mine, "Custom".to_string()));
         THEME_DIR.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// An automation clip's channel window (spec: audio/automation.md "Range", "The LFO"): a new clip's range is 0..1
@@ -23096,8 +23096,8 @@ mod tests {
         // Saved and loaded back: the levels as the range, the LFO's fields as set.
         let path = std::env::temp_dir().join(format!("os_clip_lfo_{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         let bc = back.channels.iter().find(|x| x.index == ch.index).unwrap();
         assert_eq!((bc.pan, bc.volume), (-0.5, 1.0));
         let want = lfo(&app);
@@ -23162,8 +23162,8 @@ mod tests {
         // Saved as FL stores them: types 4 and 5, the groups before Unsorted, the automation's points and no link.
         let path = std::env::temp_dir().join(format!("os_add_clips_{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
-        let _ = std::fs::remove_file(&path);
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(back.groups, ["Drums", "Audio", "Automation", os_model::UNSORTED_GROUP]);
         let kinds: Vec<_> = back.channels[5..].iter().map(|c| (c.kind, c.name.clone().unwrap_or_default(), c.rack.group)).collect();
         assert_eq!(kinds, [(ChannelKind::AudioClip, "Audio Clip".into(), 1), (ChannelKind::Automation, "Automation Clip".into(), 2), (ChannelKind::AudioClip, "Audio Clip #2".into(), 1)]);
@@ -23313,7 +23313,7 @@ mod tests {
         let mut app = App::new(None);
         app.state.project = test_project();
         let wav = std::env::temp_dir().join(format!("os-app-switch-{}.wav", std::process::id()));
-        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
+        os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 1, 0).expect("audio clip added");
         let n = app.state.project.channels.len();
@@ -23407,10 +23407,10 @@ mod tests {
         // Saving keeps the methods.
         let path = std::env::temp_dir().join(format!("os-app-switch-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let clips: Vec<[u32; 4]> = back.channels.iter().filter(|c| c.kind == ChannelKind::AudioClip).map(|c| c.sound.stretch).collect();
         assert_eq!(clips, [[kept[0], kept[1], kept[2], sm::STRETCH_PRO as u32], [0, 0, 0, sm::E2_SPEECH as u32]]);
-        let _ = (std::fs::remove_file(&path), std::fs::remove_file(&wav));
+        let _ = (os_web::fs::remove_file(&path), os_web::fs::remove_file(&wav));
     }
 
     /// PATTERNS > Set time signature... (spec: ui/pattern-time-signature.md): the "Time signature change" dialog opens at
@@ -23492,9 +23492,9 @@ mod tests {
         // Saved with the pattern.
         let path = std::env::temp_dir().join(format!("os-app-timesig-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let back = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         assert_eq!(back.pattern(1).unwrap().markers, [want.clone(), TimeMarker::new(192, "Mid")]);
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         // Again, from the pattern menu: the conflict question; No leaves the marker.
         pl::run(&mut app, Cmd::Pattern(crate::patterns::Cmd::TimeSignature));
         let text = "The pattern already has a time signature defined at the start. Do you want replace it?";
@@ -23919,9 +23919,9 @@ mod tests {
             assert!(app.sweep.is_none(), "the scan ends");
         };
         let dir = std::env::temp_dir().join(format!("os_plugin_folder_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("sub")).unwrap();
-        std::fs::write(dir.join("sub").join("Broken.clap"), b"not a plugin").unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(dir.join("sub")).unwrap();
+        os_web::fs::write(dir.join("sub").join("Broken.clap"), b"not a plugin").unwrap();
         crate::dialog::fake::answer(Some(dir.clone()));
         let r = hit_rect(&app, &Action::Settings(SAct::Button("Add folder...")));
         click(&mut app, &mut c, r);
@@ -23973,7 +23973,7 @@ mod tests {
         click(&mut app, &mut c, r);
         assert!(app.state.plugdb.prefs.folders.is_empty());
         finish(&mut app);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// VST2 plugins through the app's own paths, with real plugins: `OS_VST2_DIR` is a folder of the DPF-Plugins
@@ -24117,8 +24117,8 @@ mod tests {
                     _ => std::thread::sleep(Duration::from_millis(10)),
                 }
             };
-            let bytes = std::fs::read(&path).expect("file written");
-            let _ = std::fs::remove_file(&path);
+            let bytes = os_web::fs::read(&path).expect("file written");
+            let _ = os_web::fs::remove_file(&path);
             bytes[44..].chunks_exact(8).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect()
         };
         // Per note: (frames from its beat to where it first reaches half its peak, peak, pitch in Hz by autocorrelation).
@@ -24192,10 +24192,10 @@ mod tests {
         let (ch_state, fx_state) = (a.plugins.state(row).unwrap(), a.plugins.state(key).unwrap());
         a.save_to(path.clone());
         if let Some(keep) = std::env::var_os("OS_VST2_KEEP") {
-            std::fs::copy(&path, &keep).unwrap();
+            os_web::fs::copy(&path, &keep).unwrap();
         }
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
-        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
+        let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let r = crate::project_plugins::wrapped_channel(&saved.channels[row]).expect("a wrapped channel");
         assert_eq!((r.format.as_str(), r.id.as_str(), r.name.as_str()), ("vst2", a.plugins.descriptor(row).unwrap().id.as_str(), "Kars"));
         assert_eq!(r.state, ch_state);
@@ -24233,7 +24233,7 @@ mod tests {
         v.plugins = lists(&|f| f != Format::Vst2);
         v.open(path.clone());
         v.sync_wrapped();
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         for k in [row, key] {
             assert!(v.plugins.descriptor(k).is_some_and(|d| d.format != Format::Vst2), "{k} played by a copy: {:?}", v.state.message);
         }
@@ -24249,7 +24249,7 @@ mod tests {
         // Saved untouched: the copies leave both wrappers as the file had them, so the VST2 plugins and their settings
         // stay in the project (spec: flp/events/plugins.md §4).
         let path2 = std::env::temp_dir().join(format!("lemon-vst2-copies-{}.flp", std::process::id()));
-        let reread = |p: &std::path::Path| os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(p).unwrap()).unwrap()).unwrap();
+        let reread = |p: &std::path::Path| os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(p).unwrap()).unwrap()).unwrap();
         let wrappers = |p: &os_model::Project| {
             let slot = p.mixer.iter().find(|m| m.index == track).and_then(|m| m.slots[0].clone());
             ((p.channels[row].plugin.clone(), p.channels[row].plugin_state.clone()), slot)
@@ -24278,7 +24278,7 @@ mod tests {
         assert_ne!(Some(&kars), fresh.as_ref(), "Kars' copy changed");
         v.save_to(path2.clone());
         let again = reread(&path2);
-        let _ = std::fs::remove_file(&path2);
+        let _ = os_web::fs::remove_file(&path2);
         let r = crate::project_plugins::wrapped_channel(&again.channels[row]).expect("a wrapped channel");
         let d = v.plugins.descriptor(row).unwrap();
         assert_eq!((r.format.as_str(), r.name.as_str(), r.state == kars), (d.format.as_str(), d.name.as_str(), true));
@@ -25065,3 +25065,6 @@ mod detach_tests {
         assert!(!app.cursor_locked());
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

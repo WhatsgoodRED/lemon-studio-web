@@ -324,11 +324,11 @@ mod tests {
     fn plugins_that_cannot_load_here_are_not_tried() {
         let d = std::env::temp_dir().join(format!("os_scan_unsupported_{}", std::process::id()));
         let bundle = d.join("Old.vst");
-        std::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
+        os_web::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
         let mut intel = 0xFEED_FACFu32.to_le_bytes().to_vec();
         intel.extend(os_vst2::CPU_X86_64.to_le_bytes());
         intel.extend([0; 32]);
-        std::fs::write(bundle.join("Contents/MacOS/Old"), intel).unwrap();
+        os_web::fs::write(bundle.join("Contents/MacOS/Old"), intel).unwrap();
         let r = scan_file(&bundle, Format::Vst2);
         if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
             assert_eq!(r.status, Status::Unsupported);
@@ -336,16 +336,16 @@ mod tests {
         } else {
             assert_ne!(r.status, Status::Unsupported);
         }
-        let _ = std::fs::remove_dir_all(&d);
+        let _ = os_web::fs::remove_dir_all(&d);
     }
 
     /// A file that is not a plugin fails in this process without harm.
     #[test]
     fn a_broken_file_scans_as_an_error() {
         let p = std::env::temp_dir().join(format!("os_scan_broken_{}.clap", std::process::id()));
-        std::fs::write(&p, b"not a plugin").unwrap();
+        os_web::fs::write(&p, b"not a plugin").unwrap();
         let r = scan_here(&p, Format::Clap);
         assert_eq!(r.status, Status::Error);
-        let _ = std::fs::remove_file(p);
+        let _ = os_web::fs::remove_file(p);
     }
 }

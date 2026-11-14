@@ -661,7 +661,7 @@ mod tests {
         edit(&mut app, InfoField::Comments, "");
         app.save_to(path.clone());
         app.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         let i = &app.state.project.info;
         assert_eq!((i.title.as_deref(), i.url.as_deref(), i.comments.as_deref()), (Some("Renamed"), Some("https://example.org"), None));
     }
@@ -755,7 +755,7 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lemonstudio-genre-{}.flp", std::process::id()));
         app.save_to(path.clone());
         app.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(app.state.project.info.genre.as_deref(), Some("Jazz"));
     }
 
@@ -926,12 +926,12 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lemonstudio-worktime-{}.flp", std::process::id()));
         app.save_to(path.clone());
         assert!(!app.unsaved(), "{:?}", app.state.message);
-        let bytes = std::fs::read(&path).expect("saved");
+        let bytes = os_web::fs::read(&path).expect("saved");
         let saved = os_flp::project::load(&os_flp::FlpFile::parse(&bytes).expect("parse")).expect("load").work_time.expect("237");
         assert_eq!(saved.started, 42_146.5);
         assert!((saved.spent - (1.0 + 10.0 * WorkTime::MINUTE)).abs() < WorkTime::MINUTE / 2.0, "{saved:?}");
         app.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(app.state.project.work_time, Some(saved));
         assert!(spent_days(&app.state, Instant::now()) - saved.spent < WorkTime::MINUTE / 2.0, "the clock starts again");
     }
@@ -987,7 +987,7 @@ mod tests {
         app.state.project.info.comments = Some("line one\nline two".into());
         let path = std::env::temp_dir().join(format!("lemonstudio-showinfo-{}.flp", std::process::id()));
         app.save_to(path.clone());
-        let bytes = std::fs::read(&path).expect("saved");
+        let bytes = os_web::fs::read(&path).expect("saved");
         assert_eq!(os_flp::project::load(&os_flp::FlpFile::parse(&bytes).expect("parse")).expect("load").show_info, Some(true));
         app.open(path.clone());
         assert!(app.state.credits.song_box);
@@ -1009,7 +1009,7 @@ mod tests {
         assert_eq!(app.state.project.show_info, Some(false));
         app.save_to(path.clone());
         app.open(path.clone());
-        let _ = std::fs::remove_file(&path);
+        let _ = os_web::fs::remove_file(&path);
         assert_eq!(app.state.project.show_info, Some(false));
         assert!(!app.state.credits.song_box);
     }

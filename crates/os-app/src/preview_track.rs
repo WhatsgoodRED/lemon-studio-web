@@ -48,9 +48,9 @@ mod tests {
 
     fn wav() -> std::path::PathBuf {
         let path = std::env::temp_dir().join(format!("os-preview-track-{}.wav", std::process::id()));
-        if !path.exists() {
+        if !path.vexists() {
             let audio: Vec<f32> = (0..48_000).map(|i| ((i / 2) as f32 * 440.0 * std::f32::consts::TAU / 48_000.0).sin() * 0.5).collect();
-            os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&path).unwrap(), 48_000, &audio).unwrap();
+            os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&path).unwrap(), 48_000, &audio).unwrap();
         }
         path
     }
@@ -116,6 +116,9 @@ mod tests {
         open.mixer[3].routes = vec![4];
         assert!(peaks(&preview(&open, 3)).0 < 1e-4, "routed on through a silent track");
         assert_eq!(peaks(&preview(&open, 0)), plain, "--- does not go through the project's tracks");
-        let _ = std::fs::remove_file(wav());
+        let _ = os_web::fs::remove_file(wav());
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

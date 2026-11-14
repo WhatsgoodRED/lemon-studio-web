@@ -282,12 +282,12 @@ fn tree(s: &State) -> Vec<Row> {
             1 => plugin_rows(s, &key, cat, &mut out),
             2 => preset_rows(s, &key, cat, &mut out),
             3 => {
-                if let Some(dir) = crate::channel_states::root().filter(|d| d.is_dir()) {
+                if let Some(dir) = crate::channel_states::root().filter(|d| d.vis_dir()) {
                     disk_rows(s, &dir, &key, 1, &mut out);
                 }
             }
             _ => {
-                if let Some(dir) = crate::save_form::default_root().filter(|d| d.is_dir()) {
+                if let Some(dir) = crate::save_form::default_root().filter(|d| d.vis_dir()) {
                     disk_rows(s, &dir, &key, 1, &mut out);
                 }
             }
@@ -339,7 +339,7 @@ pub fn list_dir(s: &State, dir: &Path) -> Rc<Vec<Entry>> {
     if let Some(v) = s.browser_dirs.borrow().get(dir) {
         return v.clone();
     }
-    let mut v: Vec<Entry> = std::fs::read_dir(dir)
+    let mut v: Vec<Entry> = os_web::fs::read_dir(dir)
         .map(|rd| {
             rd.flatten()
                 .filter_map(|e| {
@@ -658,7 +658,7 @@ fn fav_rows(s: &State, out: &mut Vec<Row>) {
         let icon = if factory { Icon::FilePreset } else { file_icon(&name) };
         let item = file_item(&name, &f.path);
         // A factory preset has no file; a file that is gone is still listed, without its info.
-        let disk = (!factory && p.exists()).then_some(p);
+        let disk = (!factory && p.vexists()).then_some(p);
         out.push(Row { key: format!("{root}{}", f.path), depth: 0, label: f.label.clone(), icon, cat: FILE, open: None, bright: false, item, path: disk });
     }
 }
@@ -727,7 +727,7 @@ fn paint_info(ui: &mut Ui, s: &State, path: &Path, r: Rect) {
     let t = ui.t;
     ui.c.fill_rect(r, t.browser_tabs);
     icons::draw(ui.c, Icon::FolderPlus, Rect::new(r.right() - 52.0, r.bottom() - 50.0, 44.0, 44.0), t.browser_tabs.shade(0.1));
-    let md = std::fs::metadata(path).ok();
+    let md = os_web::fs::metadata(path).ok();
     let dir = md.as_ref().is_some_and(|m| m.is_dir());
     let size = if dir { list_dir(s, path).iter().filter(|e| !e.dir).map(|e| e.size).sum() } else { md.as_ref().map_or(0, |m| m.len()) };
     let date = md.and_then(|m| m.modified().ok()).map(date_text).unwrap_or_default();
@@ -1093,10 +1093,10 @@ mod tests {
     #[test]
     fn my_projects_lists_the_users_projects_folder() {
         let dir = std::env::temp_dir().join(format!("os_myprojects_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("Song").join("Samples")).unwrap();
-        std::fs::write(dir.join("Song").join("Song.lemon"), b"x").unwrap();
-        std::fs::create_dir_all(dir.join("Backup")).unwrap();
+        let _ = os_web::fs::remove_dir_all(&dir);
+        os_web::fs::create_dir_all(dir.join("Song").join("Samples")).unwrap();
+        os_web::fs::write(dir.join("Song").join("Song.lemon"), b"x").unwrap();
+        os_web::fs::create_dir_all(dir.join("Backup")).unwrap();
         crate::save_form::TEST_ROOT.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = crate::app::App::new(None);
         let key = format!("0:{MY_PROJECTS}");
@@ -1108,7 +1108,7 @@ mod tests {
             assert!(labels.iter().any(|l| l == want), "{want} in {labels:?}");
         }
         crate::save_form::TEST_ROOT.with(|d| *d.borrow_mut() = None);
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// File dates read in the local time zone on every platform (spec §6): within a day of the UTC date.
@@ -1130,3 +1130,6 @@ mod tests {
         assert_eq!(marquee_offset(3.0, 0.0), 0.0, "a label that fits stays");
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;

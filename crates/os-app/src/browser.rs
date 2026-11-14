@@ -827,7 +827,7 @@ fn parse_opts(text: &str) -> std::collections::HashSet<&'static str> {
 
 /// The options kept from the last run (tests: the defaults).
 pub(crate) fn load_opts() -> std::collections::HashSet<&'static str> {
-    parse_opts(&width_file().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_default())
+    parse_opts(&width_file().and_then(|p| os_web::fs::read_to_string(p).ok()).unwrap_or_default())
 }
 
 /// `browser.txt` with `key=` set to `v`, its other lines kept.
@@ -840,10 +840,10 @@ fn with_value(text: &str, key: &str, v: &str) -> String {
 fn save_value(key: &str, v: &str) {
     let Some(p) = width_file() else { return };
     if let Some(d) = p.parent() {
-        let _ = std::fs::create_dir_all(d);
+        let _ = os_web::fs::create_dir_all(d);
     }
-    let old = std::fs::read_to_string(&p).unwrap_or_default();
-    let _ = std::fs::write(p, with_value(&old, key, v));
+    let old = os_web::fs::read_to_string(&p).unwrap_or_default();
+    let _ = os_web::fs::write(p, with_value(&old, key, v));
 }
 
 /// Keeps the options for the next run.
@@ -854,7 +854,7 @@ fn save_opts(opts: &std::collections::HashSet<&'static str>) {
 
 /// The browser's width kept from the last run (spec §9; tests: the default).
 pub(crate) fn load_width() -> f32 {
-    width_file().and_then(|p| std::fs::read_to_string(p).ok()).map_or(crate::views::BROWSER_W, |t| parse_width(&t))
+    width_file().and_then(|p| os_web::fs::read_to_string(p).ok()).map_or(crate::views::BROWSER_W, |t| parse_width(&t))
 }
 
 /// Keeps the browser's width for the next run.
@@ -894,15 +894,15 @@ fn favs_text(favs: &[Fav]) -> String {
 
 /// The favorite files kept from the last run.
 pub(crate) fn load_favs() -> Vec<Fav> {
-    favs_file().and_then(|p| std::fs::read_to_string(p).ok()).map(|t| parse_favs(&t)).unwrap_or_default()
+    favs_file().and_then(|p| os_web::fs::read_to_string(p).ok()).map(|t| parse_favs(&t)).unwrap_or_default()
 }
 
 fn save_favs(favs: &[Fav]) {
     let Some(p) = favs_file() else { return };
     if let Some(d) = p.parent() {
-        let _ = std::fs::create_dir_all(d);
+        let _ = os_web::fs::create_dir_all(d);
     }
-    let _ = std::fs::write(p, favs_text(favs));
+    let _ = os_web::fs::write(p, favs_text(favs));
 }
 
 /// The folders the index reads (spec §11): the dropped folders and the project's data folder.
@@ -922,7 +922,7 @@ fn folders_file() -> Option<std::path::PathBuf> {
 }
 
 fn read_folders() -> Vec<(std::path::PathBuf, String)> {
-    let Some(text) = folders_file().and_then(|p| std::fs::read_to_string(p).ok()) else { return Vec::new() };
+    let Some(text) = folders_file().and_then(|p| os_web::fs::read_to_string(p).ok()) else { return Vec::new() };
     crate::search_folders::parse_file(&text)
 }
 
@@ -939,9 +939,9 @@ pub(crate) fn load_names() -> std::collections::BTreeMap<std::path::PathBuf, Str
 pub(crate) fn save_folders(s: &crate::app::State) {
     let Some(p) = folders_file() else { return };
     if let Some(d) = p.parent() {
-        let _ = std::fs::create_dir_all(d);
+        let _ = os_web::fs::create_dir_all(d);
     }
-    let _ = std::fs::write(p, crate::search_folders::file_text(&s.browser_folders, &s.browser_names));
+    let _ = os_web::fs::write(p, crate::search_folders::file_text(&s.browser_folders, &s.browser_names));
 }
 
 /// The menu bar's ways into the browser (spec: ui/browser-commands.md).
@@ -1274,14 +1274,14 @@ mod tests {
     /// A temporary folder holding `files` (paths relative to it; audio files get a short WAV, others nothing).
     fn folder(name: &str, files: &[&str]) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("os_{name}_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         for f in files {
             let p = dir.join(f);
-            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            os_web::fs::create_dir_all(p.parent().unwrap()).unwrap();
             if f.ends_with(".wav") {
-                os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&p).unwrap(), 44100, &[0.0; 8]).unwrap();
+                os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&p).unwrap(), 44100, &[0.0; 8]).unwrap();
             } else {
-                std::fs::write(&p, b"").unwrap();
+                os_web::fs::write(&p, b"").unwrap();
             }
         }
         dir
@@ -1349,7 +1349,7 @@ mod tests {
         assert!(app.browser_cmd(BCmd::Star(row)).is_some_and(|m| m.contains("no longer")));
         assert!(!app.state.plugdb.prefs.is_favorite(&uid));
         assert_eq!(labels(&app), Vec::<String>::new());
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// Search with the folder index (spec §5, §11): files in folders nobody opened are found, flat or under their
@@ -1387,7 +1387,7 @@ mod tests {
         assert!(view::rows(&app.state).is_empty());
         app.browser_cmd(BCmd::Toggle(view::OPT_INDEX));
         // Reread structure forgets the index; the tick reads the folders again (a file added meanwhile is found).
-        std::fs::write(dir.join("Other").join("Qzx Snare.wav"), b"").unwrap();
+        os_web::fs::write(dir.join("Other").join("Qzx Snare.wav"), b"").unwrap();
         app.browser_cmd(BCmd::Reread);
         assert!(view::rows(&app.state).is_empty());
         app.browser_index_tick();
@@ -1399,7 +1399,7 @@ mod tests {
         assert!(app.state.browser_search.is_empty());
         app.paint(&mut c, None);
         assert!(!app.hits.iter().any(|h| h.action == Action::BrowserClear));
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The browser's new pages to look at: `OS_SHOT_DIR=dir cargo test -p os-app browser_shots` writes the window with
@@ -1432,7 +1432,7 @@ mod tests {
         app.browser_cmd(BCmd::Toggle(view::OPT_PARENTS));
         app.browser_index_tick();
         shot(&mut app, "search");
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     /// The Plugin database (spec §2): Generators and Effects by category, Installed by format; the mixer effect list's

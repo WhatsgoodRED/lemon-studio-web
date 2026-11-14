@@ -97,7 +97,7 @@ pub fn text(s: &Switch) -> String {
 
 #[cfg_attr(test, allow(dead_code))]
 fn load() -> Switch {
-    os_paths::user_file("metronome.txt").and_then(|f| std::fs::read_to_string(f).ok()).map(|t| parse(&t)).unwrap_or_default()
+    os_paths::user_file("metronome.txt").and_then(|f| os_web::fs::read_to_string(f).ok()).map(|t| parse(&t)).unwrap_or_default()
 }
 
 fn save(s: &Switch) {
@@ -105,8 +105,8 @@ fn save(s: &Switch) {
         return;
     }
     if let Some(dir) = os_paths::user_dir() {
-        let _ = std::fs::create_dir_all(&dir);
-        let _ = std::fs::write(dir.join("metronome.txt"), text(s));
+        let _ = os_web::fs::create_dir_all(&dir);
+        let _ = os_web::fs::write(dir.join("metronome.txt"), text(s));
     }
 }
 

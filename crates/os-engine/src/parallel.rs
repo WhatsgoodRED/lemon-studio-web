@@ -501,7 +501,7 @@ mod tests {
         let id = Arc::new(Mutex::new(String::new()));
         let seen = id.clone();
         let init: ThreadInit = Arc::new(move || {
-            let stat = std::fs::read_to_string("/proc/thread-self/stat").unwrap();
+            let stat = os_web::fs::read_to_string("/proc/thread-self/stat").unwrap();
             *seen.lock().unwrap() = stat.split_whitespace().next().unwrap().to_string();
         });
         let pool = Pool::new(1, Some(init));
@@ -516,7 +516,7 @@ mod tests {
         }
         let task = std::path::Path::new("/proc/self/task").join(id.lock().unwrap().as_str());
         let sleeps = || {
-            let text = std::fs::read_to_string(task.join("status")).unwrap();
+            let text = os_web::fs::read_to_string(task.join("status")).unwrap();
             text.lines().find_map(|l| l.strip_prefix("voluntary_ctxt_switches:")).unwrap().trim().parse::<u64>().unwrap()
         };
         let before = std::sync::Mutex::new(None);

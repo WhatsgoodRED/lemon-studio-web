@@ -489,8 +489,8 @@ pub(crate) mod tests {
     fn corpus_states_round_trip() {
         let Ok(dir) = std::env::var("OS_FPC_STATES") else { return };
         let mut n = 0;
-        for e in std::fs::read_dir(dir).unwrap().flatten() {
-            let b = std::fs::read(e.path()).unwrap();
+        for e in os_web::fs::read_dir(dir).unwrap().flatten() {
+            let b = os_web::fs::read(e.path()).unwrap();
             let st = State::parse(&b).unwrap_or_else(|| panic!("{}", e.path().display()));
             assert_eq!(st.to_bytes(), b, "{}", e.path().display());
             assert_eq!(st.pad_count(), PADS);

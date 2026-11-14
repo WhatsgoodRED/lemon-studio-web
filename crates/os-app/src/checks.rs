@@ -124,11 +124,11 @@ fn save_audio(rec: &Recording, presses: &[Press]) {
     for v in &audio {
         w.extend_from_slice(&v.to_le_bytes());
     }
-    let _ = std::fs::write(&path, w);
+    let _ = os_web::fs::write(&path, w);
     let marks: String = presses.iter().map(|p| format!("{:.4} {}\n", p.at.saturating_duration_since(started).as_secs_f64(), if p.play { "play" } else { "stop" })).collect();
     let mut marks_path = std::path::PathBuf::from(&path).into_os_string();
     marks_path.push(".presses");
-    let _ = std::fs::write(marks_path, marks);
+    let _ = os_web::fs::write(marks_path, marks);
 }
 
 /// Starts recording blocks with the transport's counters and every hosted plugin's processing time. The probes'

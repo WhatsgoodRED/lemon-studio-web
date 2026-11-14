@@ -52,7 +52,7 @@ impl Conn {
         stream.set_read_timeout(Some(TIMEOUT))?;
         stream.set_write_timeout(Some(TIMEOUT))?;
         let mut c = Conn { sock: BufReader::new(stream), version: protocol::MAX_VERSION, seq: 0 };
-        let cookie = pulseaudio::cookie_path_from_env().and_then(|p| std::fs::read(p).ok()).unwrap_or_default();
+        let cookie = pulseaudio::cookie_path_from_env().and_then(|p| os_web::fs::read(p).ok()).unwrap_or_default();
         let auth = protocol::AuthParams { version: protocol::MAX_VERSION, supports_shm: false, supports_memfd: false, cookie };
         let reply: protocol::AuthReply = c.ask(Command::Auth(auth))?;
         c.version = c.version.min(reply.version);

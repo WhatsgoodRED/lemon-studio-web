@@ -612,7 +612,7 @@ impl App {
     /// A MIDI file chosen in the open dialog or dropped on the window: the form, or the import with the last settings
     /// as the MIDI import window setting says (spec §10.5).
     pub(crate) fn midi_file_chosen(&mut self, path: PathBuf, piano: bool) {
-        let smf = match std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| os_smf::read(&b).map_err(|e| e.to_string())) {
+        let smf = match os_web::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| os_smf::read(&b).map_err(|e| e.to_string())) {
             Ok(f) => f,
             Err(e) => return self.tell(Kind::Warning, TITLE, spans(&["Could not import ", &file_name(&path), &format!(": {e}.")])),
         };
@@ -649,7 +649,7 @@ impl App {
     /// The save-changes question was answered: the import that waited for it (`Next::ImportMidi`).
     pub(crate) fn import_pending(&mut self, path: PathBuf) {
         let Some((p, o)) = PENDING.take().filter(|(p, _)| *p == path) else { return };
-        match std::fs::read(&p).map_err(|e| e.to_string()).and_then(|b| os_smf::read(&b).map_err(|e| e.to_string())) {
+        match os_web::fs::read(&p).map_err(|e| e.to_string()).and_then(|b| os_smf::read(&b).map_err(|e| e.to_string())) {
             Ok(f) => self.import_into_project(&p, &f, &o),
             Err(e) => self.tell(Kind::Warning, TITLE, spans(&["Could not import ", &file_name(&p), &format!(": {e}.")])),
         }
@@ -819,8 +819,8 @@ impl App {
         let s = &self.state;
         let Some(dir) = clipboard_dir() else { return };
         let file = clipboard_file(&s.piano.clipboard, s.project.ppq, s.tempo);
-        let path = (1..).map(|n| dir.join(format!("MIDI clipboard {n}.mid"))).find(|p| !p.exists()).expect("a free name");
-        match std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&path, os_smf::write(&file))) {
+        let path = (1..).map(|n| dir.join(format!("MIDI clipboard {n}.mid"))).find(|p| !p.vexists()).expect("a free name");
+        match os_web::fs::create_dir_all(&dir).and_then(|()| os_web::fs::write(&path, os_smf::write(&file))) {
             Ok(()) => {
                 self.add_browser_folder(dir);
                 self.state.message = Some(format!("Saved {}", path.display()));
@@ -834,7 +834,7 @@ impl App {
     pub(crate) fn midi_export_chosen(&mut self, path: PathBuf, piano: bool) {
         let path = if path.extension().is_none() { path.with_extension("mid") } else { path };
         let file = if piano { self.piano_midi() } else { self.project_midi() };
-        self.state.message = Some(match std::fs::write(&path, os_smf::write(&file)) {
+        self.state.message = Some(match os_web::fs::write(&path, os_smf::write(&file)) {
             Ok(()) => format!("Exported {}", path.display()),
             Err(e) => format!("Could not write {}: {e}", path.display()),
         });
@@ -861,15 +861,15 @@ mod tests {
         app.state.piano.clipboard = vec![Note { position: 192, length: 96, key: 60, ..Note::step(0, 0) }, Note { position: 288, length: 48, key: 64, ..Note::step(0, 0) }];
         assert!(active(&app.state, TOOLS_MENU, item_at(TOOLS_MENU, at).unwrap()));
         let dir = clipboard_dir().unwrap();
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = os_web::fs::remove_dir_all(&dir);
         app.menu_item(TOOLS_MENU, at);
         app.menu_item(TOOLS_MENU, at);
         let second = dir.join("MIDI clipboard 2.mid");
-        let f = os_smf::read(&std::fs::read(&second).unwrap()).unwrap();
+        let f = os_smf::read(&os_web::fs::read(&second).unwrap()).unwrap();
         let ons: Vec<(u32, u8)> = f.tracks[1].events.iter().filter_map(|e| if let Ev::NoteOn { key, velocity, .. } = e.kind { (velocity > 0).then_some((e.tick, key)) } else { None }).collect();
         assert_eq!(ons, [(0, 60), (96, 64)]);
-        assert!(dir.join("MIDI clipboard 1.mid").exists() && app.state.browser_folders.contains(&dir));
-        let _ = std::fs::remove_dir_all(&dir);
+        assert!(dir.join("MIDI clipboard 1.mid").vexists() && app.state.browser_folders.contains(&dir));
+        let _ = os_web::fs::remove_dir_all(&dir);
     }
 
     fn on(tick: u32, channel: u8, key: u8, velocity: u8) -> Event {
@@ -1092,7 +1092,7 @@ mod tests {
 
     fn write_three(tag: &str) -> PathBuf {
         let path = std::env::temp_dir().join(format!("os_midi_{tag}_{}.mid", std::process::id()));
-        std::fs::write(&path, os_smf::write(&three(96))).unwrap();
+        os_web::fs::write(&path, os_smf::write(&three(96))).unwrap();
         path
     }
 
@@ -1128,7 +1128,7 @@ mod tests {
         assert_eq!(app.state.rack.groups[0].name, stem(&path));
         assert_eq!(app.state.rack.filter, crate::rack::Filter::Group(0));
         assert!(app.unsaved());
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// Start new project off: the channels are added, the notes go into the current pattern; one undo step takes all
@@ -1156,7 +1156,7 @@ mod tests {
         crate::history::redo(&mut app.state);
         assert_eq!(app.state.project.channels.len(), after.channels.len());
         assert_eq!(app.state.project.pattern(1), after.pattern(1));
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// The piano roll's import replaces the channel's notes unless Blend is on, and selects what it brought.
@@ -1177,7 +1177,7 @@ mod tests {
         assert_eq!(pat.notes.iter().filter(|n| n.channel == ch).count(), 4, "the step was replaced");
         assert_eq!(pat.notes.iter().filter(|n| n.channel == 0).count(), 1, "other channels keep theirs");
         assert_eq!(app.state.piano.selection(1, Some(ch)).len(), 4);
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// Shift+Ctrl+M is FILE ▸ Export MIDI...: the save dialog, the file written with the .mid it was not given. A
@@ -1192,9 +1192,9 @@ mod tests {
         app.key(&Key::Character("M".into()), true, false);
         app.shift = false;
         let written = out.with_extension("mid");
-        let f = os_smf::read(&std::fs::read(&written).expect("Export MIDI wrote the file")).unwrap();
+        let f = os_smf::read(&os_web::fs::read(&written).expect("Export MIDI wrote the file")).unwrap();
         assert_eq!(f.tracks.len(), 2);
-        let _ = std::fs::remove_file(written);
+        let _ = os_web::fs::remove_file(written);
         // The piano roll's channel without notes: a message, no save dialog.
         app.state.selected_channel = 1;
         app.export_midi_dialog(true);
@@ -1207,7 +1207,7 @@ mod tests {
         app.key(&Key::Named(NamedKey::Escape), false, false);
         assert!(!app.modal_open());
         assert_eq!(app.state.project, before);
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// Issue #159: a dropped file with a leading silence shows the form with Realign on and lands at bar 1; that
@@ -1215,7 +1215,7 @@ mod tests {
     #[test]
     fn dropped_late_file_lands_at_the_start() {
         let path = std::env::temp_dir().join(format!("os_midi_late_{}.mid", std::process::id()));
-        std::fs::write(&path, LATE_NOTE).unwrap();
+        os_web::fs::write(&path, LATE_NOTE).unwrap();
         let mut app = test_app();
         app.drop_file(path.clone());
         assert!(form(&app).expect("the form shows for the late file").o.realign);
@@ -1230,7 +1230,7 @@ mod tests {
         let into_this = Options { realign: false, new_project: false, ..Options::default() };
         app.midi_accepted(path.clone(), os_smf::read(&LATE_NOTE).unwrap(), into_this, false);
         assert_eq!(LAST.with_borrow(|l| l.as_ref().map(|o| o.realign)), Some(true));
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// §10.6: a .mid opened as a project (the command line) goes through the import, not the project reader.
@@ -1241,7 +1241,7 @@ mod tests {
         app.open(path.clone());
         assert!(form(&app).is_some(), "the form shows for the three-track file");
         assert!(app.state.message.as_deref().is_none_or(|m| !m.starts_with("Could not open")));
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// The MIDI import window rows (General ▸ Input ▸ Manage shortcuts) as they come: no modifier shows the form when
@@ -1253,14 +1253,14 @@ mod tests {
         assert_eq!(show_for(false, true), Show::Never);
         let path = std::env::temp_dir().join(format!("os_midi_empty_{}.mid", std::process::id()));
         let f = Smf { format: 1, ppq: 96, tracks: vec![Track { events: vec![ev(0, Ev::Tempo(500_000))] }] };
-        std::fs::write(&path, os_smf::write(&f)).unwrap();
+        os_web::fs::write(&path, os_smf::write(&f)).unwrap();
         let mut app = test_app();
         let before = app.state.project.clone();
         app.midi_file_chosen(path.clone(), false);
         let Some(crate::dialog::Body::Msg(m)) = app.state.dialogs.last().map(|d| &d.body) else { panic!("a message") };
         assert!(m.plain().contains("has no notes"), "{}", m.plain());
         assert_eq!(app.state.project, before);
-        let _ = std::fs::remove_file(path);
+        let _ = os_web::fs::remove_file(path);
     }
 
     /// Export: the piano roll's file follows §9; FILE's export brings back what an import made.
@@ -1294,3 +1294,6 @@ mod tests {
         assert_eq!(again.tempos, imp.tempos);
     }
 }
+
+#[allow(unused_imports)]
+use os_web::fs::VPath;
