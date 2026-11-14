@@ -137,7 +137,7 @@ fn app_menu(mtm: MainThreadMarker, target: &Target) -> Retained<NSMenu> {
             None => item.setEnabled(false),
         }
     };
-    own(add(ns_string!("About Lemon Studio"), Some(sel!(pick:)), ns_string!(""), cmd), Some((menus::HELP_MENU, menus::HELP_ABOUT)));
+    own(add(ns_string!("About MetroBar Studio"), Some(sel!(pick:)), ns_string!(""), cmd), Some((menus::HELP_MENU, menus::HELP_ABOUT)));
     menu.addItem(&NSMenuItem::separatorItem(mtm));
     let settings = menus::MENUS[menus::OPTIONS_MENU].cols.iter().flat_map(|(_, items)| items.iter()).position(|it| it.label == "General settings");
     own(add(ns_string!("Settings…"), Some(sel!(pick:)), ns_string!(","), cmd), settings.map(|i| (menus::OPTIONS_MENU, i)));

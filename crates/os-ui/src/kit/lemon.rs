@@ -58,6 +58,10 @@ pub fn ink_on_lemon() -> Color {
 
 /// Text / glyph colour on a lit face (`lit_in`) under the applied theme.
 pub fn ink_on_lit(t: &Palette) -> Color {
+    // A dark lit colour (MetroBar's deep red) takes white ink, as `ink_on` would.
+    if t.brand_lit(brand::MAIN).hsl().2 < 0.45 {
+        return Color::rgb(0xffffff);
+    }
     t.brand_lit(brand::COLORED_DARK)
 }
 

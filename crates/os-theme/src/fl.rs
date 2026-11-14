@@ -106,6 +106,9 @@ pub struct FlTheme {
     /// Lemon Studio's own key (`COLORS_KEY`, ignored by FL): the theme is a skin's own colours, the Lemon or Citrus
     /// theme (spec: ui/theme-presets.md §B).
     pub colors: Option<crate::Design>,
+    /// `LemonStudioColors=MetroBar`: the MetroBar Studio theme, whose tokens are set outright over the skin
+    /// (`design::metrobar`).
+    pub metrobar: bool,
 }
 
 /// The key that makes a theme file a skin's own colours: `LemonStudioColors=Lemon` or `=Citrus`. FL ignores it and
@@ -172,6 +175,7 @@ impl FlTheme {
             back_color: col("backcolor"),
             back_picture: kv.get("backpicfilename").cloned().unwrap_or_default(),
             colors: kv.get(&COLORS_KEY.to_ascii_lowercase()).and_then(|v| crate::Design::parse(v)),
+            metrobar: kv.get(&COLORS_KEY.to_ascii_lowercase()).is_some_and(|v| v.trim().eq_ignore_ascii_case("metrobar")),
         }
     }
 

@@ -233,9 +233,10 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo, width: f32) {
         ui.hit(r, Action::Bar(BarHit::Logo), "Logo - drag onto the palette to take it off");
         frame(ui, r.inset(2.0));
     } else {
-        ui.hit(r, Action::MenuItem(menus::HELP_MENU, menus::HELP_ABOUT), "About Lemon Studio");
+        ui.hit(r, Action::MenuItem(menus::HELP_MENU, menus::HELP_ABOUT), "About MetroBar Studio");
     }
-    icons::logo(ui.c, lx, mid, 26.0 * h / 81.0, if lemon { t.toolbar_edge } else { t.toolbar_line });
+    let _ = lemon;
+    icons::metronome(ui.c, lx, mid, 26.0 * h / 81.0, t.glyph_dim, t.accent);
 }
 
 /// A group separator at band x `x` of row `row`.
@@ -1062,7 +1063,7 @@ pub fn paint_palette(ui: &mut Ui, s: &State, f: &FrameInfo, width: f32) {
                 panel(ui, &Ctx { s, f, a, fit: f32::INFINITY, preview: true }, pn);
                 ui.forget(mark);
             }
-            Tile::Logo => icons::logo(ui.c, r.cx(), r.cy(), 13.0, if super::lemon(ui) { t.toolbar_edge } else { t.toolbar_line }),
+            Tile::Logo => icons::metronome(ui.c, r.cx(), r.cy(), 13.0, t.glyph_dim, t.accent),
         }
         ui.c.pop_clip();
         let label = Rect::new(r.x - GAP / 2.0, r.bottom() + 2.0, r.w + GAP, LABEL_H - 2.0);
@@ -1309,7 +1310,7 @@ mod tests {
         app.paint(&mut c, None);
         assert_eq!(more(&app), None);
         assert!(has(&app, &Action::Monitor) && has(&app, &Action::CpuPanel) && has(&app, &Action::PatternPrev));
-        assert!(app.hits.iter().any(|h| h.hint == "About Lemon Studio"));
+        assert!(app.hits.iter().any(|h| h.hint == "About MetroBar Studio"));
         // No news panel: Lemon Studio has no online service.
         assert!(!app.hits.iter().any(|h| h.action == Action::Placeholder("News")));
 
@@ -1321,7 +1322,7 @@ mod tests {
         assert_eq!((r, action), (Rect::new(1920.0 - 2.0 * MORE_W, 0.0, 2.0 * MORE_W, 162.0), Action::Swallow));
         assert!(has(&app, &Action::Clock) && has(&app, &Action::GlobalSnap));
         assert!(!has(&app, &Action::Monitor) && !has(&app, &Action::CpuPanel) && !has(&app, &Action::PatternPrev));
-        assert!(!app.hits.iter().any(|h| h.hint == "About Lemon Studio"));
+        assert!(!app.hits.iter().any(|h| h.hint == "About MetroBar Studio"));
         app.mouse_move(r.cx(), r.cy());
         assert_eq!(app.hint, MORE_HINT);
         let before = (app.state.message.clone(), app.state.menu_open, app.state.settings.open);
@@ -1337,6 +1338,6 @@ mod tests {
         let (r, _) = more(&app).expect("the arrow");
         assert_eq!(r, Rect::new(1300.0 - MORE_W, 0.0, MORE_W, 81.0));
         assert!(has(&app, &Action::CpuPanel) && has(&app, &Action::PatternPrev));
-        assert!(!app.hits.iter().any(|h| h.hint == "About Lemon Studio" || h.hint == "Project info (F11)"));
+        assert!(!app.hits.iter().any(|h| h.hint == "About MetroBar Studio" || h.hint == "Project info (F11)"));
     }
 }

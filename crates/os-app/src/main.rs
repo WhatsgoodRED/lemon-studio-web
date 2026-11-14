@@ -71,7 +71,11 @@ mod loading;
 mod missing;
 mod mix_threads;
 mod zipped;
+// The Lemon Studio mark (the splash still draws its parts); MetroBar Studio shows `wordmark` and `icons::metronome`.
+#[allow(dead_code)]
 mod logo;
+#[allow(dead_code)]
+mod wordmark;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
@@ -724,7 +728,7 @@ impl ApplicationHandler for Shell {
         }
         splash::step(&self.splash, splash::WINDOW, "Opening the main window");
         let attrs = Window::default_attributes()
-            .with_title(version::NAME)
+            .with_title(version::DISPLAY_NAME)
             .with_decorations(false)
             .with_inner_size(LogicalSize::new(1920.0, 1080.0))
             // Layouts are measured at 1920x1080 and are not responsive yet; below this they break.

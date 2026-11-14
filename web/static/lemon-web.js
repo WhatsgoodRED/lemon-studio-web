@@ -1,4 +1,4 @@
-// Lemon Studio web build: the page side. GPL-3.0-or-later.
+// MetroBar Studio web build (based on Lemon Studio by ItsAlphaNeon): the page side. GPL-3.0-or-later.
 //
 // Loads the wasm build of Lemon Studio (it draws into #lemon-canvas through winit and softbuffer), and runs:
 // - the audio: the browser has no audio thread for the engine, so this pump asks the engine for blocks on the main

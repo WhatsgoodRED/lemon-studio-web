@@ -162,7 +162,53 @@ pub fn draw(cv: &mut Canvas, icon: Icon, r: Rect, c: Color) {
     cv.icon(shape(icon), r, c);
 }
 
+/// The MetroBar Studio wordmark (`wordmark.rs`), `h` px tall (its capitals), left edge at `x`, vertically centred on
+/// `cy`: "METROBAR" in `fg`, "STUDIO" in `sub`. Returns its width.
+pub fn wordmark(cv: &mut Canvas, x: f32, cy: f32, h: f32, fg: Color, sub: Color) -> f32 {
+    use crate::wordmark as wm;
+    let k = h / wm::CAP;
+    let (ox, oy) = (x - wm::X0 * k, cy - wm::CAP * k / 2.0);
+    let mut a = Glyph::new();
+    a.commands(wm::METROBAR, ox, oy, k, None);
+    cv.glyph(fg, &a);
+    let mut b = Glyph::new();
+    b.commands(wm::STUDIO, ox, oy, k, None);
+    cv.glyph(sub, &b);
+    wm::W * k
+}
+
+/// Width of `wordmark` at capital height `h`.
+pub fn wordmark_w(h: f32) -> f32 {
+    crate::wordmark::W * h / crate::wordmark::CAP
+}
+
+/// The MetroBar app icon's metronome (`icon.svg` on metrobarz.com), fitted into a square of side `2 r` centred on
+/// (`cx`, `cy`): body and base in `fg`, pendulum and weight in `accent`.
+pub fn metronome(cv: &mut Canvas, cx: f32, cy: f32, r: f32, fg: Color, accent: Color) {
+    // icon.svg's metronome spans x 184..328, y 116..297 (512 units); centred on (256, 206).
+    let k = 2.0 * r / 190.0;
+    let (ox, oy) = (cx - 256.0 * k, cy - 206.0 * k);
+    let mut body = Glyph::new();
+    body.commands("M 196 290 L 316 290 L 284 116 L 228 116 Z", ox, oy, k, Some(13.0 * k));
+    body.commands("M 191 283 L 321 283 Q 328 283 328 290 Q 328 297 321 297 L 191 297 Q 184 297 184 290 Q 184 283 191 283 Z", ox, oy, k, None);
+    cv.glyph(fg, &body);
+    let mut arm = Glyph::new();
+    arm.commands("M 256 262 L 302 142", ox, oy, k, Some(12.0 * k));
+    // The weight: a 26 x 22 block turned 21 degrees about (301, 167).
+    let (s, c) = 21f32.to_radians().sin_cos();
+    let at = |x: f32, y: f32| (301.0 + (x - 301.0) * c - (y - 167.0) * s, 167.0 + (x - 301.0) * s + (y - 167.0) * c);
+    let pts = [at(288.0, 156.0), at(314.0, 156.0), at(314.0, 178.0), at(288.0, 178.0)];
+    let d = format!(
+        "M {} {} L {} {} L {} {} L {} {} Z",
+        pts[0].0, pts[0].1, pts[1].0, pts[1].1, pts[2].0, pts[2].1, pts[3].0, pts[3].1
+    );
+    arm.commands(&d, ox, oy, k, None);
+    cv.glyph(accent, &arm);
+    cv.fill_circle(ox + 256.0 * k, oy + 262.0 * k, 13.0 * k, fg);
+}
+
 /// Lemon Studio logo (greyscale mark, `logo.rs`) in one tint, fitted into a circle of radius `r`.
+#[allow(dead_code)]
 pub fn logo(cv: &mut Canvas, cx: f32, cy: f32, r: f32, c: Color) {
     use crate::logo::{PATHS, VIEW_H, VIEW_W};
     let k = 2.0 * r / VIEW_W.max(VIEW_H);

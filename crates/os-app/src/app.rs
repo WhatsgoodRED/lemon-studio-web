@@ -10345,7 +10345,17 @@ fn saved_fl_text() -> Option<String> {
     if dir.join("theme.txt").vexists() {
         return None;
     }
-    os_web::fs::read(dir.join("current.flstheme")).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
+    let saved = os_web::fs::read(dir.join("current.flstheme")).ok().map(|b| String::from_utf8_lossy(&b).into_owned());
+    // MetroBar Studio: with no theme chosen yet, the MetroBar theme (`os_theme::presets`).
+    if saved.is_none() && !cfg!(test) {
+        return default_fl_text();
+    }
+    saved
+}
+
+/// The theme a fresh install starts with: the built-in MetroBar theme.
+pub fn default_fl_text() -> Option<String> {
+    os_theme::presets::PRESETS.iter().find(|(n, _)| *n == "MetroBar").map(|(_, t)| t.to_string())
 }
 
 /// The folder `current.flstheme` is kept in: the user folder; in tests this thread's folder, none unless one is set
@@ -11098,6 +11108,9 @@ mod tests {
         assert_eq!(app.theme.base, os_theme::fl::palette(&FlTheme::parse(&lit)));
         if let Ok(mut c) = Canvas::new(1920, 1080, 1.0) {
             app.open_settings(THEME);
+            frame(&mut app, &mut c, None);
+            // The MetroBar theme's extra tile row pushes the options down: scrolled to the end of the page.
+            app.state.settings.scroll = 10_000.0;
             frame(&mut app, &mut c, None);
             assert!(!app.hits.iter().any(|h| h.action == Action::Settings(SAct::Check("Light mode"))));
             let r = hit_rect(&app, &Action::Settings(SAct::Check(NOTE_COLORS_CHECK)));

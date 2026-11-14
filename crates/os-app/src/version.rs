@@ -23,6 +23,10 @@ pub const NIGHTLY: bool = cfg!(lemon_nightly);
 /// The program's name, where the system shows it (the window's title, the file association).
 pub const NAME: &str = if NIGHTLY { "Lemon Studio Nightly" } else { "Lemon Studio" };
 
+/// The name users see (window title, About, the workspace): this build is MetroBar Studio, based on Lemon Studio.
+/// `NAME` stays the system name (file association, the macOS bundle the updater looks for).
+pub const DISPLAY_NAME: &str = if NIGHTLY { "MetroBar Studio Nightly" } else { "MetroBar Studio" };
+
 /// The version as Lemon Studio shows it: "2026.11.7.1 nightly", "1.0.0", or "0.0.1" for a build from source.
 pub fn text() -> &'static str {
     static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();

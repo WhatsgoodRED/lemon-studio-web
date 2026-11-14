@@ -16,6 +16,7 @@ macro_rules! presets {
 }
 
 presets!(
+    "MetroBar",
     "Graphite",
     "Frost",
     "Persimmon",
@@ -49,7 +50,7 @@ mod tests {
     /// Every built-in theme parses, none is the stock Dark theme (each is its own colours), and all differ.
     #[test]
     fn presets_parse_and_differ() {
-        assert_eq!(PRESETS.len(), 23);
+        assert_eq!(PRESETS.len(), 24);
         let themes: Vec<FlTheme> = PRESETS.iter().map(|(_, t)| FlTheme::parse(t)).collect();
         for (th, (name, _)) in themes.iter().zip(PRESETS) {
             assert!(th.selected.is_some() && th.highlight.is_some() && th.text_color.is_some(), "{name}");

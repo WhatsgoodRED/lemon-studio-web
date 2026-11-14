@@ -514,6 +514,8 @@ pub enum Row {
     /// The ASIO Compatible Logo with Steinberg's trademark notice to its right (`asio_logo`), on Windows, whose build
     /// includes the ASIO SDK: the SDK's usage guidelines ask for it in the About box and where ASIO is switched on.
     AsioLogo,
+    /// About: the MetroBar Studio wordmark (`icons::wordmark`).
+    Wordmark,
 }
 
 /// The two tile lists of Settings > Theme (spec: ui/theme-presets.md "Settings").
@@ -964,10 +966,13 @@ pub fn page(tab: usize, s: &State) -> Vec<Group> {
         _ => vec![
             g("", [
                 vec![
-                    Gap(20.0),
-                    Big(format!("Lemon Studio {}", crate::version::staged())),
+                    Gap(14.0),
+                    Row::Wordmark,
+                    Big(format!("{} {}", crate::version::DISPLAY_NAME, crate::version::staged())),
+                    txt("Based on Lemon Studio by ItsAlphaNeon, GPL-3.0."),
                     txt("A digital audio workstation written in Rust."),
                     txt("Copyright (C) 2026 ItsAlphaNeon and the Lemon Studio contributors."),
+                    txt("MetroBar Studio changes: the MetroBar theme, name and logo (same licence)."),
                     Buttons(vec![(WEBSITE, 80.0), (WIKI, 64.0), (SOURCE_CODE, 100.0)]),
                     Gap(10.0),
                 ],
@@ -979,6 +984,7 @@ pub fn page(tab: usize, s: &State) -> Vec<Group> {
                     vec![txt("Licence: GNU General Public License, version 3 or later.")]
                 },
                 vec![txt("Fonts: Cuprum (SIL Open Font License). Icons: Tabler Icons (MIT).")],
+                vec![txt("Logo: wordmark drawn from Panchang (Indian Type Foundry) and IBM Plex Sans (SIL OFL).")],
                 if cfg!(windows) {
                     vec![txt("ASIO® output: the ASIO SDK by Steinberg Media Technologies GmbH (GPL version 3)."), Row::AsioLogo]
                 } else {
@@ -989,7 +995,7 @@ pub fn page(tab: usize, s: &State) -> Vec<Group> {
             .flatten()
             .collect()),
             g("Licence", vec![
-                Big("Lemon Studio needs no account.".into()),
+                Big("MetroBar Studio needs no account.".into()),
                 txt("It is free software: you can redistribute it and/or modify it under the terms"),
                 txt("of the GNU General Public License, version 3 or (at your option) any later version."),
                 txt("It comes with ABSOLUTELY NO WARRANTY. Licence: https://www.gnu.org/licenses/"),
@@ -1024,6 +1030,7 @@ fn row_h(r: &Row) -> f32 {
         Row::DataFolder => super::data_folder::FOLDER_ROW_H,
         Row::FactoryFolder => super::factory_folder::ROW_H,
         Row::AsioLogo => ASIO_LOGO_H + 4.0,
+        Row::Wordmark => WORDMARK_H + 18.0,
         Row::Midi(m) => m.height(),
     }
 }
@@ -1761,6 +1768,9 @@ fn paint_row_at(ui: &mut Ui, s: &State, group: &'static str, row: &Row, g: Rect,
         Row::DataFolder => super::data_folder::paint_row(ui, s, row, g, x0, y, h),
         Row::FactoryFolder => super::factory_folder::paint_row(ui, g, x0, y, h),
         Row::Midi(m) => super::midi_page::paint_row(ui, s, *m, g, x0, y, h),
+        Row::Wordmark => {
+            crate::icons::wordmark(ui.c, x0, y + 4.0 + WORDMARK_H / 2.0, WORDMARK_H, t.text, os_theme::design::metrobar::ACCENT);
+        }
         // As Steinberg provides it, with the notice beside it in the page's own font (its usage guidelines §14).
         Row::AsioLogo => {
             let Some((iw, ih, px)) = asio_logo() else { return };
@@ -1774,6 +1784,9 @@ fn paint_row_at(ui: &mut Ui, s: &State, group: &'static str, row: &Row, g: Rect,
         }
     }
 }
+
+/// The About page's wordmark: its capital height.
+const WORDMARK_H: f32 = 22.0;
 
 /// The Info footer's line pitch.
 const FOOTER_LINE_H: f32 = 16.0;

@@ -182,9 +182,12 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
     let docked = s.docked();
     // spec: ui/flstheme.md §3 (BackMode, BackPicFilename); no watermark over a picture (`wallpaper`).
     if docked.is_none() && !crate::wallpaper::paint(ui, work) {
+        // MetroBar Studio: the wordmark as the watermark ("STUDIO" a little toward the accent).
         let wm = ui.t.watermark;
-        icons::logo(ui.c, work.cx(), work.cy() + 40.0, 170.0, wm);
-        let version = format!("Lemon Studio v{}", crate::version::staged());
+        let mh = 26.0;
+        let mw = icons::wordmark_w(mh);
+        icons::wordmark(ui.c, work.cx() - mw / 2.0, work.cy() + 40.0, mh, wm, wm.mix(ui.t.accent, 0.3));
+        let version = format!("{} v{} - based on Lemon Studio", crate::version::DISPLAY_NAME, crate::version::staged());
         let vc = ui.t.version_text;
         let vw = ui.c.text_width(crate::views::fnt(16.0), &version);
         ui.c.text(crate::views::fnt(16.0), work.cx() - vw / 2.0, h - 22.0, vc, &version);
