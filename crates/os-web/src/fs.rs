@@ -470,6 +470,32 @@ mod web {
 
     // The page's way in and out.
 
+    #[wasm_bindgen]
+    extern "C" {
+        /// The files the page kept from the last visit (IndexedDB), packed: per file a little-endian u32 length and
+        /// the path, then a u32 length and the bytes.
+        #[wasm_bindgen(js_namespace = lemonWeb, js_name = takePreload)]
+        fn take_preload() -> Vec<u8>;
+    }
+
+    /// Puts back the files the page kept (`take_preload`), before the app reads its settings. Returns how many.
+    pub fn preload() -> usize {
+        let b = take_preload();
+        let mut at = 0usize;
+        let mut n = 0;
+        let u32_at = |at: usize| b.get(at..at + 4).map(|x| u32::from_le_bytes([x[0], x[1], x[2], x[3]]) as usize);
+        while let Some(pl) = u32_at(at) {
+            let Some(path) = b.get(at + 4..at + 4 + pl).and_then(|p| std::str::from_utf8(p).ok()) else { break };
+            at += 4 + pl;
+            let Some(dl) = u32_at(at) else { break };
+            let Some(data) = b.get(at + 4..at + 4 + dl) else { break };
+            at += 4 + dl;
+            put(Path::new(path), data.to_vec());
+            n += 1;
+        }
+        n
+    }
+
     /// Puts a file there (an imported sample, an uploaded project).
     #[wasm_bindgen]
     pub fn lemon_fs_write(path: &str, data: &[u8]) {

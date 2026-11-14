@@ -35,7 +35,7 @@ pub struct Pending {
 /// Where the renders go (§2): the data folder's Rendered folder; a project without a data folder uses one-click
 /// recording's fallback (the user folder, else the system's temporary folder).
 pub fn folder(s: &State) -> PathBuf {
-    crate::data_folder::folder(s).or_else(crate::app::theme_dir).unwrap_or_else(std::env::temp_dir).join(FOLDER)
+    crate::data_folder::folder(s).or_else(crate::app::theme_dir).unwrap_or_else(os_web::temp_dir).join(FOLDER)
 }
 
 /// The file name (without extension) for pattern `name` in `dir` (§2): the name with the characters a file name
@@ -273,7 +273,7 @@ mod tests {
     }
 
     fn temp(tag: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("lemon-pattern-render-{tag}-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("lemon-pattern-render-{tag}-{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn renders_go_to_the_rendered_folder() {
         let mut app = app();
-        assert_eq!(folder(&app.state), std::env::temp_dir().join("Rendered"));
+        assert_eq!(folder(&app.state), os_web::temp_dir().join("Rendered"));
         let d = temp("folder");
         with_data_folder(&mut app, &d);
         assert_eq!(folder(&app.state), d.join("Rendered"));
@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn the_render_job() {
         let app = app();
-        let d = std::env::temp_dir();
+        let d = os_web::temp_dir();
         let j = job(&app.state, &d, "Pattern 1");
         let o = &j.options;
         assert_eq!(o.ticked().collect::<Vec<_>>(), [ex::WAV]);

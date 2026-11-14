@@ -157,7 +157,7 @@ impl App {
     /// Starts taking in `input` into a new file (no playback: `one_click_start` plays).
     pub(crate) fn one_click_begin(&mut self, input: Input, stream: Option<InputStream>, editor: bool) -> Result<(), String> {
         let rate = stream.as_ref().map(|s| s.rate);
-        let dir = crate::data_folder::folder(&self.state).or_else(crate::app::theme_dir).unwrap_or_else(std::env::temp_dir).join("Recorded");
+        let dir = crate::data_folder::folder(&self.state).or_else(crate::app::theme_dir).unwrap_or_else(os_web::temp_dir).join("Recorded");
         let name = capture::file_name(&crate::backup::project_name(self.state.path.as_deref()), chrono::Local::now().naive_local());
         capture().start(input.first, input.stereo);
         let recorder = match Recorder::start(dir.join(name), rate.unwrap_or(48000)) {

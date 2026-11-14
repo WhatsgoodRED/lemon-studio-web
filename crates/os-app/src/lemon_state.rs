@@ -455,7 +455,7 @@ mod tests {
     }
 
     fn dir(name: &str) -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("os_lemon_state_{name}_{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("os_lemon_state_{name}_{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d

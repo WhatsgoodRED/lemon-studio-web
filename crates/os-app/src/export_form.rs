@@ -291,7 +291,7 @@ impl App {
             // The project's folder first, else the last one used.
             _ if s.path.as_ref().and_then(|p| p.parent()).is_some_and(|d| d.vis_dir()) => s.path.as_ref().and_then(|p| p.parent()).unwrap().to_path_buf(),
             Some(d) => d,
-            None => crate::save_form::default_root().unwrap_or_else(std::env::temp_dir),
+            None => crate::save_form::default_root().unwrap_or_else(os_web::temp_dir),
         };
         let device_rate = crate::transport::Transport::device_rate().unwrap_or(44100);
         let tempo = s.project.tick_tempo(s.tempo);

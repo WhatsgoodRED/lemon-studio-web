@@ -1336,7 +1336,7 @@ mod tests {
     /// A file that can't be read: the hint names its path once, then why.
     #[test]
     fn a_bad_file_is_named_once() {
-        let p = std::env::temp_dir().join(format!("lemon-slicer-{}-bad.wav", std::process::id()));
+        let p = os_web::temp_dir().join(format!("lemon-slicer-{}-bad.wav", std::process::id()));
         os_web::fs::write(&p, b"not a wav").unwrap();
         let path = p.to_string_lossy().into_owned();
         let mut l = logic();

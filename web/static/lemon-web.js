@@ -1,9 +1,12 @@
 // Lemon Studio web build: the page side. GPL-3.0-or-later.
 //
-// Loads the wasm build of Lemon Studio (it draws into #lemon-canvas through winit and softbuffer), and runs the
-// audio: the browser has no audio thread for the engine, so this pump asks the engine for blocks on the main thread
-// (`lemon_audio_render`) and keeps an AudioWorklet ("lemon-out") a little ahead. No SharedArrayBuffer is used, so
-// the page needs no COOP/COEP headers.
+// Loads the wasm build of Lemon Studio (it draws into #lemon-canvas through winit and softbuffer), and runs:
+// - the audio: the browser has no audio thread for the engine, so this pump asks the engine for blocks on the main
+//   thread (`lemon_audio_render`) and keeps an AudioWorklet ("lemon-out") a little ahead. No SharedArrayBuffer is
+//   used, so the page needs no COOP/COEP headers.
+// - the microphone: an AudioWorklet ("lemon-in") posts what it records to the engine (`lemon_audio_input`).
+// - the files: the app's files live in an in-memory file system (`lemon_fs_*`); this page keeps them in IndexedDB
+//   between visits, puts dropped and imported audio files in, and downloads exports and saved projects.
 
 // TODO(owner): the public URL of this build's source (GPL-3.0 §6). The repository is private for now.
 const SOURCE_URL = 'TODO-public-source-repository-url';
@@ -16,12 +19,86 @@ $('source-link').href = SOURCE_URL.startsWith('TODO') ? 'https://github.com/ItsA
 
 const BLOCK = 512;          // frames per render call (`device::web::BLOCK`)
 const AHEAD = 4 * BLOCK;    // frames kept queued in the worklet (about 43 ms at 48 kHz)
+const KEEP = ['/user'];     // folders kept in IndexedDB
 
 const web = window.lemonWeb = {
-  ctx: null, out: null, mic: null, analyser: null,
+  ctx: null, out: null, mic: null, analyser: null, lemon,
   produced: 0, read: 0, peak: 0, maxPeak: 0, under: 0, played: 0, renders: 0, micFrames: 0,
-  ready: false, error: null, lemon,
+  ready: false, error: null, preload: new Uint8Array(0), downloads: [],
+  takePreload() { const p = web.preload; web.preload = new Uint8Array(0); return p; },
 };
+
+// ---- IndexedDB: the files kept between visits -------------------------------------------------------------------
+
+function db() {
+  return new Promise((ok, fail) => {
+    const r = indexedDB.open('lemon-studio-web', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('files');
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => fail(r.error);
+  });
+}
+
+async function loadKept() {
+  try {
+    const d = await db();
+    const all = await new Promise((ok, fail) => {
+      const out = [];
+      const req = d.transaction('files').objectStore('files').openCursor();
+      req.onsuccess = () => { const c = req.result; if (c) { out.push([c.key, c.value]); c.continue(); } else ok(out); };
+      req.onerror = () => fail(req.error);
+    });
+    const enc = new TextEncoder();
+    let size = 0;
+    const parts = all.map(([k, v]) => { const p = enc.encode(k); const b = new Uint8Array(v); size += 8 + p.length + b.length; return [p, b]; });
+    const pack = new Uint8Array(size);
+    const dv = new DataView(pack.buffer);
+    let at = 0;
+    for (const [p, b] of parts) {
+      dv.setUint32(at, p.length, true); pack.set(p, at + 4); at += 4 + p.length;
+      dv.setUint32(at, b.length, true); pack.set(b, at + 4); at += 4 + b.length;
+    }
+    web.preload = pack;
+    web.keptCount = all.length;
+  } catch (e) {
+    console.warn('IndexedDB not available: files are not kept', e);
+  }
+}
+
+let lastVersion = -1;
+async function keep() {
+  const v = lemon.lemon_fs_version();
+  if (v === lastVersion) return;
+  lastVersion = v;
+  try {
+    const d = await db();
+    const now = new Map();
+    for (const dir of KEEP) {
+      for (const line of lemon.lemon_fs_list(dir).split('\n')) {
+        if (!line) continue;
+        const [path, len, ms] = line.split('\t');
+        if (path.endsWith('.part')) continue;
+        now.set(path, len + ':' + ms);
+      }
+    }
+    const tx = d.transaction('files', 'readwrite');
+    const st = tx.objectStore('files');
+    web.stamps ??= new Map();
+    for (const [path, stamp] of now) {
+      if (web.stamps.get(path) === stamp) continue;
+      const bytes = lemon.lemon_fs_read(path);
+      if (bytes) st.put(bytes.buffer, path);
+      web.stamps.set(path, stamp);
+    }
+    for (const path of [...web.stamps.keys()]) {
+      if (!now.has(path)) { st.delete(path); web.stamps.delete(path); }
+    }
+  } catch (e) {
+    console.warn('keeping files failed', e);
+  }
+}
+
+// ---- audio ------------------------------------------------------------------------------------------------------
 
 async function startAudio() {
   if (web.ctx) return;
@@ -41,9 +118,7 @@ async function startAudio() {
   analyser.connect(ctx.destination);
   web.out = out; web.analyser = analyser;
   setInterval(pump, 5);
-  if (ctx.state !== 'running') {
-    $('start').style.display = 'flex';
-  }
+  if (ctx.state !== 'running') $('start').style.display = 'flex';
 }
 
 function pump() {
@@ -61,6 +136,7 @@ function pump() {
 async function startMic() {
   if (web.mic) return true;
   try {
+    await web.ctx.resume();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
     const src = web.ctx.createMediaStreamSource(stream);
     const node = new AudioWorkletNode(web.ctx, 'lemon-in', { numberOfInputs: 1, numberOfOutputs: 0 });
@@ -68,7 +144,7 @@ async function startMic() {
     src.connect(node);
     web.mic = { stream, src, node };
     lemon.lemon_audio_mic(1);
-    status('Microphone on: pick it as a mixer track input to record');
+    status('Microphone on: record with the toolbar microphone, or arm a mixer track with it as input');
     return true;
   } catch (e) {
     status('Microphone not available: ' + e.message);
@@ -77,14 +153,88 @@ async function startMic() {
 }
 web.startMic = startMic;
 
+// ---- files ------------------------------------------------------------------------------------------------------
+
+const AUDIO = /\.(wav|mp3|flac|ogg|oga|aif|aiff|m4a|aac|wv)$/i;
+const PROJECT = /\.(lemon|flp|zip)$/i;
+
+async function putFile(file, dir) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const name = file.name.replace(/[\\/:]/g, '_');
+  const path = `${dir}/${name}`;
+  lemon.lemon_fs_write(path, bytes);
+  return path;
+}
+
+async function importFiles(files, at) {
+  for (const f of files) {
+    if (PROJECT.test(f.name)) {
+      const p = await putFile(f, '/user/Projects');
+      lemon.lemon_open(p);
+      status('Opening ' + f.name);
+    } else if (AUDIO.test(f.name)) {
+      const p = await putFile(f, '/user/Imported');
+      if (at) lemon.lemon_drop(p, at[0], at[1]); else lemon.lemon_import(p);
+      status('Imported ' + f.name);
+    } else {
+      const p = await putFile(f, '/user/Imported');
+      if (at) lemon.lemon_drop(p, at[0], at[1]);
+      status('Added ' + f.name);
+    }
+  }
+}
+web.importFiles = importFiles;
+
+function download(path) {
+  const bytes = lemon.lemon_fs_read(path);
+  if (!bytes) return;
+  const name = path.split('/').pop();
+  const type = /\.wav$/i.test(name) ? 'audio/wav' : 'application/octet-stream';
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  web.downloads.push({ path, size: bytes.length });
+  status('Downloaded ' + name);
+}
+web.download = download;
+
+function pollDownloads() {
+  const list = lemon.lemon_take_downloads();
+  for (const p of list.split('\n')) if (p) download(p);
+}
+
+web.state = () => JSON.parse(lemon.lemon_state() || '{}');
+
+// ---- page wiring ------------------------------------------------------------------------------------------------
+
 $('start-btn').onclick = async () => {
   await web.ctx.resume();
   $('start').style.display = 'none';
   $('lemon-canvas').focus();
 };
-$('b-mic').onclick = async () => { await web.ctx?.resume(); startMic(); };
+$('b-mic').onclick = () => startMic();
+$('b-import').onclick = () => $('file-audio').click();
+$('b-open').onclick = () => $('file-project').click();
+$('b-save').onclick = () => { lemon.lemon_save(); };
+$('b-export').onclick = () => { lemon.lemon_export(); $('lemon-canvas').focus(); };
+$('file-audio').onchange = (e) => { importFiles([...e.target.files]); e.target.value = ''; };
+$('file-project').onchange = (e) => { importFiles([...e.target.files]); e.target.value = ''; };
+
+const canvas = $('lemon-canvas');
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; $('drop').style.display = 'flex'; });
+window.addEventListener('dragleave', (e) => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; $('drop').style.display = 'none'; } });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0; $('drop').style.display = 'none';
+  const r = canvas.getBoundingClientRect();
+  importFiles([...(e.dataTransfer?.files || [])], [e.clientX - r.left, e.clientY - r.top]);
+});
 
 async function main() {
+  await loadKept();
   try {
     await init();
   } catch (e) {
@@ -96,7 +246,13 @@ async function main() {
   }
   $('loading').style.display = 'none';
   web.ready = true;
+  setInterval(pollDownloads, 250);
+  setInterval(keep, 3000);
+  window.addEventListener('pagehide', keep);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) keep(); });
 }
 
 await main();
 await startAudio();
+// Ask for the microphone at once where it was allowed before (no prompt then).
+navigator.permissions?.query({ name: 'microphone' }).then((p) => { if (p.state === 'granted') startMic(); }).catch(() => {});

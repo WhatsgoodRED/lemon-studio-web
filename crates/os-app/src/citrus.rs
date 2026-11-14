@@ -191,7 +191,7 @@ mod tests {
     /// saves that patch's bytes, and the reopened project hosts it again from them.
     #[test]
     fn sytrus_channels_save_and_reopen() {
-        let path = std::env::temp_dir().join(format!("openstudio-citrus-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-citrus-{}.flp", std::process::id()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -239,7 +239,7 @@ mod tests {
     /// `.fst` files are listed at any depth with their folder path, and one is read into a Citrus plugin state.
     #[test]
     fn fst_presets_are_listed_and_read() {
-        let dir = std::env::temp_dir().join(format!("openstudio-citrus-fst-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("openstudio-citrus-fst-{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(dir.join("Bass").join("Deep")).unwrap();
         let fl = saw_state();

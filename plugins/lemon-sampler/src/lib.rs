@@ -1007,7 +1007,7 @@ mod tests {
     // spec: audio/sampler.md "The sample file": the loop is the first loop of the `smpl` chunk, wherever it sits.
     #[test]
     fn the_file_loop_and_format_are_read() {
-        let dir = std::env::temp_dir().join(format!("lemon-sampler-src-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-sampler-src-{}", std::process::id()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let p = dir.join("a.wav");
         os_web::fs::write(&p, wav(1, 100_001, Some((5, 90_000)))).unwrap();
@@ -1026,7 +1026,7 @@ mod tests {
 
     /// A fresh directory for a test's files.
     fn test_dir(tag: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("lemon-sampler-{tag}-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("lemon-sampler-{tag}-{}", std::process::id()));
         os_web::fs::create_dir_all(&d).unwrap();
         d
     }

@@ -2394,7 +2394,7 @@ pub fn make_unique_sample(s: &mut State, i: usize) -> String {
     let mut audio = e.render_all(512);
     let want = (os_engine::laws::tick_to_frame(f64::from(c.length), p.ppq, p.tick_tempo(s.tempo), rate) as usize) * 2;
     audio.resize(want.max(2), 0.0);
-    let dir = s.path.as_ref().and_then(|p| p.parent()).map(|d| d.join("Rendered")).unwrap_or_else(|| std::env::temp_dir().join("Lemon Studio").join("Rendered"));
+    let dir = s.path.as_ref().and_then(|p| p.parent()).map(|d| d.join("Rendered")).unwrap_or_else(|| os_web::temp_dir().join("Lemon Studio").join("Rendered"));
     if let Err(e) = os_web::fs::create_dir_all(&dir) {
         return format!("Make unique as sample: {e}");
     }
@@ -5593,7 +5593,7 @@ fn render_job(s: &State, dir: &Path, name: &str, ticks: u32) -> crate::export::J
 }
 
 fn render_dir(s: &State) -> PathBuf {
-    s.path.as_ref().and_then(|p| p.parent()).map(|d| d.join("Rendered")).unwrap_or_else(|| std::env::temp_dir().join("Lemon Studio").join("Rendered"))
+    s.path.as_ref().and_then(|p| p.parent()).map(|d| d.join("Rendered")).unwrap_or_else(|| os_web::temp_dir().join("Lemon Studio").join("Rendered"))
 }
 
 /// Tools > Export all playlist tracks (§10, OS): every track with unmuted clips on a playing track is rendered alone,
@@ -6232,7 +6232,7 @@ mod tests {
         app.state.project.channels[0].sample_path = None;
         let ch = app.state.project.channels[0].index;
         assert!(!entry(&pick_menu(&app.state, ch, 0.0, 0.0), "Edit sample...").enabled, "no sample");
-        let dir = std::env::temp_dir().join(format!("ls_edit_sample_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("ls_edit_sample_{}", std::process::id()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("Tone.wav");
         let tone = tesla::sample::Sample::from_channels(44100, vec![vec![0.25; 4410], vec![-0.25; 4410]], tesla::sample::Format::Int16);

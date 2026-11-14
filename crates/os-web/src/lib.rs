@@ -11,6 +11,14 @@
 
 pub mod fs;
 
+/// `std::env::temp_dir`, which panics on the web: there, `/tmp` of the in-memory file system.
+pub fn temp_dir() -> std::path::PathBuf {
+    #[cfg(target_arch = "wasm32")]
+    return std::path::PathBuf::from("/tmp");
+    #[cfg(not(target_arch = "wasm32"))]
+    std::env::temp_dir()
+}
+
 /// Runs `job` on a thread named `name`, or at once on this one when there are no threads (the web).
 pub fn spawn<F: FnOnce() + Send + 'static>(name: &str, job: F) {
     #[cfg(target_arch = "wasm32")]

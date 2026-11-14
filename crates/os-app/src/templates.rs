@@ -206,7 +206,7 @@ mod tests {
     /// project with six channels: the test project's five and a copy), "Utility/Scoring", and folders that are no
     /// templates.
     fn templates(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("os_templates_{tag}_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_templates_{tag}_{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&dir);
         for (cat, name) in [("Minimal", "Basic with limiter"), ("Utility", "Scoring")] {
             let mut a = App::new(None);

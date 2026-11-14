@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn the_log_rotates_at_its_cap() {
-        let dir = std::env::temp_dir().join(format!("lemon-audio-log-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-audio-log-{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&dir);
         set_test_dir(Some(dir.clone()));
         let long = "x".repeat(1000);

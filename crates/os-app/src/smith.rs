@@ -164,7 +164,7 @@ mod tests {
     /// that patch's bytes, and the reopened project hosts it again from them.
     #[test]
     fn ogun_channels_save_and_reopen() {
-        let path = std::env::temp_dir().join(format!("openstudio-smith-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-smith-{}.flp", std::process::id()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -213,7 +213,7 @@ mod tests {
     /// else is an error.
     #[test]
     fn fst_presets_are_read_for_smith() {
-        let dir = std::env::temp_dir().join(format!("openstudio-smith-fst-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("openstudio-smith-fst-{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let fl = patch();

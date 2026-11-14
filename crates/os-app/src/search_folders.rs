@@ -266,7 +266,7 @@ mod tests {
 
     /// Temporary folders `names` under a folder of the test's own.
     fn folders(test: &str, names: &[&str]) -> (PathBuf, Vec<PathBuf>) {
-        let root = std::env::temp_dir().join(format!("os_search_folders_{test}_{}", std::process::id()));
+        let root = os_web::temp_dir().join(format!("os_search_folders_{test}_{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&root);
         let dirs: Vec<PathBuf> = names.iter().map(|n| root.join(n)).collect();
         for d in &dirs {

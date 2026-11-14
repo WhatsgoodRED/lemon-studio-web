@@ -462,7 +462,7 @@ pub fn pattern_file(p: &Project, n: u16, ch: u16, tempo: f64) -> Smf {
 pub(crate) fn clipboard_dir() -> Option<PathBuf> {
     if cfg!(test) {
         let thread = format!("{:?}", std::thread::current().id()).chars().filter(char::is_ascii_digit).collect::<String>();
-        return Some(std::env::temp_dir().join(format!("lemon-clipboard-{}-{thread}", std::process::id())));
+        return Some(os_web::temp_dir().join(format!("lemon-clipboard-{}-{thread}", std::process::id())));
     }
     os_paths::user_dir().map(|d| d.join("Clipboard files"))
 }
@@ -1091,7 +1091,7 @@ mod tests {
     }
 
     fn write_three(tag: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!("os_midi_{tag}_{}.mid", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_midi_{tag}_{}.mid", std::process::id()));
         os_web::fs::write(&path, os_smf::write(&three(96))).unwrap();
         path
     }
@@ -1186,7 +1186,7 @@ mod tests {
     fn shortcut_and_drop() {
         let mut app = test_app();
         crate::patterns::pat_mut(&mut app.state, 1).notes = vec![Note { length: 48, ..Note::step(0, 0) }];
-        let out = std::env::temp_dir().join(format!("os_midi_export_{}", std::process::id()));
+        let out = os_web::temp_dir().join(format!("os_midi_export_{}", std::process::id()));
         crate::dialog::fake::answer(Some(out.clone()));
         app.shift = true;
         app.key(&Key::Character("M".into()), true, false);
@@ -1214,7 +1214,7 @@ mod tests {
     /// Realign is not remembered for the next file (§10.5).
     #[test]
     fn dropped_late_file_lands_at_the_start() {
-        let path = std::env::temp_dir().join(format!("os_midi_late_{}.mid", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_midi_late_{}.mid", std::process::id()));
         os_web::fs::write(&path, LATE_NOTE).unwrap();
         let mut app = test_app();
         app.drop_file(path.clone());
@@ -1251,7 +1251,7 @@ mod tests {
         assert_eq!(show_for(false, false), Show::WhenNecessary);
         assert_eq!(show_for(true, false), Show::Always);
         assert_eq!(show_for(false, true), Show::Never);
-        let path = std::env::temp_dir().join(format!("os_midi_empty_{}.mid", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_midi_empty_{}.mid", std::process::id()));
         let f = Smf { format: 1, ppq: 96, tracks: vec![Track { events: vec![ev(0, Ev::Tempo(500_000))] }] };
         os_web::fs::write(&path, os_smf::write(&f)).unwrap();
         let mut app = test_app();

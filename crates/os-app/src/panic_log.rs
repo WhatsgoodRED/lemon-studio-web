@@ -71,7 +71,7 @@ mod tests {
     /// Entries are added in turn; past `MAX_BYTES` the log starts again, the one before kept beside it.
     #[test]
     fn the_log_adds_entries_and_starts_again_when_large() {
-        let dir = std::env::temp_dir().join(format!("lemon-panic-log-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-panic-log-{}", std::process::id()));
         let p = dir.join("Logs").join("panic.log");
         append(&p, "first\n").unwrap();
         append(&p, "second\n").unwrap();

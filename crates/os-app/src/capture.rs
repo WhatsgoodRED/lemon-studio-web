@@ -204,6 +204,13 @@ pub fn devices() -> Vec<(String, bool, u16)> {
 /// output): the one Settings > Audio records from (else the system's default) first, asked for on its own so that it
 /// is there even when the list leaves it out, then the others. A device that reports no format is listed with none.
 fn system_inputs() -> Vec<(String, bool, u16)> {
+    // The web build: the browser's microphone, once the page has one (`device::web`).
+    #[cfg(target_arch = "wasm32")]
+    return match crate::device::web::mic_channels() {
+        0 => Vec::new(),
+        ch => vec![("Microphone".to_string(), false, ch as u16)],
+    };
+    #[allow(unreachable_code)]
     use cpal::traits::HostTrait;
     use crate::device::system_input::input_config;
     let cfg = crate::audio_cfg::AudioCfg::current();
@@ -239,6 +246,16 @@ impl Drop for InputStream {
 
 /// Opens system input device `name` in shared mode at its own rate, pushing into `capture`.
 pub fn open_input(name: &str) -> Result<InputStream, String> {
+    // The web build: the page's microphone pushes into `capture` as it records (`device::web::lemon_audio_input`).
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = name;
+        if crate::device::web::mic_channels() == 0 {
+            return Err("no microphone (allow the browser to use it)".into());
+        }
+        return Ok(InputStream { stream: None, alsa: false, rate: crate::device::web::rate() });
+    }
+    #[allow(unreachable_code)]
     use cpal::traits::{HostTrait, StreamTrait};
     use cpal::SampleFormat;
     let host = crate::audio_cfg::host(&crate::audio_cfg::AudioCfg::current());
@@ -292,7 +309,56 @@ pub struct Recorder {
     head: Arc<AtomicI64>,
     /// The WAV's rate, set before `finish` when it was not known at the start (an ASIO driver's).
     rate: Arc<AtomicU32>,
+    #[cfg(not(target_arch = "wasm32"))]
     thread: Option<std::thread::JoinHandle<Result<(PathBuf, u64), String>>>,
+    /// The web build: the page's ticker runs the writer (`os_web::every`) and leaves its outcome here.
+    #[cfg(target_arch = "wasm32")]
+    result: Arc<std::sync::Mutex<Option<Result<(PathBuf, u64), String>>>>,
+}
+
+/// What the writer thread does, a step at a time: drain, and at the end make the WAV.
+struct Writer<D> {
+    drain: D,
+    w: Option<BufWriter<os_web::fs::File>>,
+    buf: Vec<f32>,
+    samples: u64,
+    part: PathBuf,
+    file: PathBuf,
+    stop: Arc<AtomicBool>,
+    head: Arc<AtomicI64>,
+    rate: Arc<AtomicU32>,
+}
+
+impl<D: FnMut(&mut Vec<f32>)> Writer<D> {
+    /// Drains what came in; once stopped, makes the WAV and returns it with its frames.
+    fn step(&mut self) -> Option<Result<(PathBuf, u64), String>> {
+        let last = self.stop.load(Ordering::Acquire);
+        self.buf.clear();
+        (self.drain)(&mut self.buf);
+        if let Some(w) = self.w.as_mut() {
+            for x in &self.buf {
+                if let Err(e) = w.write_all(&x.to_le_bytes()) {
+                    return Some(Err(e.to_string()));
+                }
+            }
+        }
+        self.samples += self.buf.len() as u64;
+        if !last {
+            return None;
+        }
+        Some(self.end())
+    }
+
+    fn end(&mut self) -> Result<(PathBuf, u64), String> {
+        let w = self.w.take().ok_or("already ended")?;
+        let raw = w.into_inner().map_err(|e| e.to_string())?;
+        drop(raw);
+        let frames = self.samples / 2;
+        let head = self.head.load(Ordering::Acquire);
+        let n = to_wav(&self.part, &self.file, self.rate.load(Ordering::Acquire), head, frames).map_err(|e| e.to_string());
+        let _ = os_web::fs::remove_file(&self.part);
+        Ok((self.file.clone(), n?))
+    }
 }
 
 impl Recorder {
@@ -302,7 +368,7 @@ impl Recorder {
     }
 
     /// Starts writing what `drain` hands over (stereo frames, appended to its argument) into `file`.
-    pub fn start_from(file: PathBuf, rate: u32, mut drain: impl FnMut(&mut Vec<f32>) + Send + 'static) -> Result<Recorder, String> {
+    pub fn start_from(file: PathBuf, rate: u32, drain: impl FnMut(&mut Vec<f32>) + Send + 'static) -> Result<Recorder, String> {
         if let Some(d) = file.parent() {
             os_web::fs::create_dir_all(d).map_err(|e| format!("{}: {e}", d.display()))?;
         }
@@ -311,36 +377,33 @@ impl Recorder {
         let stop = Arc::new(AtomicBool::new(false));
         let head = Arc::new(AtomicI64::new(0));
         let rate = Arc::new(AtomicU32::new(rate));
-        let (s, h, r) = (stop.clone(), head.clone(), rate.clone());
-        let thread = std::thread::Builder::new()
-            .name("audio recorder".into())
-            .spawn(move || {
-                let mut w = BufWriter::new(raw);
-                let mut buf = Vec::with_capacity(1 << 16);
-                let mut samples = 0u64;
-                loop {
-                    let last = s.load(Ordering::Acquire);
-                    buf.clear();
-                    drain(&mut buf);
-                    for x in &buf {
-                        w.write_all(&x.to_le_bytes()).map_err(|e| e.to_string())?;
-                    }
-                    samples += buf.len() as u64;
-                    if last {
-                        break;
+        let mut writer = Writer { drain, w: Some(BufWriter::new(raw)), buf: Vec::with_capacity(1 << 16), samples: 0, part, file, stop: stop.clone(), head: head.clone(), rate: rate.clone() };
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let thread = std::thread::Builder::new()
+                .name("audio recorder".into())
+                .spawn(move || loop {
+                    if let Some(done) = writer.step() {
+                        return done;
                     }
                     std::thread::sleep(web_time::Duration::from_millis(5));
+                })
+                .map_err(|e| e.to_string())?;
+            Ok(Recorder { stop, head, rate, thread: Some(thread) })
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let result = Arc::new(std::sync::Mutex::new(None));
+            let out = result.clone();
+            os_web::every(move || match writer.step() {
+                Some(done) => {
+                    *out.lock().unwrap_or_else(|e| e.into_inner()) = Some(done);
+                    false
                 }
-                let raw = w.into_inner().map_err(|e| e.to_string())?;
-                drop(raw);
-                let frames = samples / 2;
-                let head = h.load(Ordering::Acquire);
-                let n = to_wav(&part, &file, r.load(Ordering::Acquire), head, frames).map_err(|e| e.to_string());
-                let _ = os_web::fs::remove_file(&part);
-                Ok((file, n?))
-            })
-            .map_err(|e| e.to_string())?;
-        Ok(Recorder { stop, head, rate, thread: Some(thread) })
+                None => true,
+            });
+            Ok(Recorder { stop, head, rate, result })
+        }
     }
 
     /// The take starts at frame `head` of what came in (negative: that much silence first).
@@ -357,13 +420,25 @@ impl Recorder {
         self.stop.store(true, Ordering::Release);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn done(&self) -> bool {
         self.thread.as_ref().is_none_or(|t| t.is_finished())
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub fn done(&self) -> bool {
+        self.result.lock().map_or(true, |r| r.is_some())
+    }
+
     /// The WAV and its frames.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn join(mut self) -> Result<(PathBuf, u64), String> {
         self.thread.take().ok_or("already joined")?.join().map_err(|_| "the recorder stopped".to_string())?
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn join(self) -> Result<(PathBuf, u64), String> {
+        self.result.lock().ok().and_then(|mut r| r.take()).ok_or_else(|| "the recorder has not finished".to_string())?
     }
 }
 
@@ -413,7 +488,7 @@ mod tests {
     /// The WAV leaves out the frames before the head, or starts with silence for a negative one.
     #[test]
     fn a_wav_from_the_head_on() {
-        let dir = std::env::temp_dir().join(format!("lemon_capture_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon_capture_{}", std::process::id()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let part = dir.join("t.wav.part");
         let raw: Vec<u8> = (0..8).flat_map(|i| (i as f32).to_le_bytes()).collect();

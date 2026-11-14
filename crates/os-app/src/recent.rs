@@ -104,7 +104,7 @@ mod tests {
     use crate::views::menus::RECENT_PICK;
 
     fn dir(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("lemon-recent-{name}-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("lemon-recent-{name}-{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn newest_first_once_fifty_at_most() {
         assert!(list().is_empty(), "a test's settings start empty");
-        let p = |n: usize| std::env::temp_dir().join(format!("song {n}.flp"));
+        let p = |n: usize| os_web::temp_dir().join(format!("song {n}.flp"));
         for n in 0..52 {
             add(&p(n));
         }
@@ -187,7 +187,7 @@ mod tests {
         assert!(!app.hits.iter().any(|h| matches!(h.action, Action::MenuItem(0, i) if i >= RECENT_PICK)), "an empty list shows nothing");
         let exit_before = row(&app, Action::MenuItem(0, FILE_EXIT)).expect("Exit").0;
         for n in 0..12 {
-            add(&std::env::temp_dir().join(format!("r{n}.flp")));
+            add(&os_web::temp_dir().join(format!("r{n}.flp")));
         }
         app.paint(&mut c, None);
         let rows: Vec<_> = (0..SHOWN).map(|n| row(&app, Action::MenuItem(0, RECENT_PICK + n)).expect("ten rows")).collect();

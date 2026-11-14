@@ -328,7 +328,7 @@ mod tests {
     use super::*;
 
     fn scratch(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("os_projfiles_{tag}_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_projfiles_{tag}_{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         dir
@@ -399,7 +399,7 @@ mod tests {
         assert_eq!(template_target(&root, &root.join("User").join("Mine.lemon")), root.join("User").join("Mine").join("Mine.lemon"));
         assert_eq!(template_target(&root, &root.join("Beats").join("Trap.lemon")), root.join("Beats").join("Trap").join("Trap.lemon"));
         assert_eq!(template_target(&root, &root.join("Beats").join("Trap").join("Trap.lemon")), root.join("Beats").join("Trap").join("Trap.lemon"));
-        assert_eq!(template_target(&root, &std::env::temp_dir().join("Elsewhere.lemon")), root.join("User").join("Elsewhere").join("Elsewhere.lemon"));
+        assert_eq!(template_target(&root, &os_web::temp_dir().join("Elsewhere.lemon")), root.join("User").join("Elsewhere").join("Elsewhere.lemon"));
         crate::templates::TEST_DIR.with(|d| *d.borrow_mut() = Some(root.clone()));
         let rows = template_items(&App::new(None).state);
         assert_eq!(rows.iter().map(|r| r.label.to_string()).collect::<Vec<_>>(), ["Empty"], "no templates: Empty alone");
@@ -507,7 +507,7 @@ mod tests {
             assert!(!active(&app.state, m, row(m, l)), "{l}: never saved");
         }
         assert!(active(&app.state, 0, row(0, "Save as template...")) && active(&app.state, 0, row(0, "New from template")));
-        app.state.path = Some(std::env::temp_dir().join("song.flp"));
+        app.state.path = Some(os_web::temp_dir().join("song.flp"));
         for (m, l) in rows {
             assert!(active(&app.state, m, row(m, l)), "{l}: saved");
         }

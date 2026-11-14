@@ -63,7 +63,7 @@ mod tests {
         b.extend(b"data");
         b.extend((data as u32).to_le_bytes());
         b.resize(b.len() + data, 0);
-        let p = std::env::temp_dir().join(format!("os-app-keep-{name}-{}-{k}.wav", std::process::id()));
+        let p = os_web::temp_dir().join(format!("os-app-keep-{name}-{}-{k}.wav", std::process::id()));
         os_web::fs::write(&p, b).unwrap();
         p
     }

@@ -195,7 +195,7 @@ mod tests {
         let mut app = crate::app::App::new(None);
         let items = items(&app.state);
         assert_eq!(items.iter().map(|i| (i.label.to_string(), i.enabled)).collect::<Vec<_>>(), [("Set image wallpaper...".to_string(), true), ("Set dynamic wallpaper / HTML document...".to_string(), false), ("Set background color...".to_string(), false)]);
-        let pic = std::env::temp_dir().join("lemon-wall.png");
+        let pic = os_web::temp_dir().join("lemon-wall.png");
         app.set_wallpaper(&pic);
         let text = app.state.fl_text.clone().unwrap();
         assert_eq!(os_theme::fl::get_key(&text, "BackMode").as_deref(), Some("2"));
@@ -206,14 +206,14 @@ mod tests {
     /// text stay as they were.
     #[test]
     fn relative_names_are_made_absolute() {
-        let dir = std::env::temp_dir().join("lemon-themes");
+        let dir = os_web::temp_dir().join("lemon-themes");
         let text = "\u{feff}Hue=4\r\nBackPicFilename=..\\Pictures\\wall.jpg\r\nBackHTMLFileName=\r\nBackMode=2\r\n";
         let out = absolute_names(text, &dir);
         let want = dir.join("..").join("Pictures").join("wall.jpg");
         assert_eq!(os_theme::fl::get_key(&out, "BackPicFilename").map(PathBuf::from), Some(want.clone()));
         assert_eq!(os_theme::fl::remove_key(&out, "BackPicFilename"), os_theme::fl::remove_key(text, "BackPicFilename"));
         assert_eq!(resolve("..\\Pictures\\wall.jpg", Some(&dir)), want);
-        let abs = std::env::temp_dir().join("wall.png");
+        let abs = os_web::temp_dir().join("wall.png");
         let text = format!("BackPicFilename={}\n", abs.display());
         assert_eq!(absolute_names(&text, &dir), text, "an absolute name is kept");
         assert_eq!(resolve(&abs.to_string_lossy(), Some(&dir)), abs);

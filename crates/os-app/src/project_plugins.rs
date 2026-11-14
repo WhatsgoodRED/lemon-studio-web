@@ -628,7 +628,7 @@ mod tests {
     #[test]
     fn hosted_plugins_save_and_reopen() {
         WRAP_BUILTINS.with(|w| w.set(true));
-        let path = std::env::temp_dir().join(format!("openstudio-wrapped-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-wrapped-{}.flp", std::process::id()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -704,7 +704,7 @@ mod tests {
     #[test]
     fn linked_effects_save_wrapped_and_reopen() {
         use crate::plugins::LINKED_EFFECTS;
-        let path = std::env::temp_dir().join(format!("openstudio-linked-fx-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-linked-fx-{}.flp", std::process::id()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -786,7 +786,7 @@ mod tests {
     /// track keeps the hidden track last (spec: flp/events/mixer.md "Adding tracks").
     #[test]
     fn added_mixer_tracks_save_and_reopen() {
-        let path = std::env::temp_dir().join(format!("openstudio-tracks-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-tracks-{}.flp", std::process::id()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -818,7 +818,7 @@ mod tests {
     /// ui/mixer-track-commands.md §4, flp/events/mixer.md "Removing tracks").
     #[test]
     fn trimmed_mixer_saves_and_reopens() {
-        let path = std::env::temp_dir().join(format!("openstudio-trim-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-trim-{}.flp", std::process::id()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -914,7 +914,7 @@ mod tests {
     /// (spec: flp/events/plugins.md §1).
     #[test]
     fn hosted_native_effects_save_their_state() {
-        let path = std::env::temp_dir().join(format!("openstudio-native-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-native-{}.flp", std::process::id()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -949,7 +949,7 @@ mod tests {
     /// (spec: plugins/fruity-abi.md "Opened projects", "Saved state").
     #[test]
     fn opened_projects_host_their_native_plugins() {
-        let path = std::env::temp_dir().join(format!("openstudio-native-open-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-native-open-{}.flp", std::process::id()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -1114,7 +1114,7 @@ mod tests {
         a.state.project.mixer[4].slots[0] = None;
 
         // Saved untouched: the VST2 plugin's wrapper is written as the file had it; the CLAP plugin as itself.
-        let path = std::env::temp_dir().join(format!("openstudio-stand-in-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-stand-in-{}.flp", std::process::id()));
         let reload = |path: &std::path::Path| os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(path).unwrap()).unwrap()).unwrap();
         let named = a.state.project.mixer[2].slots[0].clone();
         a.save_to(path.clone());

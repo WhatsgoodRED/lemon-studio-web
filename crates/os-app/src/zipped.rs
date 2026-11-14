@@ -251,7 +251,7 @@ fn prepare(app: &mut App, zip: &Path) -> Result<(Vec<u8>, Pack), String> {
     );
     let mut pack = Pack { project, ..Default::default() };
     let nanos = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
-    let temp = std::env::temp_dir().join(format!("lemon-zip-{}-{nanos}.{ext}", std::process::id()));
+    let temp = os_web::temp_dir().join(format!("lemon-zip-{}-{nanos}.{ext}", std::process::id()));
     let saved = app.save_copy_with(temp.clone(), &mut |p| pack.gather(p));
     let bytes = os_web::fs::read(&temp);
     let _ = os_web::fs::remove_file(&temp);
@@ -369,7 +369,7 @@ mod tests {
     use super::*;
 
     fn temp(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("os_zipped_{name}_{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("os_zipped_{name}_{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d

@@ -2698,7 +2698,7 @@ mod tests {
         pl.open_window(0, info).unwrap();
         pump(&mut pl, 300);
         // A bright 2 s saw so a low-pass is audible.
-        let wav = std::env::temp_dir().join(format!("os-app-knob-sound-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-knob-sound-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..88200).flat_map(|i| { let v = ((i as f32 / 44100.0 * 220.0).fract() * 2.0 - 1.0) * 0.4; [v, v] }).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &tone).unwrap();
         // The persisted field is a JSON string holding JSON: forward slashes keep it free of escapes.
@@ -2781,7 +2781,7 @@ mod tests {
         pl.open_window(0, info).unwrap();
         pump(&mut pl, 300);
         // A bright 2 s saw so a low-pass is audible.
-        let wav = std::env::temp_dir().join(format!("os-app-app-knob-sound-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-app-knob-sound-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..88200).flat_map(|i| { let v = ((i as f32 / 44100.0 * 220.0).fract() * 2.0 - 1.0) * 0.4; [v, v] }).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &tone).unwrap();
         // The persisted field is a JSON string holding JSON: forward slashes keep it free of escapes.
@@ -2992,7 +2992,7 @@ mod tests {
     /// Main swing delays an off-beat step played by a hosted Lemon Sampler (spec: flp/events/project-info.md "Swing timing").
     #[test]
     fn swing_reaches_hosted_sampler() {
-        let wav = std::env::temp_dir().join(format!("os-swing-click-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-swing-click-{}.wav", std::process::id()));
         let click: Vec<f32> = (0..48000).flat_map(|i| { let v = if i < 200 { 0.8 } else { 0.0 }; [v, v] }).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &click).unwrap();
         let onsets = |swing: u8| -> Vec<usize> {
@@ -3153,7 +3153,7 @@ mod tests {
         let sampler = pl.index_of(LEMON_SAMPLER).unwrap();
         pl.create_with(0, sampler, None).unwrap();
         // A tenth of a second of sound.
-        let wav = std::env::temp_dir().join(format!("os-app-voices-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-voices-{}.wav", std::process::id()));
         let frames: Vec<f32> = (0..4800).flat_map(|_| [0.25f32; 2]).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
         assert!(pl.load_sample(0, &wav.to_string_lossy()));
@@ -3203,7 +3203,7 @@ mod tests {
     fn builtin_lemon_sampler_takes_the_stretch_settings() {
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
         let index = pl.index_of(LEMON_SAMPLER).expect("built-in Lemon Sampler");
-        let wav = std::env::temp_dir().join(format!("os-app-sampler-stretch-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-sampler-stretch-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..48000)
             .flat_map(|i| {
                 let v = ((f64::from(i) * 440.0 * std::f64::consts::TAU / 48000.0).sin() * 0.5) as f32;
@@ -3295,7 +3295,7 @@ mod tests {
         assert_eq!(fx_from_text(&field), Some(fx));
 
         // The sound: reversed and swapped, nothing else.
-        let wav = std::env::temp_dir().join(format!("os-app-sampler-fx-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-sampler-fx-{}.wav", std::process::id()));
         let frames: Vec<f32> = (0..1000).flat_map(|i| [i as f32 / 1000.0, -(i as f32) / 2000.0]).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
         let mut ch = crate::app::test_project().channels.remove(0);
@@ -3340,7 +3340,7 @@ mod tests {
     fn lemon_sampler_state_without_a_sample_plays_nothing() {
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
         let index = pl.index_of(LEMON_SAMPLER).expect("built-in Lemon Sampler");
-        let wav = std::env::temp_dir().join(format!("os-app-sampler-cleared-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-sampler-cleared-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..9600).flat_map(|i| [((i as f32) * 0.0576).sin() * 0.5; 2]).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &tone).unwrap();
         pl.create_with(0, index, None).unwrap();
@@ -3438,7 +3438,7 @@ mod tests {
         let index = pl.index_of(LEMON_SAMPLER).unwrap();
         pl.create_with(0, index, None).unwrap();
         // One second: silent first half, 0.5 in the second.
-        let wav = std::env::temp_dir().join(format!("os-app-start-late-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-start-late-{}.wav", std::process::id()));
         let frames: Vec<f32> = (0..48000).flat_map(|i| if i < 24000 { [0.0; 2] } else { [0.5; 2] }).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
         assert!(pl.load_sample(0, &wav.to_string_lossy()));
@@ -3491,7 +3491,7 @@ mod tests {
         pump(&mut pl, 300);
         assert_eq!(pl.sampler_path(0).as_deref(), Some(mp3.as_str()));
         // The strip (no editor under the point): loaded through the state instead.
-        let wav = std::env::temp_dir().join(format!("os-app-drop-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-drop-{}.wav", std::process::id()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &[0.5; 2000]).unwrap();
         let wav = wav.to_string_lossy().into_owned();
         assert!(pl.drop_file(0, r.left + 12, r.top + 40, &wav, true));
@@ -3528,7 +3528,7 @@ mod tests {
         let d = pl.descriptor(0).unwrap();
         assert_eq!(d.format, os_host::Format::Vst3);
         assert!(d.uid().starts_with("vst3:") && d.uid().len() == 5 + 32);
-        let wav = std::env::temp_dir().join(format!("os-app-vst3-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-vst3-{}.wav", std::process::id()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
         // A VST3 instance takes a bare component state too (here Lemon Sampler's JSON with the sample).
         let json = format!("{{\"version\":\"0.0.1\",\"params\":{{}},\"fields\":{{\"sample-path\":{}}}}}", json_string(&json_string(&wav.to_string_lossy())));
@@ -3554,8 +3554,8 @@ mod tests {
             let lib = os_vst3::Module::load(p).map(|l| l as Arc<dyn Library>).unwrap();
             Available { desc: lib.plugins()[0].clone(), lib }
         };
-        let path = std::env::temp_dir().join(format!("openstudio-vst3-{}.flp", std::process::id()));
-        let wav = std::env::temp_dir().join(format!("os-app-vst3-save-{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-vst3-{}.flp", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-vst3-save-{}.wav", std::process::id()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.25; 4800]).unwrap();
         let mut a = crate::app::App::new(None);
         a.state.project = crate::app::test_project();
@@ -3850,7 +3850,7 @@ mod tests {
         // One C5 at velocity 100, a beat long, on the new channel.
         let channel = a.state.project.channels[row].index;
         a.state.project.patterns[0].notes = vec![os_model::Note { length: 96, key: 60, ..os_model::Note::step(channel, 0) }];
-        let path = std::env::temp_dir().join(format!("openstudio-native-gen-{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-native-gen-{}.wav", std::process::id()));
         a.transport.export(&a.state.project, os_engine::PlayMode::Pattern(1), 48000, crate::export::Job::wav(&path));
         let t0 = web_time::Instant::now();
         let secs = loop {

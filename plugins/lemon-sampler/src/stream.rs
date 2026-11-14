@@ -824,7 +824,7 @@ mod tests {
 
     fn dir() -> PathBuf {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let d = std::env::temp_dir().join(format!("lemon-sampler-stream-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+        let d = os_web::temp_dir().join(format!("lemon-sampler-stream-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
         os_web::fs::create_dir_all(&d).unwrap();
         d
     }

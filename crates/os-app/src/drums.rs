@@ -136,7 +136,7 @@ mod tests {
         let mut f = b"RIFF".to_vec();
         f.extend((body.len() as u32).to_le_bytes());
         f.extend(body);
-        let p = std::env::temp_dir().join(format!("openstudio-drums-{}-{name}.wav", std::process::id()));
+        let p = os_web::temp_dir().join(format!("openstudio-drums-{}-{name}.wav", std::process::id()));
         os_web::fs::write(&p, f).unwrap();
         p
     }
@@ -184,7 +184,7 @@ mod tests {
     /// reopened project hosts it again from them.
     #[test]
     fn fpc_channels_save_and_reopen() {
-        let file = std::env::temp_dir().join(format!("openstudio-drums-{}.flp", std::process::id()));
+        let file = os_web::temp_dir().join(format!("openstudio-drums-{}.flp", std::process::id()));
         let path = wav("reopen");
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
@@ -254,7 +254,7 @@ mod tests {
             i.note_on(0, key, 100.0 / 128.0);
             assert!(peak(&mut *i) > 0.01, "channel {r}: pad {:?} on key {key} sounds", pad.name);
         }
-        let out = std::env::temp_dir().join(format!("openstudio-drums-breakbeat-{}.flp", std::process::id()));
+        let out = os_web::temp_dir().join(format!("openstudio-drums-breakbeat-{}.flp", std::process::id()));
         let before = a.state.project.clone();
         a.save_to(out.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&out).unwrap()).unwrap()).unwrap();

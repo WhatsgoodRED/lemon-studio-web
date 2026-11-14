@@ -72,7 +72,7 @@ pub fn armed_file(s: &State, track: u16) -> String {
 }
 
 pub(crate) fn folder(s: &State) -> std::path::PathBuf {
-    crate::data_folder::folder(s).or_else(crate::app::theme_dir).unwrap_or_else(std::env::temp_dir).join("Recorded")
+    crate::data_folder::folder(s).or_else(crate::app::theme_dir).unwrap_or_else(os_web::temp_dir).join("Recorded")
 }
 
 impl App {

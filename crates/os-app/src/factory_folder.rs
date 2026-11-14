@@ -87,7 +87,7 @@ mod tests {
     /// resolve sample paths (their placeholders in any case) and shown on the File page; Reset goes back.
     #[test]
     fn the_chosen_folder_resolves_factory_samples() {
-        let root = std::env::temp_dir().join(format!("lemon-factory-folder-{}", std::process::id()));
+        let root = os_web::temp_dir().join(format!("lemon-factory-folder-{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&root);
         let packs = root.join("Data").join("Patches").join("Packs");
         os_web::fs::create_dir_all(&packs).unwrap();

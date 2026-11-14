@@ -2098,7 +2098,7 @@ mod tests {
         assert!(matches!(&pick, Cmd::SlotWin(0, c) if matches!(**c, Cmd::Mixer(MCmd::MemberReplaceInst(CHANNEL, 0, _)))));
 
         // Saved and opened again.
-        let d = std::env::temp_dir().join(format!("lemon-container-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("lemon-container-{}", std::process::id()));
         os_web::fs::create_dir_all(&d).unwrap();
         let path = d.join("Channel.lemon");
         a.save_to(path.clone());
@@ -2361,7 +2361,7 @@ mod tests {
         assert_eq!(members(&a.state, 2, 1).unwrap(), saved);
 
         // Saved in a .lemon file and opened again.
-        let d = std::env::temp_dir().join(format!("lemon-container-own-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("lemon-container-own-{}", std::process::id()));
         os_web::fs::create_dir_all(&d).unwrap();
         let path = d.join("Own.lemon");
         a.save_to(path.clone());

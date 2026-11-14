@@ -138,7 +138,7 @@ impl TrackState {
 pub fn dir() -> Option<PathBuf> {
     if cfg!(test) {
         let thread = format!("{:?}", std::thread::current().id()).chars().filter(char::is_ascii_digit).collect::<String>();
-        return Some(std::env::temp_dir().join(format!("lemon-mixer-states-{}-{thread}", std::process::id())));
+        return Some(os_web::temp_dir().join(format!("lemon-mixer-states-{}-{thread}", std::process::id())));
     }
     os_paths::user_dir().map(|d| d.join("Mixer states"))
 }

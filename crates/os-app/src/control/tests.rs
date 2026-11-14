@@ -354,7 +354,7 @@ fn an_effect_added_by_a_command_is_hosted_without_a_window() {
 #[test]
 fn clients_connect_over_a_local_socket() {
     use std::io::{BufRead, BufReader, Write};
-    let path = std::env::temp_dir().join(format!("lemon-control-{}.sock", std::process::id()));
+    let path = os_web::temp_dir().join(format!("lemon-control-{}.sock", std::process::id()));
     let mut a = app();
     a.listen(server::start(path.to_str().unwrap(), Level::Edit, || {}).unwrap());
     use std::os::unix::fs::PermissionsExt;
@@ -406,7 +406,7 @@ fn command_line_flags() {
 #[test]
 fn saving_asks_the_user_unless_headless() {
     let mut a = app();
-    let path = std::env::temp_dir().join(format!("lemon-control-save-{}.flp", std::process::id()));
+    let path = os_web::temp_dir().join(format!("lemon-control-save-{}.flp", std::process::id()));
     let mut c = rpc::Client { name: "Helper".into(), level: Level::Edit, saves: false, token: None };
     a.state.dialogs.clear();
     let r = a.rpc(&mut c, "save", &json!({"path": path})).ok().unwrap();
@@ -590,7 +590,7 @@ fn a_deleted_channel_s_instrument_comes_back_with_an_undo() {
 #[cfg(unix)]
 #[test]
 fn a_file_in_the_socket_s_place_is_left_alone() {
-    let path = std::env::temp_dir().join(format!("lemon-control-file-{}.flp", std::process::id()));
+    let path = os_web::temp_dir().join(format!("lemon-control-file-{}.flp", std::process::id()));
     os_web::fs::write(&path, b"a project").unwrap();
     assert!(server::start(path.to_str().unwrap(), Level::Edit, || {}).is_err());
     assert_eq!(os_web::fs::read(&path).unwrap(), b"a project");
@@ -874,7 +874,7 @@ fn preset_loads_are_undo_steps() {
     a.plugins.hosted.insert(0, h);
     a.state.project.channels[0].name = Some("808 Snare".into());
     a.params_tick();
-    let dir = std::env::temp_dir().join(format!("os-preset-undo-{}", std::process::id()));
+    let dir = os_web::temp_dir().join(format!("os-preset-undo-{}", std::process::id()));
     os_web::fs::create_dir_all(&dir).unwrap();
     let header = Header { plugin: desc.name.clone(), id: desc.uid(), format: desc.format.as_str().into(), body: String::new() };
     let preset = |name: &str, v: [f64; 2]| {

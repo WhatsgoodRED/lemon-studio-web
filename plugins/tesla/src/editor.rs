@@ -123,7 +123,7 @@ fn gate_db(v: f32) -> String {
 }
 
 fn out_path(title: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join("Tesla");
+    let dir = os_web::temp_dir().join("Tesla");
     let _ = os_web::fs::create_dir_all(&dir);
     let stem = file_stem(title);
     let mut p = dir.join(format!("{stem}.wav"));
@@ -3836,7 +3836,7 @@ mod tests {
 
     #[test]
     fn files_round_trip() {
-        let dir = std::env::temp_dir().join(format!("tesla-editor-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("tesla-editor-{}", std::process::id()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let mut l = logic();
         load(&mut l, sine(500));

@@ -650,7 +650,7 @@ mod tests {
         };
         edit(&mut app, InfoField::Title, "Saved song");
         edit(&mut app, InfoField::Comments, "one");
-        let path = std::env::temp_dir().join(format!("lemonstudio-info-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemonstudio-info-{}.flp", std::process::id()));
         app.save_to(path.clone());
         assert!(!app.unsaved(), "{:?}", app.state.message);
         app.open(path.clone());
@@ -752,7 +752,7 @@ mod tests {
         pick(&mut app, "Jazz");
         assert_eq!(app.state.project.info.genre.as_deref(), Some("Jazz"));
         assert!(app.unsaved());
-        let path = std::env::temp_dir().join(format!("lemonstudio-genre-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemonstudio-genre-{}.flp", std::process::id()));
         app.save_to(path.clone());
         app.open(path.clone());
         let _ = os_web::fs::remove_file(&path);
@@ -923,7 +923,7 @@ mod tests {
         app.state.credits.clock = WorkClock::default();
         app.state.credits.clock.focus(true, Instant::now() - Duration::from_secs(600));
         assert!(!app.unsaved(), "counting is no change");
-        let path = std::env::temp_dir().join(format!("lemonstudio-worktime-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemonstudio-worktime-{}.flp", std::process::id()));
         app.save_to(path.clone());
         assert!(!app.unsaved(), "{:?}", app.state.message);
         let bytes = os_web::fs::read(&path).expect("saved");
@@ -985,7 +985,7 @@ mod tests {
         app.state.project.info.title = Some("Bien Duro".into());
         app.state.project.info.author = Some("Astes".into());
         app.state.project.info.comments = Some("line one\nline two".into());
-        let path = std::env::temp_dir().join(format!("lemonstudio-showinfo-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemonstudio-showinfo-{}.flp", std::process::id()));
         app.save_to(path.clone());
         let bytes = os_web::fs::read(&path).expect("saved");
         assert_eq!(os_flp::project::load(&os_flp::FlpFile::parse(&bytes).expect("parse")).expect("load").show_info, Some(true));

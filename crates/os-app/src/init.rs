@@ -429,7 +429,7 @@ mod tests {
     fn opening_a_song_sets_the_initial_values() {
         const INIT: (f64, f64) = (0.5, 140.0);
         const MOVED: (f64, f64) = (1.0, 90.0);
-        let dir = std::env::temp_dir();
+        let dir = os_web::temp_dir();
         let path = dir.join(format!("lemon-init-open-{}.flp", std::process::id()));
         let resaved = dir.join(format!("lemon-init-open-{}-resaved.flp", std::process::id()));
         let stored = |p: &std::path::Path| {

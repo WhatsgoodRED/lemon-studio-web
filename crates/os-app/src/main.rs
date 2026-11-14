@@ -178,6 +178,8 @@ mod waves;
 mod win_clamp;
 #[cfg(windows)]
 mod file_assoc;
+#[cfg(target_arch = "wasm32")]
+mod web;
 
 use std::num::NonZeroU32;
 use std::rc::Rc;
@@ -662,6 +664,12 @@ impl Shell {
                 self.pending = true;
             }
             menu_bar::update(views::menus::bar_model(&self.app.state));
+        }
+        // The web build: what the page asked for (files dropped or imported, save, export).
+        #[cfg(target_arch = "wasm32")]
+        {
+            let k = self.window.as_ref().map_or(1.0, |w| (w.scale_factor() / ui_scale(w)) as f32);
+            self.pending |= web::run(&mut self.app, k);
         }
         self.pending |= self.app.tick();
         self.sync_detached(el);
@@ -1900,7 +1908,11 @@ fn name_audio_streams() {
 fn main() {
     // The web build: panics go to the browser's console.
     #[cfg(target_arch = "wasm32")]
-    console_error_panic_hook::set_once();
+    {
+        console_error_panic_hook::set_once();
+        // The files kept from the last visit (settings, projects, imported samples, recordings).
+        os_web::fs::preload();
+    }
     #[cfg(target_os = "linux")]
     name_audio_streams();
     #[cfg(windows)]

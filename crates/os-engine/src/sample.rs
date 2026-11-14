@@ -912,7 +912,7 @@ mod tests {
     /// A kept decode is handed out again; once every holder dropped it, or the file changed, the file is decoded anew.
     #[test]
     fn shared_loads_reuse_a_live_decode() {
-        let path = std::env::temp_dir().join(format!("os_engine_shared_{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_engine_shared_{}.wav", std::process::id()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&path).unwrap(), 48000, &[0.25; 960]).unwrap();
         let a = load_shared(&path).unwrap();
         let b = load_shared(&path).unwrap();
@@ -932,7 +932,7 @@ mod tests {
     /// 96 kHz) or by decoding it (the MP3); a file that can't be read has none.
     #[test]
     fn lengths_in_frames_and_rate() {
-        let dir = std::env::temp_dir();
+        let dir = os_web::temp_dir();
         let mono = dir.join(format!("os_engine_length_mono_{}.wav", std::process::id()));
         let mut fmt = vec![1, 0, 1, 0];
         fmt.extend(22050u32.to_le_bytes());
@@ -1052,7 +1052,7 @@ mod tests {
         b.truncate(b.len() - 20);
         assert_eq!(tags(b).unwrap().unity_note, Some(61));
         // From a file; a missing file has none.
-        let path = std::env::temp_dir().join(format!("os_engine_wav_tags_{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_engine_wav_tags_{}.wav", std::process::id()));
         os_web::fs::write(&path, wav(&[smpl(67), acid(4, 60, 95.0)])).unwrap();
         assert_eq!(wav_tags(&path), WavTags { unity_note: Some(67), beats: Some(4) });
         let _ = os_web::fs::remove_file(&path);
@@ -1063,7 +1063,7 @@ mod tests {
     /// flp/layouts.md "Older files", flp/sample-paths.md); a changed install folder finds its samples again.
     #[test]
     fn sample_paths_ignore_case() {
-        let root = std::env::temp_dir().join(format!("os_engine_case_{}", std::process::id()));
+        let root = os_web::temp_dir().join(format!("os_engine_case_{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&root);
         let (one, two) = (root.join("FL One"), root.join("FL Two"));
         for d in [&one, &two] {

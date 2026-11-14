@@ -611,6 +611,10 @@ fn hidden(name: &str, _e: &os_web::fs::DirEntry) -> bool {
 
 /// The user's home folder.
 pub fn home() -> Option<PathBuf> {
+    // The web build: the in-memory file system's user folder.
+    #[cfg(target_arch = "wasm32")]
+    return Some(PathBuf::from("/user"));
+    #[allow(unreachable_code)]
     let v = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })?;
     Some(PathBuf::from(v)).filter(|p| p.vis_dir())
 }
@@ -743,7 +747,7 @@ mod tests {
     use super::*;
 
     fn tmp(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("os-filedlg-{name}-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("os-filedlg-{name}-{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d

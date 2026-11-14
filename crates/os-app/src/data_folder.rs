@@ -139,7 +139,7 @@ pub fn stamp(s: &State, proj: &mut Project) {
 pub fn backup_folder(s: &State, path: Option<&Path>) -> Option<PathBuf> {
     let dir = resolve(&s.project, path).filter(|d| d.vis_dir());
     #[cfg(test)]
-    let dir = dir.filter(|d| d.starts_with(std::env::temp_dir()));
+    let dir = dir.filter(|d| d.starts_with(os_web::temp_dir()));
     match dir {
         Some(dir) if crate::prefs::index(&crate::prefs::BACKUP_LOCATION) == 1 => Some(dir.join(BACKUP_DIR)),
         _ => crate::backup::folder(),
@@ -448,7 +448,7 @@ mod tests {
 
     /// A fresh scratch folder for one test (removed again by the caller).
     pub(crate) fn scratch(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("os_datafolder_{tag}_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_datafolder_{tag}_{}", std::process::id()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         dir

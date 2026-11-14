@@ -834,7 +834,7 @@ mod tests {
         assert!(!a.unsaved());
         crate::playlist::run(&mut a, Cmd::Param(PCmd::Set(key, 35, 1.0)));
         assert!(a.unsaved(), "a parameter set");
-        let copy = std::env::temp_dir().join(format!("lemon-unsaved-copy-{}.flp", std::process::id()));
+        let copy = os_web::temp_dir().join(format!("lemon-unsaved-copy-{}.flp", std::process::id()));
         assert_eq!(a.save_copy(copy.clone()), Some(Ok(())));
         let _ = os_web::fs::remove_file(&copy);
         assert!(a.unsaved(), "after a copy");

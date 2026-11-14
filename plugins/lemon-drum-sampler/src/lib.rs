@@ -284,7 +284,7 @@ pub(crate) mod tests {
         let mut file = b"RIFF".to_vec();
         file.extend((body.len() as u32).to_le_bytes());
         file.extend(body);
-        let p = std::env::temp_dir().join(format!("lemon-drums-{}-{name}.wav", std::process::id()));
+        let p = os_web::temp_dir().join(format!("lemon-drums-{}-{name}.wav", std::process::id()));
         os_web::fs::write(&p, file).unwrap();
         p
     }

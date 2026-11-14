@@ -116,6 +116,8 @@ pub fn lemon_audio_input(samples: &[f32], channels: usize) {
     let ch = channels.max(1);
     let frames = samples.len() / ch;
     input_ring().push(frames, |c, f| samples[f * ch + c.min(ch - 1)]);
+    // One-click recording takes it too while it records.
+    crate::capture::capture().push(frames, |c, f| samples[f * ch + c.min(ch - 1)]);
 }
 
 /// Counts blocks rendered (the page's pump reads it to tell a live stream).
