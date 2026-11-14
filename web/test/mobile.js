@@ -33,6 +33,8 @@ const DEVICES = [
       for (let i = 1; i <= steps; i++) { await touch('touchMove', [[x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps]]); await wait(16); }
       await touch('touchEnd', []); await wait(400);
     };
+    // Polls `test` (an async check) until it holds or `ms` pass: no fixed sleeps for what the app shows.
+    const until = async (test, ms = 2000) => { const end = Date.now() + ms; for (;;) { if (await test()) return true; if (Date.now() > end) return false; await wait(100); } };
     const dbg = () => page.evaluate(() => lemonWeb.lemon.lemon_debug());
     // The canvas's pixels at CSS point (x, y) of a fresh screenshot, to see whether something changed there.
     const region = async (x, y, w, h) => (await page.screenshot({ clip: { x, y, width: w, height: h } })).toString('base64');
@@ -64,13 +66,13 @@ const DEVICES = [
     const rackOpen = () => region(A.sampler[0] - 30, A.sampler[1] - 12, 60, 24);
     const before = await rackOpen();
     await tap(...A.close);
+    const shut = await until(async () => (await rackOpen()) !== before);
     await shot('2-rack-closed');
-    const closed = await rackOpen();
     // After its close box the toolbar button can take two presses to bring it back (the mouse's clicks do the same).
-    let presses = 0, reopened;
-    do { await tap(...A.rackBtn); presses++; await wait(300); reopened = await rackOpen(); } while (reopened !== before && presses < 2);
+    let presses = 0, reopened = false;
+    do { await tap(...A.rackBtn); presses++; reopened = await until(async () => (await rackOpen()) === before, 1500); } while (!reopened && presses < 2);
     await shot('3-rack-open');
-    R.rack = { pass: closed !== before && reopened === before, presses };
+    R.rack = { pass: shut && reopened, presses };
 
     // A long press on Lemon Sampler's button is its right click: the channel's menu opens. A tap on an empty spot
     // puts it away.
