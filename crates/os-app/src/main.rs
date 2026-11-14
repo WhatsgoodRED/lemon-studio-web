@@ -768,6 +768,17 @@ impl ApplicationHandler for Shell {
             let attrs = WindowAttributesExtX11::with_name(attrs, APP_ID, APP_ID);
             attrs.with_window_icon(linux_icon())
         };
+        // The web build draws into the page's canvas (`#lemon-canvas`), sized by the page.
+        #[cfg(target_arch = "wasm32")]
+        let attrs = {
+            use wasm_bindgen::JsCast;
+            use winit::platform::web::WindowAttributesExtWebSys;
+            let canvas = web_sys::window()
+                .and_then(|w| w.document())
+                .and_then(|d| d.get_element_by_id("lemon-canvas"))
+                .and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok());
+            attrs.with_canvas(canvas).with_append(false).with_prevent_default(true).with_focusable(true).with_maximized(false)
+        };
         let window = Rc::new(el.create_window(attrs).expect("create window"));
         #[cfg(target_os = "macos")]
         if frame.is_some_and(|m| m.max) {
@@ -1887,6 +1898,9 @@ fn name_audio_streams() {
 }
 
 fn main() {
+    // The web build: panics go to the browser's console.
+    #[cfg(target_arch = "wasm32")]
+    console_error_panic_hook::set_once();
     #[cfg(target_os = "linux")]
     name_audio_streams();
     #[cfg(windows)]
@@ -2036,6 +2050,14 @@ fn main() {
     };
     #[cfg(unix)]
     stop_signal::install();
+    // The web build: the browser runs the event loop; `main` returns at once and the shell lives on in it.
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::EventLoopExtWebSys;
+        event_loop.spawn_app(shell);
+        return;
+    }
+    #[allow(unreachable_code)]
     event_loop.run_app(&mut shell).expect("run");
     // After a contained plugin crash the process ends here, before plugin files are unloaded (a stopped plugin's code
     // must not run again).

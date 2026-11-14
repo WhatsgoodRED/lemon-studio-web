@@ -169,7 +169,7 @@ pub fn search(app: &mut App, folder: PathBuf) {
     }
     let (tx, rx) = channel();
     let root = folder.clone();
-    std::thread::spawn(move || {
+    os_web::spawn("missing files", move || {
         let _ = tx.send(find_in(&root, wanted, Instant::now() + SEARCH_TIME));
     });
     app.missing.search = Some(Search { rx, folder, started: Instant::now() });

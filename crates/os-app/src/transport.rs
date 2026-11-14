@@ -538,6 +538,13 @@ impl Transport {
         let instruments: Instruments = Arc::new(Mutex::new(Hosts::default()));
         let shared = Arc::new(Shared { sounding: Mutex::new(Vec::with_capacity(256)), ..Shared::default() });
         let s = shared.clone();
+        // The web build has no threads: the audio thread's state is kept for `web_pump`, which the page calls.
+        #[cfg(target_arch = "wasm32")]
+        {
+            web::start(rx, s, latest.clone(), instruments.clone(), host_library(factory));
+            return Transport { tx, latest, sent: Mutex::new(None), instruments, shared, thread: None };
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         let thread = std::thread::Builder::new()
             .name("openstudio-audio".into())
             .spawn({
@@ -549,6 +556,7 @@ impl Transport {
                 }
             })
             .expect("spawn audio thread");
+        #[cfg(not(target_arch = "wasm32"))]
         Transport { tx, latest, sent: Mutex::new(None), instruments, shared, thread: Some(thread) }
     }
 
@@ -1347,6 +1355,12 @@ struct FeedThread {
 }
 
 impl FeedThread {
+    /// The web build: no thread; the renderer fills the queue in the callback (`Renderer::inline`).
+    #[cfg(target_arch = "wasm32")]
+    fn none() -> FeedThread {
+        FeedThread { stop: Arc::new(AtomicBool::new(false)), handle: None }
+    }
+
     fn spawn(mut feeder: Feeder) -> FeedThread {
         let stop = Arc::new(AtomicBool::new(false));
         let handle = std::thread::Builder::new()
@@ -1609,8 +1623,58 @@ struct Audio {
     device: OutputDevice,
 }
 
+/// The web build's audio "thread": its state between calls of `web_pump` (from the page's audio pump and each frame).
+#[cfg(target_arch = "wasm32")]
+pub(crate) mod web {
+    use super::*;
+    use std::cell::RefCell;
+
+    thread_local! {
+        static AUDIO: RefCell<Option<(Receiver<Cmd>, Audio)>> = const { RefCell::new(None) };
+    }
+
+    pub(super) fn start(rx: Receiver<Cmd>, shared: Arc<Shared>, latest: Arc<Mutex<Option<Project>>>, inst: Instruments, library: SampleLibrary) {
+        let a = Audio::new(shared, latest, inst, library);
+        AUDIO.with(|s| *s.borrow_mut() = Some((rx, a)));
+    }
+
+    /// Applies the transport's commands sent since the last call, then what follows them (`Audio::after`).
+    pub fn pump() {
+        AUDIO.with(|s| {
+            let Ok(mut s) = s.try_borrow_mut() else { return };
+            let Some((rx, a)) = s.as_mut() else { return };
+            while let Ok(cmd) = rx.try_recv() {
+                a.command(cmd);
+            }
+            a.after();
+        });
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 fn audio_thread(rx: Receiver<Cmd>, shared: Arc<Shared>, latest: Arc<Mutex<Option<Project>>>, inst: Instruments, library: SampleLibrary) {
-    let mut a = Audio {
+    let mut a = Audio::new(shared, latest, inst, library);
+    // OS_DEBUG: how far playback renders ahead of the device, every 2 s.
+    let debug = std::env::var_os("OS_DEBUG").is_some();
+    let mut logged = Instant::now();
+    loop {
+        crate::device::pump();
+        match rx.recv_timeout(Duration::from_millis(10)) {
+            Ok(cmd) => a.command(cmd),
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => return,
+        }
+        a.after();
+        if debug && logged.elapsed() >= Duration::from_secs(2) {
+            logged = Instant::now();
+            a.log();
+        }
+    }
+}
+
+impl Audio {
+    fn new(shared: Arc<Shared>, latest: Arc<Mutex<Option<Project>>>, inst: Instruments, library: SampleLibrary) -> Audio {
+    Audio {
         shared,
         latest,
         inst,
@@ -1632,22 +1696,7 @@ fn audio_thread(rx: Receiver<Cmd>, shared: Arc<Shared>, latest: Arc<Mutex<Option
         lost: None,
         open_asio: (!HEADLESS.load(Ordering::Acquire)).then(|| (Instant::now(), 0)),
         device: OutputDevice::default(),
-    };
-    // OS_DEBUG: how far playback renders ahead of the device, every 2 s.
-    let debug = std::env::var_os("OS_DEBUG").is_some();
-    let mut logged = Instant::now();
-    loop {
-        crate::device::pump();
-        match rx.recv_timeout(Duration::from_millis(10)) {
-            Ok(cmd) => a.command(cmd),
-            Err(RecvTimeoutError::Timeout) => {}
-            Err(RecvTimeoutError::Disconnected) => return,
-        }
-        a.after();
-        if debug && logged.elapsed() >= Duration::from_secs(2) {
-            logged = Instant::now();
-            a.log();
-        }
+    }
     }
 }
 
@@ -2601,8 +2650,12 @@ impl Stream {
         let slot = Arc::new(Mutex::new(Slot { engine: None, epoch: 0, fade_in: false, reset: 0 }));
         let mut feeder = Feeder::new(slot.clone(), queue.clone(), shared.clone(), ctl.clone(), rate, inst.clone());
         feeder.meters = !preview;
-        let feed = FeedThread::spawn(feeder);
+        #[cfg(not(target_arch = "wasm32"))]
+        let (feed, inline) = (FeedThread::spawn(feeder), None);
+        #[cfg(target_arch = "wasm32")]
+        let (feed, inline) = (FeedThread::none(), Some(feeder));
         let mut r = Renderer::new(queue, ctl.clone(), shared.clone(), rate);
+        r.inline = inline;
         r.tap = !preview;
         r.wake = feed.thread();
         r.gain = 0.0;

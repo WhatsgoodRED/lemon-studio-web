@@ -59,7 +59,7 @@ impl Loading {
         let workers = workers(files.len());
         for _ in 0..workers {
             let (queue, tx) = (queue.clone(), tx.clone());
-            std::thread::spawn(move || loop {
+            os_web::spawn("sample decode", move || loop {
                 let Some(path) = queue.lock().ok().and_then(|mut q| q.pop()) else { break };
                 let s = os_engine::sample::load_shared(&path).ok();
                 let name = path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());

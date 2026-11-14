@@ -1,0 +1,43 @@
+<!doctype html>
+<!-- Lemon Studio in the browser. Lemon Studio is free software under the GNU GPL v3 or later; see LICENSE.txt. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lemon Studio (web)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1d2023; overflow: hidden; font: 13px system-ui, sans-serif; color: #ddd; }
+  #lemon-canvas { position: fixed; left: 0; top: 0; width: 100vw; height: calc(100vh - 24px); display: block; outline: none; touch-action: none; }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; height: 24px; display: flex; align-items: center; gap: 12px; padding: 0 8px; background: #121416; border-top: 1px solid #2a2e33; }
+  #bar a, #bar button { color: #ffe066; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: none; }
+  #bar .sp { flex: 1; }
+  #status { color: #9aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #start { position: fixed; inset: 0 0 24px 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.55); z-index: 5; }
+  #start button { font: 600 18px system-ui; padding: 14px 26px; border-radius: 8px; border: 0; background: #ffe066; color: #222; cursor: pointer; }
+  #drop { position: fixed; inset: 0 0 24px 0; display: none; align-items: center; justify-content: center; border: 3px dashed #ffe066; background: rgba(0,0,0,.4); font-size: 20px; z-index: 6; pointer-events: none; }
+  #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #ccc; }
+</style>
+</head>
+<body>
+<div id="loading">Loading Lemon Studio…</div>
+<canvas id="lemon-canvas" tabindex="0"></canvas>
+<div id="start"><button id="start-btn">Start audio</button></div>
+<div id="drop">Drop audio files (WAV, MP3, FLAC, OGG) or a project</div>
+<div id="bar">
+  <button id="b-import" title="Import audio files into the browser (Browser ▸ Imported)">Import audio…</button>
+  <button id="b-mic" title="Allow the microphone, so mixer tracks can record it">Microphone</button>
+  <button id="b-save" title="Save the project in this browser and download it">Download project</button>
+  <button id="b-open" title="Open a project file">Open project…</button>
+  <button id="b-export" title="Render the song and download a WAV file">Export WAV</button>
+  <span id="status"></span>
+  <span class="sp"></span>
+  <a href="LICENSE.txt" target="_blank" title="GNU General Public License v3">Licence (GPL-3.0)</a>
+  <a href="THIRD-PARTY-NOTICES.txt" target="_blank">Third-party notices</a>
+  <a id="source-link" href="#" target="_blank">Source</a>
+  <a href="https://getlemonstudio.app/" target="_blank" title="Lemon Studio by ItsAlphaNeon and contributors">Lemon Studio</a>
+</div>
+<input id="file-audio" type="file" accept="audio/*,.wav,.mp3,.flac,.ogg,.aif,.aiff,.m4a" multiple hidden>
+<input id="file-project" type="file" accept=".lemon,.flp,.zip,.lemonz" hidden>
+<script type="module" src="lemon-web.js"></script>
+</body>
+</html>

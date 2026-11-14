@@ -39,6 +39,8 @@ mod wasapi;
 mod sound_server;
 pub(crate) mod system_input;
 pub(crate) mod sim;
+#[cfg(target_arch = "wasm32")]
+pub(crate) mod web;
 
 /// Tests leave the sound server's cards alone, but for the one that checks they are given back.
 static HEAL_IN_TESTS: AtomicBool = AtomicBool::new(false);
@@ -406,6 +408,9 @@ pub fn rate() -> Option<u32> {
     if let Some(c) = sim::config() {
         return Some(c.rate);
     }
+    #[cfg(target_arch = "wasm32")]
+    return Some(web::rate());
+    #[allow(unreachable_code)]
     let cfg = AudioCfg::current();
     let opened = LAST.lock().ok().and_then(|l| l.as_ref().filter(|(c, _)| *c == cfg).map(|(_, i)| i.rate));
     opened.or_else(audio_cfg::rate)
@@ -444,6 +449,8 @@ enum Stream {
     #[cfg(windows)]
     Wasapi(#[allow(dead_code)] wasapi::WasapiOut),
     Sim(#[allow(dead_code)] sim::SimOut),
+    #[cfg(target_arch = "wasm32")]
+    Web(#[allow(dead_code)] web::WebOut),
 }
 
 /// The open stream and what it was opened with.
@@ -656,6 +663,9 @@ fn open(cfg: &AudioCfg, xruns: &Arc<AtomicU64>, wait: bool) -> Result<Open, Stri
     if let Some(c) = sim::config() {
         return sim::open(c, xruns);
     }
+    // The browser's output, whatever the settings say.
+    #[cfg(target_arch = "wasm32")]
+    return web::open(xruns);
     #[cfg(windows)]
     if let Some(name) = cfg.asio_driver() {
         let e = match open_asio(name, cfg, xruns) {

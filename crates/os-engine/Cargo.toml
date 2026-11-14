@@ -9,6 +9,8 @@ license.workspace = true
 doctest = false
 
 [dependencies]
+# Threads and files of the web build (std on native).
+os-web.workspace = true
 # `Instant` and `SystemTime` that also work in the web build (std on native).
 web-time = "1"
 os-model.workspace = true

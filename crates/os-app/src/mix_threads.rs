@@ -15,6 +15,10 @@ use std::sync::Arc;
 /// one thread).
 pub fn start() {
     apply();
+    // The web build has one thread: every engine renders on it.
+    if cfg!(target_arch = "wasm32") {
+        return;
+    }
     let workers = match std::env::var("OS_MIX_THREADS").ok().and_then(|v| v.trim().parse::<usize>().ok()) {
         Some(n) => n,
         None => parallel::default_workers(physical_cores()),

@@ -195,9 +195,7 @@ pub fn start(prefs: &db::Prefs, old: Cache, mode: Mode) -> Sweep {
         dirs.retain(|d| d.kind == db::DirKind::Added);
         native.clear();
     }
-    std::thread::Builder::new()
-        .name("plugin scan".into())
-        .spawn(move || {
+    os_web::spawn("plugin scan", move || {
             let found = db::discover(&dirs, native);
             let _ = tx.send(Msg::Progress { done: 0, total: 0, file: String::new() });
             let progress = |done: usize, total: usize, p: &Path| {
@@ -208,8 +206,7 @@ pub fn start(prefs: &db::Prefs, old: Cache, mode: Mode) -> Sweep {
             let cache = db::sweep(&found, &old, mode, rescan_errors, WORKERS, &scan_file, &progress);
             let _ = tx.send(Msg::Done(cache));
             os_host::wake();
-        })
-        .expect("plugin scan thread");
+        });
     Sweep { rx }
 }
 

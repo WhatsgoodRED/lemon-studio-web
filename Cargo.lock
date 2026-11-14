@@ -2163,6 +2163,7 @@ dependencies = [
  "os-plugkit",
  "os-theme",
  "os-ui",
+ "os-web",
  "rfd",
  "tiny-skia",
  "web-time",
@@ -3102,6 +3103,7 @@ dependencies = [
  "os-ui",
  "os-vst2",
  "os-vst3",
+ "os-web",
  "press",
  "pulp-filter",
  "pulseaudio",
@@ -3158,6 +3160,7 @@ dependencies = [
  "miniz_oxide 0.8.9",
  "os-dsp",
  "os-model",
+ "os-web",
  "symphonia",
  "symphonia-codec-wavpack",
  "thiserror 2.0.21",
@@ -3303,6 +3306,13 @@ dependencies = [
  "vst3-sys",
  "web-time",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "os-web"
+version = "0.0.1"
+dependencies = [
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -4419,6 +4429,7 @@ dependencies = [
  "os-plugkit",
  "os-theme",
  "os-ui",
+ "os-web",
  "rfd",
  "serde",
  "serde_json",
@@ -5024,8 +5035,6 @@ dependencies = [
 [[package]]
 name = "web-time"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

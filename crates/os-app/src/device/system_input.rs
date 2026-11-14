@@ -67,6 +67,13 @@ pub fn info() -> Option<Info> {
     if cfg!(test) {
         return None;
     }
+    // The browser's microphone, once the page has one.
+    #[cfg(target_arch = "wasm32")]
+    return match super::web::mic_channels() {
+        0 => None,
+        ch => Some(Info { name: "Microphone".into(), channels: ch }),
+    };
+    #[allow(unreachable_code)]
     let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
     if !c.asking && c.at.is_none_or(|t| t.elapsed() >= KEEP) {
         c.asking = true;
@@ -114,6 +121,8 @@ pub struct SystemInput {
 impl Drop for SystemInput {
     fn drop(&mut self) {
         drop(self.stream.take());
+        #[cfg(target_arch = "wasm32")]
+        super::web::want_mic(false, 0);
         input_ring().open(0, 0);
         if self.alsa {
             super::heal_sound_server();
@@ -131,6 +140,17 @@ impl SystemInput {
 /// Opens the input device of `cfg` (`audio_cfg::input_device`) at `rate` (the output's), with blocks of about `block`
 /// frames.
 pub fn open(cfg: &AudioCfg, rate: u32, block: Option<u32>) -> Result<SystemInput, String> {
+    // The browser's microphone: the page records while the input is wanted and writes into the ring.
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (cfg, rate);
+        if super::web::mic_channels() == 0 {
+            return Err("no microphone (allow the browser to use it)".into());
+        }
+        super::web::want_mic(true, block.unwrap_or(512) as usize);
+        return Ok(SystemInput { stream: None, name: "Microphone".into(), failed: Arc::new(AtomicBool::new(false)), alsa: false });
+    }
+    #[allow(unreachable_code)]
     let host = audio_cfg::host(cfg);
     let device = audio_cfg::input_device(cfg).ok_or("no audio input device")?;
     let name = audio_cfg::device_name(&device);

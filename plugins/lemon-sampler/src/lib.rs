@@ -525,7 +525,7 @@ impl Shared {
         *slot = SummarySlot { version, asked: true, summary: None };
         let (me, path, layout) = (self.clone(), self.loaded_path(), *played.disk().layout());
         drop(played);
-        std::thread::spawn(move || {
+        os_web::spawn("sampler summary", move || {
             let made = stream::Summary::read(Path::new(&path), &layout).map(Arc::new);
             if let Ok(mut slot) = me.summary.lock() {
                 if slot.version == version {
@@ -544,7 +544,7 @@ impl Shared {
             return;
         }
         let (s, p) = (self.clone(), params.clone());
-        std::thread::spawn(move || s.precompute(&p));
+        os_web::spawn("sampler precompute", move || s.precompute(&p));
     }
 
     /// True when the processed sample is out of date for the current settings.

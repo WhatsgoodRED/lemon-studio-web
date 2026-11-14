@@ -1,0 +1,13 @@
+[package]
+name = "os-web"
+description = "Lemon Studio's web build shims: threads that run inline or on a ticker, and an in-memory file system (std on native)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+doctest = false
+test = false
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"

@@ -309,6 +309,7 @@ pub fn joined(s: &Sample, t: &Take, append: bool) -> Sample {
     out
 }
 
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 fn drain_loop(shared: Weak<Shared>) {
     loop {
         std::thread::sleep(web_time::Duration::from_millis(10));
@@ -511,7 +512,16 @@ impl Plugin for Tesla {
         self.shared().host_rate.store(config.sample_rate.round() as u32, Ordering::Relaxed);
         if !self.drain_started {
             let weak = Arc::downgrade(self.shared());
-            self.drain_started = std::thread::Builder::new().name("tesla-take".into()).spawn(move || drain_loop(weak)).is_ok();
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                self.drain_started = std::thread::Builder::new().name("tesla-take".into()).spawn(move || drain_loop(weak)).is_ok();
+            }
+            // The web build: the page's ticker drains the take (`os_web::tick`).
+            #[cfg(target_arch = "wasm32")]
+            {
+                os_web::every(move || weak.upgrade().map(|s| s.drain()).is_some());
+                self.drain_started = true;
+            }
         }
         true
     }
