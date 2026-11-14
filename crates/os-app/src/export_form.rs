@@ -583,7 +583,7 @@ mod tests {
         // The render started (and keeps going in the background); the next form remembers FLAC.
         while app.export.is_some() {
             app.plugin_tick();
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         app.act(crate::app::Action::MenuItem(0, FILE_EXPORT));
         assert_eq!(form(&app).unwrap().o.formats, [true, true, false, false], "WAV (the default) and FLAC");

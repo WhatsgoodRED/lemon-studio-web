@@ -329,7 +329,7 @@ impl Recorder {
                     if last {
                         break;
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    std::thread::sleep(web_time::Duration::from_millis(5));
                 }
                 let raw = w.into_inner().map_err(|e| e.to_string())?;
                 drop(raw);
@@ -438,7 +438,7 @@ mod tests {
         capture().start(0, true);
         let stream = open_input(&name).expect("opens");
         let rate = stream.rate;
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::thread::sleep(web_time::Duration::from_millis(500));
         drop(stream);
         capture().stop();
         let frames = capture().frames();

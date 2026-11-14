@@ -16,7 +16,7 @@
 use std::ffi::CString;
 use std::io::BufReader;
 use std::os::unix::net::UnixStream;
-use std::time::Duration;
+use web_time::Duration;
 
 use pulseaudio::protocol::{self, Command};
 

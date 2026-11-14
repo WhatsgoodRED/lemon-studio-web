@@ -947,7 +947,7 @@ pub enum Drag {
     /// The song position slider's handle (`dx` = grab offset from its centre), or the button held on its track (the
     /// next step is due at `next`) (spec: ui/song-position-slider.md §3).
     SongPos { dx: f32 },
-    SongPosHold { next: std::time::Instant },
+    SongPosHold { next: web_time::Instant },
     /// The piano roll's grid / event panel splitter: `dy` = grab offset from the band's top, `top` = the grid's top,
     /// `h` = the height the grid and the panel share.
     PianoSplit { dy: f32, top: f32, h: f32 },
@@ -1142,7 +1142,7 @@ pub struct State {
     /// Width of the docked browser incl. its splitter, as dragged (`views::browser_w` keeps it in range), kept between
     /// runs, and the last press on the splitter, for its double click (spec: ui/browser.md §9).
     pub browser_w: f32,
-    pub browser_split_click: Option<std::time::Instant>,
+    pub browser_split_click: Option<web_time::Instant>,
     /// The hovered row whose label is scrolling, as last painted (spec: ui/browser.md §9).
     pub browser_marquee: std::cell::RefCell<Option<views::browser::Marquee>>,
     /// Favorite files (spec: ui/browser.md §10) and the index of the browser's disk folders (§11).
@@ -1403,7 +1403,7 @@ pub struct App {
     /// The notes the Playback tool's line holds sounding: (rack row, key, velocity).
     scrub_notes: Vec<(usize, u16, u8)>,
     /// When the mixer's cables were last stepped (`None` while they are still).
-    cables_at: Option<std::time::Instant>,
+    cables_at: Option<web_time::Instant>,
     /// Velocity of the next key the mouse sounds (a keyboard click sets it from the click's x; back to the default
     /// after use).
     key_velocity: u8,
@@ -1415,11 +1415,11 @@ pub struct App {
     /// Step edit's chord being collected from the typing keyboard and MIDI notes (`crate::step_edit`).
     pub(crate) step_chord: crate::step_edit::Chord,
     /// Last title-bar press (window, time, position), for double-click maximize / restore.
-    pub(crate) title_click: Option<(Win, std::time::Instant, (f32, f32))>,
+    pub(crate) title_click: Option<(Win, web_time::Instant, (f32, f32))>,
     /// Last channel-rack press (action, time), for double clicks on slots and mixer boxes (§8, §12).
-    rack_click: Option<(Action, std::time::Instant)>,
+    rack_click: Option<(Action, web_time::Instant)>,
     /// Last press on the CPU panel, for its double click (the Plugin performance monitor).
-    cpu_click: Option<std::time::Instant>,
+    cpu_click: Option<web_time::Instant>,
     pub hint: Cow<'static, str>,
     pub mouse: (f32, f32),
     pub drag: Option<Drag>,
@@ -1464,7 +1464,7 @@ pub struct App {
     /// The right button is held (`App::tool_wheel`).
     pub right_down: bool,
     /// The piano roll's last right press on a ghost note: its channel's rack row, and when (`App::ghost_double`).
-    ghost_right: Option<(usize, std::time::Instant)>,
+    ghost_right: Option<(usize, web_time::Instant)>,
     /// The right Shift key is held (the playlist's quick slice, ui/playlist.md §3).
     pub rshift: bool,
     /// The key now passed to [`App::key`] is an auto-repeat of a held key (spec: ui/piano-keys.md §4 rule 1).
@@ -1501,7 +1501,7 @@ pub struct App {
     /// Wrapped plugin channels (rows) and slots (`fx_key`) whose plugin was not found or did not start (not retried).
     pub(crate) wrap_failed: Vec<usize>,
     /// When the Lemon Trio instances were last looked at for a sample they loaded (`follow_osc3_samples`).
-    pub(crate) osc3_look: Option<std::time::Instant>,
+    pub(crate) osc3_look: Option<web_time::Instant>,
     /// Plugin channels (rows) and slots (`fx_key`) naming a native plugin that is not installed or did not start
     /// (not retried; spec: plugins/fruity-abi.md "Opened projects").
     pub(crate) native_failed: Vec<usize>,
@@ -1513,7 +1513,7 @@ pub struct App {
     pub(crate) zipping: Option<crate::zipped::Zipping>,
     /// While a project loads: when the plugin hosts stop for this tick (`host_plugins`), and whether one stopped with
     /// instances left to start.
-    host_deadline: Option<std::time::Instant>,
+    host_deadline: Option<web_time::Instant>,
     host_more: bool,
     /// An export is rendering (FILE > Export): its first file's name and progress (0..1); the same panel shows, input
     /// waits.
@@ -2576,7 +2576,7 @@ impl App {
     /// a channel without an instance gets one, started from the channel's sample and envelopes. Without Lemon Sampler
     /// (plugin not found) sampler channels keep the engine's own sample playback.
     /// With a `deadline` it stops after the instance that passes it; returns whether every sampler row is done.
-    fn sync_samplers(&mut self, deadline: Option<std::time::Instant>) -> bool {
+    fn sync_samplers(&mut self, deadline: Option<web_time::Instant>) -> bool {
         let Some(index) = self.plugins.index_of(crate::plugins::LEMON_SAMPLER) else { return true };
         let mut added = false;
         let mut done = true;
@@ -2585,7 +2585,7 @@ impl App {
             if !ch.kind.is_sampler() || self.state.hosted_rows.contains(&row) || self.sampler_failed.contains(&row) {
                 continue;
             }
-            if deadline.is_some_and(|d| std::time::Instant::now() >= d) {
+            if deadline.is_some_and(|d| web_time::Instant::now() >= d) {
                 done = false;
                 break;
             }
@@ -2625,7 +2625,7 @@ impl App {
             self.sync_samplers(None);
             return;
         };
-        let deadline = std::time::Instant::now() + crate::loading::HOST_BUDGET;
+        let deadline = web_time::Instant::now() + crate::loading::HOST_BUDGET;
         // Then the plugin channels and mixer effects, under the same budget, then the samplers' played samples.
         if decoded && self.sync_samplers(Some(deadline)) && self.host_plugins(deadline) && self.loading.as_mut().is_some_and(|l| l.builds_done()) {
             self.loading = None;
@@ -2639,7 +2639,7 @@ impl App {
 
     /// Starts the opened project's plugin channels and mixer effects until `deadline` (`project_plugins::sync_wrapped`
     /// and the other hosts stop after the instance that passes it): true when none is left to start.
-    fn host_plugins(&mut self, deadline: std::time::Instant) -> bool {
+    fn host_plugins(&mut self, deadline: web_time::Instant) -> bool {
         self.host_deadline = Some(deadline);
         self.host_more = false;
         self.sync_effects();
@@ -2667,7 +2667,7 @@ impl App {
 
     /// Whether the plugin hosts' time this tick is over (`host_plugins`): the host that asks stops and goes on next tick.
     pub(crate) fn past_deadline(&mut self) -> bool {
-        let past = self.host_deadline.is_some_and(|d| std::time::Instant::now() >= d);
+        let past = self.host_deadline.is_some_and(|d| web_time::Instant::now() >= d);
         self.host_more |= past;
         past
     }
@@ -3606,7 +3606,7 @@ impl App {
         if !s.shown(Win::Perf) {
             s.perf.reset();
             let src = self.perf_sources();
-            self.state.perf.read(std::time::Instant::now(), src);
+            self.state.perf.read(web_time::Instant::now(), src);
         }
         self.state.raise(Win::Perf);
         self.invalidate();
@@ -4281,7 +4281,7 @@ impl App {
         }
     }
 
-    fn cables_tick(&mut self, now: std::time::Instant) {
+    fn cables_tick(&mut self, now: web_time::Instant) {
         if !self.state.shown(Win::Mixer) {
             self.state.cables.get_mut().clear();
             self.cables_at = None;
@@ -4314,7 +4314,7 @@ impl App {
             // Scope / analyzer / peak bars: from the audio tap; repaint just the monitor when it changed.
             // The monitor advances at its own refresh rate, however often we tick.
             let (tp, rate) = (&self.transport, self.transport.sample_rate());
-            if self.state.monitor.update(std::time::Instant::now(), rate, || tp.take_peaks(), |b| tp.tap(b)) {
+            if self.state.monitor.update(web_time::Instant::now(), rate, || tp.take_peaks(), |b| tp.tap(b)) {
                 self.damage_band(MONITOR_RECT);
             }
         }
@@ -7125,7 +7125,7 @@ impl App {
             self.ghost_right = None;
             return false;
         };
-        let now = std::time::Instant::now();
+        let now = web_time::Instant::now();
         let double = self.ghost_right.is_some_and(|(r, at)| r == row && now.duration_since(at).as_millis() < 450);
         self.ghost_right = (!double).then_some((row, now));
         if double {
@@ -10834,7 +10834,7 @@ mod tests {
             app.state.monitor.debug = true;
             let mut seed = 12345u32;
             let mut phase = 0.0f32;
-            app.state.monitor.update(std::time::Instant::now(), 48000, || (0.5, 0.42), |b| {
+            app.state.monitor.update(web_time::Instant::now(), 48000, || (0.5, 0.42), |b| {
                 for v in b.iter_mut() {
                     seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
                     let noise = (seed >> 8) as f32 / 8388608.0 - 1.0;
@@ -14938,7 +14938,7 @@ mod tests {
         let mut app = App::new(None);
         frame(&mut app, &mut c, None);
         let r = hit_rect(&app, &Action::CpuPanel);
-        assert!(app.state.cpu.update(std::time::Instant::now(), Some(0.25), 3, 0, 0));
+        assert!(app.state.cpu.update(web_time::Instant::now(), Some(0.25), 3, 0, 0));
         app.mouse_move(r.cx(), r.cy());
         assert!(app.hint.contains("Audio load 25%") && app.hint.contains("3 voices"), "{}", app.hint);
         // One click does nothing; the menu's Audio settings opens the Audio tab.
@@ -15184,7 +15184,7 @@ mod tests {
     fn cpu_panel_menu_and_performance_monitor() {
         use crate::cpu::{CpuCmd, Refresh};
         use crate::perf::{Col, PerfAct};
-        use std::time::{Duration, Instant};
+        use web_time::{Duration, Instant};
         use winit::keyboard::{Key, NamedKey, SmolStr};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let mut app = App::new(None);
@@ -15438,7 +15438,7 @@ mod tests {
     /// the same as a full paint, in both designs; once out, ticking stops.
     #[test]
     fn tempo_tapper_flash_repaints_the_pad() {
-        use std::time::{Duration, Instant};
+        use web_time::{Duration, Instant};
         for design in Design::ALL {
             let Ok(mut a) = Canvas::new(1920, 1080, 1.0) else { return };
             let mut b = Canvas::new(1920, 1080, 1.0).unwrap();
@@ -15478,7 +15478,7 @@ mod tests {
     #[ignore]
     fn render_ahead_on_asio() {
         use crate::audio_cfg::AudioCfg;
-        use std::time::{Duration, Instant};
+        use web_time::{Duration, Instant};
         let var = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
         let driver = var("LEMON_ASIO").unwrap_or_else(|| "ASIO4ALL v2".into());
         let buffers: Vec<u32> = var("LEMON_ASIO_BUFFERS").unwrap_or_else(|| "64,128,256".into()).split(',').filter_map(|b| b.trim().parse().ok()).collect();
@@ -15594,7 +15594,7 @@ mod tests {
     #[test]
     #[ignore]
     fn playing_lemon_3x_osc_keeps_the_audio_going() {
-        use std::time::{Duration, Instant};
+        use web_time::{Duration, Instant};
         use winit::keyboard::KeyCode;
         let mut app = App::new(None);
         app.plugins = crate::plugins::Plugins::default();
@@ -15820,7 +15820,7 @@ mod tests {
     /// without sampler flags (made before they were set).
     #[test]
     fn a_long_audio_clip_exports_once() {
-        use std::time::Duration;
+        use web_time::Duration;
         let mut a = App::new(None);
         a.plugins = crate::plugins::Plugins::default();
         a.plugins.available = crate::plugins::builtin();
@@ -15849,7 +15849,7 @@ mod tests {
         let out = std::env::temp_dir().join(format!("os-app-long-clip-{}-export.wav", std::process::id()));
         a.plugins.set_offline(true);
         a.transport.export(&p, PlayMode::Song, 48000, crate::export::Job::wav(&out));
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         loop {
             match a.transport.export_status() {
                 crate::transport::Export::Done(r) => break assert!(r.is_ok(), "{r:?}"),
@@ -15879,7 +15879,7 @@ mod tests {
     #[test]
     fn an_export_playing_from_disk_is_the_one_from_memory() {
         use serde_json::json;
-        use std::time::Duration;
+        use web_time::Duration;
         // 20 seconds of two tones and their overtones at 44100 Hz (the sampler resamples it to 48 kHz).
         let wav = std::env::temp_dir().join(format!("os-app-keep-on-disk-{}.wav", std::process::id()));
         let src: Vec<f32> = (0..20 * 44100)
@@ -15914,7 +15914,7 @@ mod tests {
             a.plugins.set_offline(false);
             lemon_sampler::stream::export_started();
             a.transport.export(&p, PlayMode::Song, 48000, crate::export::Job::wav(&out));
-            let t0 = std::time::Instant::now();
+            let t0 = web_time::Instant::now();
             loop {
                 match a.transport.export_status() {
                     crate::transport::Export::Done(r) => break assert!(r.is_ok(), "{r:?}"),
@@ -15947,7 +15947,7 @@ mod tests {
     /// "Automatic crossfades").
     #[test]
     fn overlapping_clips_of_one_sample_export_flat() {
-        use std::time::Duration;
+        use web_time::Duration;
         let mut a = App::new(None);
         a.plugins = crate::plugins::Plugins::default();
         a.plugins.available = crate::plugins::builtin();
@@ -15971,7 +15971,7 @@ mod tests {
         let out = std::env::temp_dir().join(format!("os-app-crossfade-{}-export.wav", std::process::id()));
         a.plugins.set_offline(true);
         a.transport.export(&p, PlayMode::Song, 48000, crate::export::Job::wav(&out));
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         loop {
             match a.transport.export_status() {
                 crate::transport::Export::Done(r) => break assert!(r.is_ok(), "{r:?}"),
@@ -16086,10 +16086,10 @@ mod tests {
         b.plugins.available = crate::plugins::builtin();
         b.open(flp.clone());
         let _ = std::fs::remove_file(&flp);
-        let t0 = std::time::Instant::now();
-        while !b.state.hosted_rows.contains(&row) && t0.elapsed() < std::time::Duration::from_secs(20) {
+        let t0 = web_time::Instant::now();
+        while !b.state.hosted_rows.contains(&row) && t0.elapsed() < web_time::Duration::from_secs(20) {
             b.plugin_tick();
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         let reopened = &b.state.project.channels[row];
         assert_eq!((reopened.envelopes, reopened.sound), (saved.envelopes, saved.sound));
@@ -16194,10 +16194,10 @@ mod tests {
         assert!(app.animating(), "the panel keeps ticking");
         let mut canvas = Canvas::new(1920, 1080, 1.0).unwrap();
         app.paint(&mut canvas, None);
-        let t0 = std::time::Instant::now();
-        while app.loading() && t0.elapsed() < std::time::Duration::from_secs(20) {
+        let t0 = web_time::Instant::now();
+        while app.loading() && t0.elapsed() < web_time::Duration::from_secs(20) {
             app.plugin_tick();
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         assert!(!app.loading(), "loading ends");
         for &r in &rows {
@@ -16321,10 +16321,10 @@ mod tests {
         app.plugins.available = crate::plugins::builtin();
         app.open(dir.join("Song.lemon"));
         let mut canvas = Canvas::new(1920, 1080, 1.0).unwrap();
-        let t0 = std::time::Instant::now();
-        while app.loading() && t0.elapsed() < std::time::Duration::from_secs(20) {
+        let t0 = web_time::Instant::now();
+        while app.loading() && t0.elapsed() < web_time::Duration::from_secs(20) {
             app.plugin_tick();
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         for _ in 0..5 {
             app.tick();
@@ -16955,9 +16955,9 @@ mod tests {
         assert!(m.over > 0.0 && m.off == 0.0, "still at first: {m:?}");
         assert!(app.animating());
         // Two seconds on, its rect is repainted and the label has moved.
-        app.state.browser_marquee.get_mut().as_mut().unwrap().since -= std::time::Duration::from_secs(2);
+        app.state.browser_marquee.get_mut().as_mut().unwrap().since -= web_time::Duration::from_secs(2);
         app.take_damage();
-        app.marquee_tick(std::time::Instant::now());
+        app.marquee_tick(web_time::Instant::now());
         assert!(app.has_damage());
         frame(&mut app, &mut c, None);
         assert!(app.state.browser_marquee.borrow().as_ref().unwrap().off > 0.0);
@@ -17335,7 +17335,7 @@ mod tests {
         }
         app.act(Action::Play);
         for _ in 0..30 {
-            std::thread::sleep(std::time::Duration::from_millis(16));
+            std::thread::sleep(web_time::Duration::from_millis(16));
             app.tick();
         }
         assert!(app.transport.playing());
@@ -17344,7 +17344,7 @@ mod tests {
         assert!(piano::notes(&app.state).is_empty());
         let mut loud = 0;
         for i in 0..120 {
-            std::thread::sleep(std::time::Duration::from_millis(16));
+            std::thread::sleep(web_time::Duration::from_millis(16));
             app.tick();
             if i > 20 && !app.transport.sounding().is_empty() {
                 loud += 1;
@@ -17359,7 +17359,7 @@ mod tests {
     #[ignore]
     fn transport_states_and_modes() {
         use crate::transport::State as T;
-        let step = || std::thread::sleep(std::time::Duration::from_millis(250));
+        let step = || std::thread::sleep(web_time::Duration::from_millis(250));
         let mut app = App::new(None);
         let ch = app.state.project.channels[0].index;
         app.state.project.patterns = vec![Pattern {
@@ -17376,9 +17376,9 @@ mod tests {
         // Song mode. A device opening for the first time may take a while.
         app.act(Action::PatSong(true));
         app.act(Action::Play);
-        let start = std::time::Instant::now();
-        while app.transport.tick() <= 10.0 && start.elapsed() < std::time::Duration::from_secs(3) {
-            std::thread::sleep(std::time::Duration::from_millis(20));
+        let start = web_time::Instant::now();
+        while app.transport.tick() <= 10.0 && start.elapsed() < web_time::Duration::from_secs(3) {
+            std::thread::sleep(web_time::Duration::from_millis(20));
         }
         assert_eq!(app.transport.state(), T::Playing);
         assert!(app.transport.song() && app.transport.tick() > 10.0, "song tick {}", app.transport.tick());
@@ -17549,10 +17549,10 @@ mod tests {
             app.mouse_up();
             frame(&mut app, &mut c, None);
             app.tick();
-            std::thread::sleep(std::time::Duration::from_millis(30));
+            std::thread::sleep(web_time::Duration::from_millis(30));
         }
         for _ in 0..60 {
-            std::thread::sleep(std::time::Duration::from_millis(16));
+            std::thread::sleep(web_time::Duration::from_millis(16));
             app.tick();
         }
         assert!(!app.transport.sounding().is_empty() || app.transport.peaks().0 > 0.0, "playing notes");
@@ -17579,7 +17579,7 @@ mod tests {
         assert!(piano::notes(&app.state).iter().all(|n| Some(n.channel) != ch), "{:?}", piano::notes(&app.state));
         let mut loud = 0;
         for i in 0..150 {
-            std::thread::sleep(std::time::Duration::from_millis(16));
+            std::thread::sleep(web_time::Duration::from_millis(16));
             app.tick();
             if i > 20 && !app.transport.sounding().is_empty() {
                 loud += 1;
@@ -19994,11 +19994,11 @@ mod tests {
 
     /// Follows a playlist render (Consolidate, Export all playlist tracks) as the app's tick does, until it is done.
     fn finish_playlist_render(app: &mut App) -> String {
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         while app.export.is_some() || app.playlist_render.is_some() {
             assert!(t0.elapsed().as_secs() < 120, "the render did not finish");
             app.export_tick();
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         app.state.message.clone().unwrap_or_default()
     }
@@ -21257,10 +21257,10 @@ mod tests {
             ..Default::default()
         }];
         app.act(Action::Play);
-        std::thread::sleep(std::time::Duration::from_millis(300));
+        std::thread::sleep(web_time::Duration::from_millis(300));
         assert!(app.transport.playing() && !app.transport.song());
         ruler_press(&mut app, &mut c, g.x_of(4.0 * bar as f32) + 1.0, g.x_of(4.0 * bar as f32) + 1.0, ruler.cy(), false);
-        std::thread::sleep(std::time::Duration::from_millis(300));
+        std::thread::sleep(web_time::Duration::from_millis(300));
         assert!(app.state.song_mode && app.transport.playing() && app.transport.song(), "the song plays");
         let tick = app.transport.tick();
         assert!(tick >= f64::from(4 * bar) && tick < f64::from(5 * bar), "from the clicked bar: {tick}");
@@ -21609,9 +21609,9 @@ mod tests {
         // Held: steps every repeat until the handle is under the pointer (1584 ticks), then it stays.
         app.mouse_down();
         assert_eq!(pos(&app), 72);
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         for i in 1..60 {
-            app.song_pos_tick(t0 + std::time::Duration::from_millis(250 * i));
+            app.song_pos_tick(t0 + web_time::Duration::from_millis(250 * i));
         }
         assert_eq!(pos(&app), 1584, "stopped under the pointer");
         assert!(app.animating(), "the hold ticks at animation rate");
@@ -23911,9 +23911,9 @@ mod tests {
         app.open_settings(PLUGINS);
         frame(&mut app, &mut c, None);
         let finish = |app: &mut App| {
-            let t0 = std::time::Instant::now();
-            while app.sweep.is_some() && t0.elapsed() < std::time::Duration::from_secs(20) {
-                std::thread::sleep(std::time::Duration::from_millis(5));
+            let t0 = web_time::Instant::now();
+            while app.sweep.is_some() && t0.elapsed() < web_time::Duration::from_secs(20) {
+                std::thread::sleep(web_time::Duration::from_millis(5));
                 app.scan_tick();
             }
             assert!(app.sweep.is_none(), "the scan ends");
@@ -24000,7 +24000,7 @@ mod tests {
         use crate::plugins::fx_key;
         use crate::views::settings::{Plug, SAct, PLUGINS};
         use os_host::Format;
-        use std::time::Duration;
+        use web_time::Duration;
         use winit::keyboard::{Key, NamedKey};
         let Some(dir) = std::env::var_os("OS_VST2_DIR").map(PathBuf::from) else { return };
         let dir32 = std::env::var_os("OS_VST2_DIR32").map(PathBuf::from);
@@ -24016,9 +24016,9 @@ mod tests {
         a.open_settings(PLUGINS);
         frame(&mut a, &mut c, None);
         let finish = |a: &mut App| {
-            let t0 = std::time::Instant::now();
-            while a.sweep.is_some() && t0.elapsed() < std::time::Duration::from_secs(120) {
-                std::thread::sleep(std::time::Duration::from_millis(5));
+            let t0 = web_time::Instant::now();
+            while a.sweep.is_some() && t0.elapsed() < web_time::Duration::from_secs(120) {
+                std::thread::sleep(web_time::Duration::from_millis(5));
                 a.scan_tick();
             }
             assert!(a.sweep.is_none(), "the scan ends");
@@ -24109,7 +24109,7 @@ mod tests {
         let export = |a: &mut App, tag: &str| -> Vec<f32> {
             let path = std::env::temp_dir().join(format!("lemon-vst2-{tag}-{}.wav", std::process::id()));
             a.transport.export(&a.state.project, os_engine::PlayMode::Song, rate, crate::export::Job::wav(&path));
-            let t0 = std::time::Instant::now();
+            let t0 = web_time::Instant::now();
             let _secs = loop {
                 match a.transport.export_status() {
                     crate::transport::Export::Done(r) => break r.expect("export").0,
@@ -24458,9 +24458,9 @@ mod tests {
         AudioCfg::default().with(Set::Asio(driver)).apply();
         let mut app = App::new(None);
         // The driver opens with the audio thread; the page then shows its buffer length.
-        let t = std::time::Instant::now();
-        while crate::device::opens() == 0 && t.elapsed() < std::time::Duration::from_secs(3) {
-            std::thread::sleep(std::time::Duration::from_millis(20));
+        let t = web_time::Instant::now();
+        while crate::device::opens() == 0 && t.elapsed() < web_time::Duration::from_secs(3) {
+            std::thread::sleep(web_time::Duration::from_millis(20));
         }
         app.open_settings(AUDIO);
         app.audio_status();
@@ -24494,9 +24494,9 @@ mod tests {
         app.state.playlist.popup = None;
         // As picked on the page: the driver is let go of, and the device opens in exclusive mode with the first note.
         app.set_audio(Set::Mode(true));
-        let t = std::time::Instant::now();
-        while app.transport.opened().is_some() && t.elapsed() < std::time::Duration::from_secs(3) {
-            std::thread::sleep(std::time::Duration::from_millis(20));
+        let t = web_time::Instant::now();
+        while app.transport.opened().is_some() && t.elapsed() < web_time::Duration::from_secs(3) {
+            std::thread::sleep(web_time::Duration::from_millis(20));
         }
         app.open_settings(AUDIO);
         app.audio_status();

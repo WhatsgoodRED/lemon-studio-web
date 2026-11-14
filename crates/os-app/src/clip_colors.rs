@@ -70,7 +70,7 @@ pub(crate) fn clock() -> u64 {
     if cfg!(test) {
         return 0x5eed;
     }
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64)
+    web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64)
 }
 
 /// The seed's bits mixed (as `patterns::random_color` does).

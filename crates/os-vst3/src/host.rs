@@ -460,7 +460,7 @@ impl IRunLoop for Frame {
         let Some(timer) = t.upgrade() else { return kInvalidArgument };
         let key = { t }.as_ptr() as usize;
         let (shared, run) = (self.shared.clone(), self.run.clone());
-        let token = os_host::runloop::add_timer(std::time::Duration::from_millis(ms), move || guarded(&shared, &run, || unsafe { timer.on_timer() }));
+        let token = os_host::runloop::add_timer(web_time::Duration::from_millis(ms), move || guarded(&shared, &run, || unsafe { timer.on_timer() }));
         self.keep(key, token);
         kResultOk
     }
@@ -789,7 +789,7 @@ mod tests {
         let (fault, ticks) = (Arc::new(AtomicBool::new(false)), Arc::new(AtomicU32::new(0)));
         let timer = Com::new(FaultyTimer::allocate(fault.clone(), ticks.clone()));
         let tick = || {
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
             os_host::runloop::dispatch();
         };
         assert_eq!(unsafe { frame.get().register_timer(timer.shared(), 1) }, kResultOk);

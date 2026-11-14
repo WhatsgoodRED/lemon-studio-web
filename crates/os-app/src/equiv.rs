@@ -29,7 +29,7 @@
 
 use std::fmt::{self, Write as _};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use winit::keyboard::{Key, NamedKey};
 

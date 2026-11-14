@@ -17,7 +17,7 @@ use crate::views::browser::{self as view, Item};
 /// Mouse travel before a press on an item becomes a drag (spec §3).
 const DRAG_START: f32 = 4.0;
 /// How long a clicked sample plays (spec §7).
-const PREVIEW_LIMIT: std::time::Duration = std::time::Duration::from_secs(5);
+const PREVIEW_LIMIT: web_time::Duration = web_time::Duration::from_secs(5);
 
 impl App {
     /// Browser actions; returns whether `a` was one.
@@ -441,7 +441,7 @@ impl App {
     }
 
     /// A hovered row's scrolling label (spec §9): repainted whenever its offset moves; the scroll ends with the hover.
-    pub(crate) fn marquee_tick(&mut self, now: std::time::Instant) {
+    pub(crate) fn marquee_tick(&mut self, now: web_time::Instant) {
         let hovered = self.state.show_browser && matches!(self.hover, Some(Action::BrowserRow(_)));
         let m = self.state.browser_marquee.get_mut();
         let Some(mq) = m.as_ref() else { return };
@@ -1027,6 +1027,8 @@ pub enum RowCmd {
 const FILE_MANAGER: [&str; 2] = ["Open in Explorer", "Show in Explorer"];
 #[cfg(target_os = "macos")]
 const FILE_MANAGER: [&str; 2] = ["Open in Finder", "Show in Finder"];
+#[cfg(target_arch = "wasm32")]
+const FILE_MANAGER: [&str; 2] = ["Open folder", "Show folder"];
 #[cfg(all(unix, not(target_os = "macos")))]
 const FILE_MANAGER: [&str; 2] = ["Open in file manager", "Show in file manager"];
 

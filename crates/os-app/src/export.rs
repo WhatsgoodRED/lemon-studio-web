@@ -656,8 +656,20 @@ fn flac_bytes(audio: &[f32], ch: u16, rate: u32, bits: u32, level: u8, dither: b
     Ok(bytes)
 }
 
+/// The web build has no LAME or libvorbis (C libraries): MP3 and Ogg export are not there yet.
+#[cfg(target_arch = "wasm32")]
+fn mp3_bytes(_audio: &[f32], _ch: u16, _rate: u32, _kbps: u32, _gapless: bool) -> Result<Vec<u8>, String> {
+    Err("MP3 export is not available in the web version yet".into())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn ogg_bytes(_audio: &[f32], _ch: u16, _rate: u32, _kbps: u32) -> Result<Vec<u8>, String> {
+    Err("OGG export is not available in the web version yet".into())
+}
+
 /// An MP3 file at a constant `kbps`, LAME's best quality; `gapless`: with LAME's Info frame first (the encoder's delay
 /// and padding, for players that trim them).
+#[cfg(not(target_arch = "wasm32"))]
 fn mp3_bytes(audio: &[f32], ch: u16, rate: u32, kbps: u32, gapless: bool) -> Result<Vec<u8>, String> {
     use mp3lame_encoder::{Bitrate, Builder, FlushGap, InterleavedPcm, MonoPcm, Quality};
     let rate_of = |k| match k {
@@ -698,6 +710,7 @@ fn mp3_bytes(audio: &[f32], ch: u16, rate: u32, kbps: u32, gapless: bool) -> Res
 }
 
 /// An Ogg Vorbis file at an average `kbps`.
+#[cfg(not(target_arch = "wasm32"))]
 fn ogg_bytes(audio: &[f32], ch: u16, rate: u32, kbps: u32) -> Result<Vec<u8>, String> {
     use std::num::{NonZeroU32, NonZeroU8};
     use vorbis_rs::{VorbisBitrateManagementStrategy, VorbisEncoderBuilder};

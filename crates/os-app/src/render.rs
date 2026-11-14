@@ -21,7 +21,7 @@
 // spec: audio/export.md
 
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use os_engine::{Engine, PlayMode};
 use os_model::ChannelKind;

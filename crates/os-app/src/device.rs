@@ -869,10 +869,10 @@ where
         let tid = std::sync::Arc::new(std::sync::atomic::AtomicI32::new(0));
         let seen = tid.clone();
         std::thread::spawn(move || {
-            let t0 = std::time::Instant::now();
-            while t0.elapsed() < std::time::Duration::from_secs(5) {
+            let t0 = web_time::Instant::now();
+            while t0.elapsed() < web_time::Duration::from_secs(5) {
                 match seen.load(std::sync::atomic::Ordering::Acquire) {
-                    0 => std::thread::sleep(std::time::Duration::from_millis(5)),
+                    0 => std::thread::sleep(web_time::Duration::from_millis(5)),
                     t => {
                         crate::rt::set_role(crate::rt::Role::Callback, t);
                         match crate::rt::promote(t) {
@@ -1093,21 +1093,21 @@ mod tests {
         let (src, _, blocks) = level(0.0);
         // The sound server lets go of an idle card after some seconds (it is busy until then).
         let mut src = Some(src);
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         while let Err(e) = d.open() {
-            assert!(t0.elapsed() < std::time::Duration::from_secs(15), "opens on ALSA: {e}");
-            std::thread::sleep(std::time::Duration::from_millis(250));
+            assert!(t0.elapsed() < web_time::Duration::from_secs(15), "opens on ALSA: {e}");
+            std::thread::sleep(web_time::Duration::from_millis(250));
         }
         d.add(src.take().expect("once")).expect("opens on ALSA");
         assert_eq!(d.open.as_ref().map(|o| o.info.host), Some(ALSA));
         // The sound server tries the card meanwhile (and fails: Lemon Studio has it).
         let busy = std::process::Command::new("pw-play").arg("--volume=0").arg("/usr/share/sounds/freedesktop/stereo/bell.oga").spawn();
-        std::thread::sleep(std::time::Duration::from_millis(1500));
+        std::thread::sleep(web_time::Duration::from_millis(1500));
         assert!(blocks.load(Ordering::Relaxed) > 0, "it plays");
         let _ = busy.map(|mut c| c.kill());
         d.close();
         AudioCfg::default().apply();
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        std::thread::sleep(web_time::Duration::from_millis(1000));
         assert_eq!(sound_server::heal(), Vec::<String>::new(), "every card is back with the sound server");
     }
 
@@ -1148,7 +1148,7 @@ mod tests {
             assert_eq!(o.info.fixed, Some(frames), "{buffer:?}");
             let (src, _, blocks) = level(0.0);
             assert!(o.inbox.push(src).is_ok());
-            std::thread::sleep(std::time::Duration::from_millis(300));
+            std::thread::sleep(web_time::Duration::from_millis(300));
             assert!(blocks.load(Ordering::Relaxed) >= 3, "it plays");
             if buffer.is_none() {
                 // Held: another exclusive open waits, or plays elsewhere in shared mode.

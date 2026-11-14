@@ -627,7 +627,7 @@ mod tests {
         let samples = dir.join("df").join(SAMPLES_DIR);
         let kick = dir.join("a").join("kick.wav");
         file(&kick, 10);
-        let old = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_500_000_000);
+        let old = web_time::SystemTime::UNIX_EPOCH + web_time::Duration::from_secs(1_500_000_000);
         std::fs::OpenOptions::new().write(true).open(&kick).unwrap().set_modified(old).unwrap();
         assert_eq!(copy_target(&kick, &samples), Some((samples.join("kick.wav"), true)));
         let to = copy_sample(&kick, &dir.join("df")).unwrap();

@@ -231,7 +231,7 @@ pub struct MixerUi {
     /// Meter ballistics and look.
     pub meter_cfg: crate::meters::Settings,
     /// When the meters last advanced.
-    pub meter_at: Option<std::time::Instant>,
+    pub meter_at: Option<web_time::Instant>,
     /// The last solo: the tracks it kept on and the states (track, enabled) from before the first solo, put back by
     /// unsolo when "Restore previous state after solo" is on.
     pub solo: Option<(Vec<u16>, Vec<(u16, bool)>)>,
@@ -2467,7 +2467,7 @@ pub fn key(app: &mut App, key: &winit::keyboard::Key, ctrl: bool, alt: bool) -> 
 /// New peaks from the audio thread: meters rise, fall and hold by elapsed time (`meters::step`). True while any meter
 /// is still moving.
 pub fn feed_meters(s: &mut State, peaks: &[[f32; 2]]) -> bool {
-    let now = std::time::Instant::now();
+    let now = web_time::Instant::now();
     // Long gaps (the app was idle) count as one frame, so a meter does not vanish in a single step.
     let dt = s.mixer.meter_at.map_or(1.0 / 60.0, |t| now.duration_since(t).as_secs_f32().min(0.1));
     s.mixer.meter_at = Some(now);

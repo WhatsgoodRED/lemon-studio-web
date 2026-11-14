@@ -385,7 +385,7 @@ mod run_loop {
         }
         let id = NEXT_TIMER.fetch_add(1, Ordering::Relaxed);
         let dp = d as *const HostData;
-        let token = runloop::add_timer(std::time::Duration::from_millis(u64::from(period_ms)), move || unsafe { guarded(dp, || on_timer(plugin, id)) });
+        let token = runloop::add_timer(web_time::Duration::from_millis(u64::from(period_ms)), move || unsafe { guarded(dp, || on_timer(plugin, id)) });
         if let Ok(mut r) = d.run.lock() {
             r.push((id, true, token));
         }
@@ -2413,7 +2413,7 @@ mod tests {
         let shared = lib.create(ID.to_str().unwrap()).expect("created");
         let stopped = || os_host::Plugin::stopped(&*shared.lock().unwrap());
         let tick = || {
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
             os_host::runloop::dispatch();
         };
         tick();
@@ -3211,7 +3211,7 @@ mod tests {
             for b in 0..150 {
                 // Precomputed effects run on a background task: give it time before the note.
                 if b < 20 {
-                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    std::thread::sleep(web_time::Duration::from_millis(5));
                 }
                 if b == 20 {
                     p.note_on(0, 60, 100.0 / 128.0);

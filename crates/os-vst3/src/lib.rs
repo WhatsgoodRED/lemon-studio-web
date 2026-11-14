@@ -19,7 +19,7 @@ use std::ffi::c_char;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
+use web_time::Instant;
 
 pub use os_host::{set_waker, wake, Descriptor};
 
@@ -364,6 +364,12 @@ impl Drop for Module {
 /// The module's own set-up after loading, before `GetPluginFactory` (spec §3): `InitDll` on Windows, `ModuleEntry`
 /// with the module's `dlopen` handle on Linux, `bundleEntry` with the bundle (`path`, a `CFBundleRef`) on macOS. All
 /// are optional; a module whose set-up fails is not used.
+/// The web build loads no modules (a module never opens there).
+#[cfg(target_arch = "wasm32")]
+unsafe fn module_entry(lib: libloading::Library, _path: &Path) -> Result<libloading::Library, String> {
+    Ok(lib)
+}
+
 #[cfg(windows)]
 unsafe fn module_entry(lib: libloading::Library, _path: &Path) -> Result<libloading::Library, String> {
     unsafe {

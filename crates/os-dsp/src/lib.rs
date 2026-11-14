@@ -31,5 +31,7 @@ pub mod num;
 pub mod pitch;
 pub mod resample;
 pub mod stretch;
+#[cfg(target_arch = "wasm32")]
+mod web_stretch;
 pub mod tone;
 pub mod transients;

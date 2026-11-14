@@ -16,7 +16,7 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread::Thread;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 /// How long past a tick's due time winit's loop counts as held up.
 pub const LATE: Duration = Duration::from_millis(25);

@@ -85,7 +85,7 @@ fn devices() -> Vec<(String, bool, u16)> {
     #[cfg(not(test))]
     {
         use std::sync::Mutex;
-        use std::time::{Duration, Instant};
+        use web_time::{Duration, Instant};
         type Listed = Option<(Instant, Vec<(String, bool, u16)>)>;
         static CACHE: Mutex<Listed> = Mutex::new(None);
         let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
@@ -326,7 +326,7 @@ mod tests {
             if app.audio_rec.is_none() {
                 break;
             }
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         assert!(app.audio_rec.is_none() && !app.state.rec.audio && !capture().on(), "{:?}", app.state.message);
         assert_eq!(app.state.project.channels.len(), channels + 1);
@@ -366,7 +366,7 @@ mod tests {
             if app.audio_rec.is_none() {
                 break;
             }
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         let msg = app.state.message.clone().unwrap_or_default();
         assert!(msg.starts_with("Recorded ") && msg.ends_with(" into the audio editor"), "{msg}");

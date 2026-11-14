@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use web_time::Instant;
 
 use crate::guard::{self, Module};
 use crate::{Attention, Descriptor, HostedEffect, Instrument, Menu, Meter, NoteOut, ParamEvent, ParamInfo, Plugin, SharedPlugin};

@@ -113,7 +113,7 @@ pub struct PianoState {
     /// The grid / event panel split (a program setting, spec: ui/event-panel-splitter.md).
     pub split: crate::piano_split::Split,
     /// Last press on the splitter, for its double click.
-    pub split_click: Option<std::time::Instant>,
+    pub split_click: Option<web_time::Instant>,
     /// Whether the window was shown at the last tick (`None` = not yet seen), to notice it opening ([`open_tick`]).
     pub was_shown: Option<bool>,
     /// The magnet button's setting (spec: ui/piano-snap.md): a program setting, kept in the user folder (crate::snap).

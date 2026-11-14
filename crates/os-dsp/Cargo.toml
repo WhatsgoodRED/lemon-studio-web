@@ -8,6 +8,6 @@ license.workspace = true
 [lib]
 doctest = false
 
-[dependencies]
-# Time stretching and pitch shifting (MIT).
+# Time stretching and pitch shifting (MIT). Its C++ does not build for the web (`web_stretch` stands in there).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 signalsmith-stretch = "0.1.3"

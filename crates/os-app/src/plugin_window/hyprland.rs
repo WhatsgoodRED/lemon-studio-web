@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use std::io::{Read as _, Write as _};
 use std::os::unix::net::UnixStream;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 /// Hyprland runs this session.
 pub fn running() -> bool {

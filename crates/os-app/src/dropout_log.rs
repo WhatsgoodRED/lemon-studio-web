@@ -18,7 +18,7 @@
 use std::io::Write as _;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 /// The largest the log grows before it is rotated.
 const CAP: u64 = 256 * 1024;
@@ -87,7 +87,7 @@ fn held_line(last: &mut Option<Instant>, now: Instant, plugin: &str, what: &str,
 
 /// The local time, `YYYY-MM-DD HH:MM:SS`.
 fn now() -> String {
-    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs()) as libc::time_t;
+    let t = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_secs()) as libc::time_t;
     // SAFETY: localtime_r fills the struct given.
     let mut tm: libc::tm = unsafe { std::mem::zeroed() };
     unsafe { libc::localtime_r(&t, &mut tm) };
@@ -119,7 +119,7 @@ impl Drops {
 pub struct Watch {
     seen: Drops,
     demoted: usize,
-    last: Option<std::time::Instant>,
+    last: Option<web_time::Instant>,
 }
 
 impl Watch {
@@ -131,12 +131,12 @@ impl Watch {
         if new.total() == 0 && demotions == 0 {
             return None;
         }
-        if self.last.is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(1)) {
+        if self.last.is_some_and(|t| t.elapsed() < web_time::Duration::from_secs(1)) {
             return None;
         }
         self.seen = now;
         self.demoted = demoted;
-        self.last = Some(std::time::Instant::now());
+        self.last = Some(web_time::Instant::now());
         let state = |s: Option<bool>| match s {
             Some(true) => "real-time",
             Some(false) => "normal priority",

@@ -26,3 +26,12 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 3
+
+# Lemon Studio web build (`web/`): nih-plug with a single-threaded event loop for wasm32. Native builds are unchanged by
+# the patch (the changes are behind `cfg(target_arch = "wasm32")`).
+[patch."https://github.com/robbert-vdh/nih-plug.git"]
+nih_plug = { path = "web/vendor/nih-plug" }
+
+# Lemon Studio web build: libloading with a `Library` that never opens on wasm32 (no native plugins on the web).
+[patch.crates-io]
+libloading = { path = "web/vendor/libloading" }

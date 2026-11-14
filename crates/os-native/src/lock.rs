@@ -104,7 +104,7 @@ mod tests {
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{mpsc, Arc};
-    use std::time::Duration;
+    use web_time::Duration;
 
     #[test]
     fn reentrant_and_blocks_other_threads() {

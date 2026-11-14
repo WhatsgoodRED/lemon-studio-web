@@ -31,7 +31,7 @@ const CURVE: usize = 128;
 /// Longest a pre-rendered shape is simulated for, substeps (10 s).
 const SETTLE_MAX: usize = 2400;
 /// A mixer paint (simulation included) slower than this while the cables swing is slow...
-const SLOW: std::time::Duration = std::time::Duration::from_millis(8);
+const SLOW: web_time::Duration = web_time::Duration::from_millis(8);
 /// ...and this many slow paints in a row hang the cables still, until a new cable is plugged in.
 const SLOW_PAINTS: u32 = 8;
 
@@ -183,7 +183,7 @@ pub struct Cables {
     still: Option<u32>,
     acc: f32,
     /// Time the last `advance` took, counted into the next paint's cost.
-    sim: std::time::Duration,
+    sim: web_time::Duration,
     /// Slow paints in a row while swinging (`paint_cost`).
     slow: u32,
     /// The cables were made still because the mixer was slow to redraw them; not yet reported (`take_slowed`).
@@ -249,7 +249,7 @@ impl Cables {
     /// A mixer paint that ran while the cables swung took `cost`. Once the mixer has been too slow to redraw them
     /// at animation rate (a large project with many sends), they hang still in their pre-rendered shapes until a
     /// new cable is plugged in (`end`); the Animations setting stays as the user set it.
-    pub fn paint_cost(&mut self, cost: std::time::Duration) {
+    pub fn paint_cost(&mut self, cost: web_time::Duration) {
         self.slow = if cost + std::mem::take(&mut self.sim) > SLOW { self.slow + 1 } else { 0 };
         if self.slow >= SLOW_PAINTS {
             self.too_slow = true;
@@ -402,7 +402,7 @@ impl Cables {
             self.acc = 0.0;
             return None;
         }
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         let before = self.bounds();
         self.acc = (self.acc + dt.min(MAX_DT)).min(MAX_DT);
         let tu = &self.tuning;
@@ -642,7 +642,7 @@ mod tests {
 
     #[test]
     fn a_mixer_slow_to_redraw_hangs_the_cables_still() {
-        use std::time::Duration;
+        use web_time::Duration;
         let ms = Duration::from_millis;
         let mut c = Cables::default();
         plug(&mut c, 1, &[(4, (50.0, 200.0), (230.0, 198.0))]);

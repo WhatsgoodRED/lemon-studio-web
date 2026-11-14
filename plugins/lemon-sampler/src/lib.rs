@@ -1022,7 +1022,7 @@ mod tests {
     // Keep on disk (spec: plugins/lemon-sampler.md "Keep on disk (Lemon Studio)")
 
     use std::path::PathBuf;
-    use std::time::{Duration, Instant};
+    use web_time::{Duration, Instant};
 
     /// A fresh directory for a test's files.
     fn test_dir(tag: &str) -> PathBuf {

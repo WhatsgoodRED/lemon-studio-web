@@ -13,7 +13,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 /// Identifies a registered descriptor or timer.
 pub type Token = u64;

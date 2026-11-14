@@ -12,7 +12,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, TryRecvError};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use crate::app::{App, State};
 use crate::dialog::{spans, Answer, Kind, Msg, Then};

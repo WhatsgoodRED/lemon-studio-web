@@ -635,7 +635,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
+ "js-sys",
  "num-traits",
+ "wasm-bindgen",
  "windows-link",
 ]
 
@@ -696,6 +698,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
 dependencies = [
  "crossbeam-utils",
+]
+
+[[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -803,6 +815,8 @@ dependencies = [
  "coreaudio-rs",
  "dasp_sample",
  "futures",
+ "futures-channel",
+ "futures-util",
  "jack",
  "jni 0.22.4",
  "js-sys",
@@ -821,6 +835,8 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "portable-atomic",
  "pulseaudio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
  "windows 0.62.2",
  "windows-core",
@@ -2010,6 +2026,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tiny-skia",
+ "web-time",
  "windows-sys 0.61.2",
 ]
 
@@ -2129,6 +2146,7 @@ dependencies = [
  "os-ui",
  "serde_json",
  "tiny-skia",
+ "web-time",
  "windows-sys 0.61.2",
 ]
 
@@ -2147,6 +2165,7 @@ dependencies = [
  "os-ui",
  "rfd",
  "tiny-skia",
+ "web-time",
  "windows-sys 0.61.2",
 ]
 
@@ -2248,8 +2267,6 @@ dependencies = [
 [[package]]
 name = "libloading"
 version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
 dependencies = [
  "cfg-if",
  "windows-link",
@@ -2499,7 +2516,6 @@ dependencies = [
 [[package]]
 name = "nih_plug"
 version = "0.0.0"
-source = "git+https://github.com/robbert-vdh/nih-plug.git#de421011f41a6d10fc8c7a6084e4f4dee0143683"
 dependencies = [
  "anyhow",
  "anymap3",
@@ -2529,7 +2545,6 @@ dependencies = [
 [[package]]
 name = "nih_plug_derive"
 version = "0.1.0"
-source = "git+https://github.com/robbert-vdh/nih-plug.git#de421011f41a6d10fc8c7a6084e4f4dee0143683"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3035,10 +3050,12 @@ dependencies = [
  "block2 0.6.2",
  "chrono",
  "citrus",
+ "console_error_panic_hook",
  "cpal",
  "crossbeam-queue",
  "flacenc",
  "jpeg-decoder",
+ "js-sys",
  "lemon-3x-osc",
  "lemon-balance",
  "lemon-chorus",
@@ -3095,6 +3112,9 @@ dependencies = [
  "tesla",
  "tiny-skia",
  "vorbis_rs",
+ "wasm-bindgen",
+ "web-sys",
+ "web-time",
  "windows 0.62.2",
  "windows-sys 0.61.2",
  "winit",
@@ -3121,6 +3141,7 @@ dependencies = [
  "os-host",
  "os-hostlink",
  "os-model",
+ "web-time",
 ]
 
 [[package]]
@@ -3140,6 +3161,7 @@ dependencies = [
  "symphonia",
  "symphonia-codec-wavpack",
  "thiserror 2.0.21",
+ "web-time",
 ]
 
 [[package]]
@@ -3159,6 +3181,7 @@ dependencies = [
  "libc",
  "libloading 0.8.9",
  "os-engine",
+ "web-time",
  "windows-sys 0.61.2",
 ]
 
@@ -3182,6 +3205,7 @@ dependencies = [
  "os-engine",
  "os-host",
  "thiserror 2.0.21",
+ "web-time",
  "windows-sys 0.61.2",
 ]
 
@@ -3224,6 +3248,7 @@ dependencies = [
  "os-hostlink",
  "os-theme",
  "os-ui",
+ "web-time",
  "windows-sys 0.61.2",
  "x11rb",
 ]
@@ -3263,6 +3288,7 @@ dependencies = [
  "libloading 0.8.9",
  "os-engine",
  "os-host",
+ "web-time",
  "windows-sys 0.61.2",
 ]
 
@@ -3275,6 +3301,7 @@ dependencies = [
  "os-host",
  "os-model",
  "vst3-sys",
+ "web-time",
  "windows-sys 0.61.2",
 ]
 
@@ -4396,6 +4423,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tiny-skia",
+ "web-time",
  "windows-sys 0.61.2",
 ]
 

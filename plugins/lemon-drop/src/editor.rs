@@ -641,7 +641,7 @@ mod win32 {
         tracking: bool,
         slot: Arc<AtomicIsize>,
         /// When the last tick ran.
-        last: std::time::Instant,
+        last: web_time::Instant,
     }
 
     /// Owns the window; dropping it closes the editor.
@@ -688,7 +688,7 @@ mod win32 {
                 lock: CursorLock::default(),
                 tracking: false,
                 slot: slot.clone(),
-                last: std::time::Instant::now(),
+                last: web_time::Instant::now(),
             });
             let title = pw::wide(crate::NAME);
             let hwnd = CreateWindowExW(
@@ -845,7 +845,7 @@ mod win32 {
         /// The tick: the analysis and one repaint (input only changes the state; the tick draws it, so a moving mouse
         /// never starves the animation). The floating display opens when it should be visible.
         fn poll(&mut self) {
-            let now = std::time::Instant::now();
+            let now = web_time::Instant::now();
             let dt = now.duration_since(self.last).as_secs_f32();
             self.last = now;
             if self.logic.tick(dt) {
@@ -952,7 +952,7 @@ mod gui {
         dirty: bool,
         link: Arc<Peer>,
         /// When the last tick ran.
-        last: std::time::Instant,
+        last: web_time::Instant,
     }
 
     impl Drop for Ed {
@@ -986,7 +986,7 @@ mod gui {
                 last_hint: String::new(),
                 dirty: true,
                 link: peer,
-                last: std::time::Instant::now(),
+                last: web_time::Instant::now(),
             };
             ed.run();
         });
@@ -1007,7 +1007,7 @@ mod gui {
     impl Ed {
         fn run(mut self) {
             #[cfg(target_os = "macos")]
-            self.win.set_tick(std::time::Duration::from_millis(u64::from(super::TIMER_MS)));
+            self.win.set_tick(web_time::Duration::from_millis(u64::from(super::TIMER_MS)));
             while let Some(input) = self.win.next() {
                 match input {
                     Input::Expose => self.dirty = true,
@@ -1061,7 +1061,7 @@ mod gui {
         }
 
         fn poll(&mut self) {
-            let now = std::time::Instant::now();
+            let now = web_time::Instant::now();
             let dt = now.duration_since(self.last).as_secs_f32();
             self.last = now;
             if self.logic.tick(dt) {

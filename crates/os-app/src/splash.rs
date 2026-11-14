@@ -650,7 +650,7 @@ mod win {
     use std::cell::RefCell;
     use std::sync::atomic::{AtomicIsize, Ordering};
     use std::sync::Arc;
-    use std::time::Instant;
+    use web_time::Instant;
 
     use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, SIZE, WPARAM};
     use windows_sys::Win32::Graphics::Gdi::{
@@ -879,7 +879,7 @@ mod win {
 mod x11 {
     use std::sync::atomic::Ordering;
     use std::sync::Arc;
-    use std::time::{Duration, Instant};
+    use web_time::{Duration, Instant};
 
     use x11rb::connection::{Connection, RequestConnection as _};
     use x11rb::protocol::randr::ConnectionExt as _;
@@ -1032,7 +1032,7 @@ mod mac {
     use std::ptr::NonNull;
     use std::sync::atomic::Ordering;
     use std::sync::{Arc, Mutex, MutexGuard};
-    use std::time::{Duration, Instant};
+    use web_time::{Duration, Instant};
 
     use objc2::rc::Retained;
     use objc2::{MainThreadMarker, MainThreadOnly};

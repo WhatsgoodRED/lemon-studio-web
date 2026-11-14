@@ -20,7 +20,7 @@
 // spec: audio/multicore.md
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use super::{instrument_job, mix_track, pdc, render_voice, render_voice_into, InstClip, InstCx, InstLane, InstTuning, Lane, MixTrack, Voice};
 use crate::parallel::{Graph, Pool};
@@ -1258,7 +1258,7 @@ pub(super) mod tests {
                     let mut e = Engine::new(p, &mut lib, 44100, PlayMode::Pattern(1));
                     e.set_threads(pool.clone());
                     let mut out = Vec::new();
-                    let t = std::time::Instant::now();
+                    let t = web_time::Instant::now();
                     e.render_ticks(ticks, &mut out);
                     best = (best.0.min(t.elapsed().as_secs_f64()), out);
                 }

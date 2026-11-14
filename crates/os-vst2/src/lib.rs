@@ -21,7 +21,7 @@ use std::ffi::{c_void, CString};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 pub use files::{exports, has_extension, is_plugin, macho_cpus, module_file, pe_machine, standard_dirs, unsupported, CPU_ARM64, CPU_X86_64, ENTRY_POINTS, EXTENSION};
 pub use os_host::{set_waker, wake, Descriptor};

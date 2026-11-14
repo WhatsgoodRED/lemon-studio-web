@@ -45,7 +45,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, Weak};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use crate::device::{DeviceInfo, OutputDevice, Source};
 use os_engine::{Engine, PlayMode, SampleLibrary, SharedEffect, SharedInstrument};

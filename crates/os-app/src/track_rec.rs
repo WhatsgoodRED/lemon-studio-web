@@ -262,7 +262,7 @@ mod tests {
             if app.track_rec.is_none() {
                 break;
             }
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         assert!(app.track_rec.is_none(), "{:?}", app.state.message);
         assert_eq!(app.state.project.channels.len(), channels + 1, "{:?}", app.state.message);

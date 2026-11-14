@@ -16,7 +16,7 @@
 // spec: plugins/lemon-drop.md "Floating display"
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use os_plugkit::gui::{Button, Floating, Input, Window};
 use os_theme::Palette;

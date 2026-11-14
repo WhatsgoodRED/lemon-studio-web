@@ -304,7 +304,7 @@ fn automation_is_sample_accurate() {
     // No stream: the value is flushed by idle after a short wait.
     p.param_fx(0, index, 0.5);
     p.idle();
-    std::thread::sleep(std::time::Duration::from_millis(60));
+    std::thread::sleep(web_time::Duration::from_millis(60));
     p.idle();
     assert!(p.auto.is_empty(), "flushed");
     l.copy_from_slice(&src);
@@ -529,7 +529,7 @@ mod separate {
         // Without a stream an edit is flushed with an empty block.
         assert!(p.set_param(GAIN, 0.6));
         p.idle();
-        std::thread::sleep(std::time::Duration::from_millis(60));
+        std::thread::sleep(web_time::Duration::from_millis(60));
         p.idle();
         assert_eq!(probe.gain_points.lock().unwrap().last(), Some(&(0, 0.6)));
         let (mut l, mut r) = ones(16);
@@ -1001,7 +1001,7 @@ mod separate {
 #[cfg(windows)]
 mod window {
     use super::*;
-    use std::time::{Duration, Instant};
+    use web_time::{Duration, Instant};
     use windows_sys::Win32::Foundation::{HWND, RECT};
     use windows_sys::Win32::Graphics::Gdi::*;
     use windows_sys::Win32::Storage::Xps::PrintWindow;

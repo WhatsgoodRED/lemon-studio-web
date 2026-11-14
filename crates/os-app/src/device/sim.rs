@@ -19,7 +19,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use super::{queues, DeviceInfo, Mix, Open, Stream};
 

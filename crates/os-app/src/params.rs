@@ -54,13 +54,13 @@ pub struct List {
     pub open: BTreeMap<u32, f64>,
     /// When `values` were last read from the plugin, and whether they are to be read again (the host set a parameter
     /// whose value it does not know: `ParamUi::reread`).
-    pub read_at: std::time::Instant,
+    pub read_at: web_time::Instant,
     pub reread: bool,
 }
 
 /// `values` are read again at most this often when the plugin reports something other than its editor's edits (an
 /// automation clip moving a parameter does on every tick).
-const REREAD_EVERY: std::time::Duration = std::time::Duration::from_millis(250);
+const REREAD_EVERY: web_time::Duration = web_time::Duration::from_millis(250);
 
 /// Something the user moved last (spec §5).
 #[derive(Debug, Clone, PartialEq)]
@@ -407,7 +407,7 @@ impl App {
             let Some(look) = h.due(ui.lists.get(&key).map_or(crate::plugins::Look::never(), |l| l.seen)) else { continue };
             // A plugin's parameters can take a few ms to read (`lock_for_tick`).
             let Some(mut p) = crate::plugins::lock_for_tick(&h.plugin, h.meter.as_deref()) else { continue };
-            let t0 = std::time::Instant::now();
+            let t0 = web_time::Instant::now();
             let weak = Arc::downgrade(&h.plugin);
             let count = p.param_count();
             let stale = ui.lists.get(&key).is_none_or(|l| l.params.len() != count || !Weak::ptr_eq(&l.plugin, &weak));
@@ -419,7 +419,7 @@ impl App {
                     })
                     .collect();
                 let values = read_values(&*p, &params);
-                let now = std::time::Instant::now();
+                let now = web_time::Instant::now();
                 ui.lists.insert(key, List { plugin: weak, params, seen: look, values, open: BTreeMap::new(), read_at: now, reread: false });
             }
             let events = p.take_param_events();
@@ -465,7 +465,7 @@ impl App {
                 let due = l.reread || (events.is_empty() && moved_count && l.read_at.elapsed() >= REREAD_EVERY);
                 if !stale && due && l.open.is_empty() {
                     l.values = read_values(&*p, &l.params);
-                    (l.read_at, l.reread) = (std::time::Instant::now(), false);
+                    (l.read_at, l.reread) = (web_time::Instant::now(), false);
                 }
             }
             let sampler = key < crate::plugins::FX_KEY && p.desc().name == crate::plugins::LEMON_SAMPLER;
@@ -709,7 +709,7 @@ mod tests {
         assert_eq!(key_of(s, Target::ChannelParam(ch, 7)), Some((0, 7)));
         assert_eq!(key_of(s, Target::SlotParam(2, 3, 35)), Some((fx_key(2, 3), 35)));
         let cutoff = Entry { id: 9, name: "Cutoff".into(), hidden: false, default: 1.0, steps: 0 };
-        s.params.lists.insert(0, List { plugin: Weak::<Mutex<Dummy>>::new(), params: vec![cutoff], seen: crate::plugins::Look::never(), values: BTreeMap::new(), open: BTreeMap::new(), read_at: std::time::Instant::now(), reread: false });
+        s.params.lists.insert(0, List { plugin: Weak::<Mutex<Dummy>>::new(), params: vec![cutoff], seen: crate::plugins::Look::never(), values: BTreeMap::new(), open: BTreeMap::new(), read_at: web_time::Instant::now(), reread: false });
         assert_eq!(clip_name(s, 0, 0), "Lead - Cutoff");
         // Last tweaked keeps the two newest, newest first, without repeats.
         let p = &mut s.params;

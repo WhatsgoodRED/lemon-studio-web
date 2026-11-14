@@ -15,7 +15,7 @@
 //       audio/channel-envelopes.md (volume and pitch envelopes), audio/time-stretch.md
 
 use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use os_model::target::Target;
 use os_model::{ChannelKind, ClipSource, ControlPoint, Project, Stretching};
@@ -3123,7 +3123,7 @@ impl Engine {
     /// moves; control points, then automation clips; notes that end are released, then notes that start are
     /// triggered; then the tick's samples are produced.
     fn render_tick(&mut self) {
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         self.render_tick_now();
         let length = self.out_len as f32 / self.rate.max(1) as f32;
         self.multicore.note_tick(t0.elapsed().as_secs_f32(), length, self.exporting);

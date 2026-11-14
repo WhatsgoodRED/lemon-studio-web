@@ -683,11 +683,11 @@ pub struct PlaylistState {
     /// Track row pitch (vertical zoom: Alt+wheel; saved in the project's playlist view).
     pub row_h: f32,
     /// Last header click (track, time) for double-click rename.
-    pub last_header: Option<(u16, std::time::Instant)>,
+    pub last_header: Option<(u16, web_time::Instant)>,
     /// Last left click on an audio clip (clip, time): a second one soon after opens its sampler.
-    pub last_clip: Option<(usize, std::time::Instant)>,
+    pub last_clip: Option<(usize, web_time::Instant)>,
     /// Last left click in the ruler: a second one soon after clears the time selection.
-    pub last_ruler: Option<std::time::Instant>,
+    pub last_ruler: Option<web_time::Instant>,
     /// Waveform cache by sample path (`None` = could not be loaded).
     pub waves: RefCell<HashMap<String, Option<Rc<Wave>>>>,
     /// Tones of the same samples for colourful waveforms, analysed when first needed (`tones`).

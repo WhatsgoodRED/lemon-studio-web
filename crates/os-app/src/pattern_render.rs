@@ -360,11 +360,11 @@ mod tests {
 
     /// Runs the render the command started, as the app's tick follows an export.
     fn finish(app: &mut App) {
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         while app.export.is_some() {
             assert!(t0.elapsed().as_secs() < 60, "the render did not finish");
             app.export_tick();
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
     }
 

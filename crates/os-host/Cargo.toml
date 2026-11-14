@@ -9,6 +9,8 @@ license.workspace = true
 doctest = false
 
 [dependencies]
+# `Instant` and `SystemTime` that also work in the web build (std on native).
+web-time = "1"
 os-engine.workspace = true
 libloading = "0.8"
 

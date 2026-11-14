@@ -39,7 +39,7 @@ fn new_token() -> String {
     use std::hash::{BuildHasher, Hasher};
     let half = || {
         let mut h = std::collections::hash_map::RandomState::new().build_hasher();
-        h.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos()));
+        h.write_u128(web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_nanos()));
         h.finish()
     };
     format!("{:016x}{:016x}", half(), half())
@@ -221,6 +221,6 @@ pub fn serve_headless(at: &str, level: Level, token: Option<String>, project: Op
     app.listen(server);
     loop {
         app.tick();
-        std::thread::sleep(std::time::Duration::from_millis(5));
+        std::thread::sleep(web_time::Duration::from_millis(5));
     }
 }

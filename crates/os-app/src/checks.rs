@@ -21,7 +21,7 @@
 //! heard, the largest step between two samples after each Stop against the largest while playing (a click), the
 //! real-time promotions (refused by rtkit, taken back by the safety cap) and the device's opens.
 
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use crate::app::App;
 use crate::device::sim::{self, Recording};

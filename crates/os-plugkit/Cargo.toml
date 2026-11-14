@@ -9,6 +9,8 @@ license.workspace = true
 doctest = false
 
 [dependencies]
+# `Instant` and `SystemTime` that also work in the web build (std on native).
+web-time = "1"
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", default-features = false, features = ["vst3"] }
 os-hostlink.workspace = true
 os-ui = { path = "../os-ui" }

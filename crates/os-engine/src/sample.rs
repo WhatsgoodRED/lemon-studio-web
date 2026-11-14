@@ -564,9 +564,9 @@ fn by_name(path: &Path) -> Option<PathBuf> {
 }
 
 /// How long the first look at a drive or network share may take before its samples count as missing.
-pub const REACH_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(1500);
+pub const REACH_TIMEOUT: web_time::Duration = web_time::Duration::from_millis(1500);
 /// How long a drive or share that did not answer in time is skipped before it is tried again.
-const UNREACHABLE_FOR: std::time::Duration = std::time::Duration::from_secs(60);
+const UNREACHABLE_FOR: web_time::Duration = web_time::Duration::from_secs(60);
 
 /// The drive or network share a path is on (`C:\`, `\\server\share\`), or `/` off Windows; `None` for a relative path.
 fn root_of(path: &Path) -> Option<PathBuf> {
@@ -587,7 +587,7 @@ fn root_of(path: &Path) -> Option<PathBuf> {
 /// most `REACH_TIMEOUT`; one that did not answer counts as missing for `UNREACHABLE_FOR`, without waiting again.
 pub fn reachable(path: &Path) -> bool {
     use std::sync::mpsc;
-    use std::time::Instant;
+    use web_time::Instant;
     /// A root's last look: when, and whether it answered (`None`: still looking).
     type Roots = HashMap<PathBuf, (Instant, Option<bool>)>;
     static ROOTS: OnceLock<std::sync::Mutex<Roots>> = OnceLock::new();

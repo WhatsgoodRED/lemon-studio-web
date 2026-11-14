@@ -7,7 +7,7 @@
 //!
 //! `OS_OPEN_BENCH=<project.flp or .zip> cargo test -p os-app --bin lemonstudio open_load -- --ignored --nocapture`
 
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use os_ui::Canvas;
 

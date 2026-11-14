@@ -13,7 +13,7 @@
 //! Exits 1 when an editor did not fit or a plugin did not open.
 
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use objc2_app_kit::NSView;
 use winit::application::ApplicationHandler;

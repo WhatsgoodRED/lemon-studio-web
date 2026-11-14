@@ -311,7 +311,7 @@ pub fn joined(s: &Sample, t: &Take, append: bool) -> Sample {
 
 fn drain_loop(shared: Weak<Shared>) {
     loop {
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        std::thread::sleep(web_time::Duration::from_millis(10));
         let Some(s) = shared.upgrade() else { return };
         s.drain();
     }

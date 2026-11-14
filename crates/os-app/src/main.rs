@@ -181,7 +181,7 @@ mod file_assoc;
 
 use std::num::NonZeroU32;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -263,7 +263,7 @@ impl FrameLog {
         let file = std::fs::File::create(path).ok()?;
         let mut log = FrameLog { out: std::io::BufWriter::new(file), start: Instant::now(), input: None };
         // Wall-clock start (Unix seconds), to line the log up with a script driving the app.
-        let unix = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64());
+        let unix = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64());
         log.line(format_args!("start {unix:.3}"));
         Some(log)
     }
@@ -1677,7 +1677,7 @@ fn screenshot(args: &[String]) {
     let started = Instant::now();
     while wait && app.loading() && started.elapsed().as_secs() < 120 {
         app.tick();
-        std::thread::sleep(std::time::Duration::from_millis(5));
+        std::thread::sleep(web_time::Duration::from_millis(5));
     }
     if perf {
         app.act(app::Action::ToggleWin(app::Win::Perf));

@@ -12,7 +12,10 @@
 //!
 // spec: audio/time-stretch.md
 
+#[cfg(not(target_arch = "wasm32"))]
 use signalsmith_stretch::Stretch;
+#[cfg(target_arch = "wasm32")]
+use crate::web_stretch::Stretch;
 
 /// Stretches the stereo buffer `left` / `right` (`rate` Hz) to `frames` frames with its pitch multiplied by
 /// `transpose`. The result starts where the input starts: the stretcher's latency is taken out.

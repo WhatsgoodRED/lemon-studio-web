@@ -8,7 +8,8 @@
 
 use std::cell::Cell;
 use std::path::{Component, Path, PathBuf};
-use std::time::{Instant, SystemTime};
+use std::time::SystemTime;
+use web_time::Instant;
 
 use os_ui::Rect;
 
@@ -142,7 +143,7 @@ pub struct FileDlg {
 }
 
 /// Double-click interval.
-const DOUBLE: std::time::Duration = std::time::Duration::from_millis(450);
+const DOUBLE: web_time::Duration = web_time::Duration::from_millis(450);
 
 static LAST: std::sync::Mutex<Vec<(&'static str, PathBuf)>> = std::sync::Mutex::new(Vec::new());
 
@@ -708,6 +709,17 @@ fn drives() -> Vec<(String, PathBuf)> {
         v.extend(sub_dirs(&root));
     }
     v
+}
+
+/// Web: the browser's virtual folders have no user folders or drives.
+#[cfg(target_arch = "wasm32")]
+fn user_dirs(_home: Option<&Path>) -> Vec<(PlaceKind, &'static str, PathBuf)> {
+    Vec::new()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn drives() -> Vec<(String, PathBuf)> {
+    Vec::new()
 }
 
 /// macOS: the start-up disk and the volumes.

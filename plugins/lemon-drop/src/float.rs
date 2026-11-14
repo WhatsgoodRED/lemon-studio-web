@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::time::Instant;
+use web_time::Instant;
 
 use os_plugkit::win as pw;
 use os_theme::Palette;

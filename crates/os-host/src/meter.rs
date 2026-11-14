@@ -8,7 +8,7 @@
 
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 /// A count an instance raises when it has work for the UI thread (callbacks it asked for, parameter events for the
 /// app, a flush, a restart, a new rate). The UI locks an instance only when its count moved since it last looked (or

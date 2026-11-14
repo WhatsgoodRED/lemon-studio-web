@@ -14,7 +14,7 @@
 
 use std::sync::{mpsc, Arc};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use windows::core::{w, Interface};
 use windows::Win32::Devices::Properties::DEVPKEY_Device_FriendlyName;

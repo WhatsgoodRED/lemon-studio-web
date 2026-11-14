@@ -374,7 +374,7 @@ fn clients_connect_over_a_local_socket() {
             });
             while rx.try_recv().is_err() {
                 a.control_tick();
-                std::thread::sleep(std::time::Duration::from_millis(2));
+                std::thread::sleep(web_time::Duration::from_millis(2));
             }
         });
         serde_json::from_str(&line).unwrap()
@@ -620,7 +620,7 @@ fn clients_connect_over_a_local_port() {
             });
             while rx.try_recv().is_err() {
                 a.control_tick();
-                std::thread::sleep(std::time::Duration::from_millis(2));
+                std::thread::sleep(web_time::Duration::from_millis(2));
             }
         });
         line
@@ -946,7 +946,7 @@ fn preset_loads_are_undo_steps() {
 
     // A preset dropped where a new instance was made loads into it as part of the step that made it.
     let steps = a.state.history.at();
-    a.plugins.preset_waits.push((1, dark.clone(), std::time::Instant::now()));
+    a.plugins.preset_waits.push((1, dark.clone(), web_time::Instant::now()));
     crate::presets::pending_tick(&mut a);
     assert_eq!((a.state.history.at(), knob.lock().unwrap().value), (steps, [0.1, 0.9]));
     let _ = std::fs::remove_dir_all(&dir);

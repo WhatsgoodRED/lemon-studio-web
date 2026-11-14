@@ -16,7 +16,7 @@ pub mod window_check;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use os_host::{Descriptor, Library, SharedPlugin};
 use os_engine::{SharedEffect, SharedInstrument};
@@ -317,7 +317,7 @@ pub struct Plugins {
     /// The preset file each instance last loaded or saved (spec: plugins/presets.md), by `hosted` key.
     pub presets: BTreeMap<usize, PathBuf>,
     /// Presets dropped where a new instance is being made: they load once it is hosted (`presets::pending_tick`).
-    pub preset_waits: Vec<(usize, PathBuf, std::time::Instant)>,
+    pub preset_waits: Vec<(usize, PathBuf, web_time::Instant)>,
     /// Plugins (uids) whose file the last scan no longer found: not listed, kept so indices stay valid.
     pub missing: HashSet<String>,
     /// The file and stamp each found plugin was listed from (uid -> path, size, time): an unchanged file keeps its
@@ -2235,7 +2235,7 @@ mod tests {
     use super::*;
     use std::ffi::c_void;
     use std::sync::Mutex;
-    use std::time::{Duration, Instant};
+    use web_time::{Duration, Instant};
     use windows_sys::Win32::Foundation::{HWND, RECT};
     use windows_sys::Win32::Graphics::Gdi::*;
     use windows_sys::Win32::Storage::Xps::PrintWindow;
@@ -3308,7 +3308,7 @@ mod tests {
         for _ in 0..20 {
             // The processed sample is built in the background: wait for it.
             i.process(48000, &mut l, &mut r);
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(web_time::Duration::from_millis(5));
         }
         i.note_on(0, 60, 100.0 / 128.0);
         let (mut l, mut r) = (vec![0.0f32; 480], vec![0.0f32; 480]);
@@ -3852,7 +3852,7 @@ mod tests {
         a.state.project.patterns[0].notes = vec![os_model::Note { length: 96, key: 60, ..os_model::Note::step(channel, 0) }];
         let path = std::env::temp_dir().join(format!("openstudio-native-gen-{}.wav", std::process::id()));
         a.transport.export(&a.state.project, os_engine::PlayMode::Pattern(1), 48000, crate::export::Job::wav(&path));
-        let t0 = std::time::Instant::now();
+        let t0 = web_time::Instant::now();
         let secs = loop {
             match a.transport.export_status() {
                 crate::transport::Export::Done(r) => break r.expect("export").0,

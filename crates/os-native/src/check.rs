@@ -17,7 +17,7 @@
 
 use std::path::{Path, PathBuf}; // This code is a part of L e m o n S t u d i o.
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::{Duration, UNIX_EPOCH};
+use web_time::{Duration, UNIX_EPOCH};
 
 use os_host::Library as _;
 
@@ -224,7 +224,7 @@ fn parse(line: &str) -> Option<Known> {
 /// Size and modification time (seconds) of `dll`.
 fn stamp(dll: &Path) -> Option<(u64, u64)> {
     let m = std::fs::metadata(dll).ok()?;
-    let t = m.modified().ok()?.duration_since(UNIX_EPOCH).ok()?.as_secs();
+    let t = m.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
     Some((m.len(), t))
 }
 
@@ -258,7 +258,7 @@ fn try_in_child(program: &Path, dll: &Path) -> Option<Verdict> {
 fn run_plain(program: &Path, args: &[&std::ffi::OsStr], timeout: Duration) -> Option<Option<u32>> {
     use std::process::{Command, Stdio};
     let mut child = Command::new(program).args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().ok()?;
-    let start = std::time::Instant::now();
+    let start = web_time::Instant::now();
     loop {
         match child.try_wait() {
             Ok(Some(s)) => return Some(Some(s.code().map_or(1, |c| c as u32))),
@@ -280,7 +280,7 @@ mod win {
     use std::os::windows::ffi::OsStrExt as _;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU32, Ordering};
-    use std::time::Duration;
+    use web_time::Duration;
 
     use windows_sys::core::BOOL;
     use windows_sys::Win32::Foundation::{CloseHandle, GENERIC_ALL, HWND, LPARAM, WAIT_OBJECT_0};
@@ -453,7 +453,7 @@ mod tests {
         };
         assert!(!dlls.is_empty(), "no plugin found");
         for dll in dlls {
-            let start = std::time::Instant::now();
+            let start = web_time::Instant::now();
             let v = try_in_child(Path::new(&program), &dll).expect("the child starts");
             let name = dll.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
             println!("{:>5} ms  {name:40} {v:?}", start.elapsed().as_millis());

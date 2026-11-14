@@ -18,7 +18,7 @@ use os_engine::Sample;
 use os_ui::{kit, Canvas, Font, Rect};
 
 /// Time spent starting instances per UI tick, so the window keeps painting the progress.
-pub const HOST_BUDGET: std::time::Duration = std::time::Duration::from_millis(12);
+pub const HOST_BUDGET: web_time::Duration = web_time::Duration::from_millis(12);
 
 pub struct Loading {
     /// Distinct sample files of the project's sampler channels, and how many are decoded.
@@ -210,10 +210,10 @@ mod tests {
         let mut l = Loading::start(&p);
         assert_eq!(l.workers, 1, "off");
         // Off the UI thread all the same: every file comes back from the one worker.
-        let t = std::time::Instant::now();
+        let t = web_time::Instant::now();
         while !l.decode_done() {
-            assert!(t.elapsed() < std::time::Duration::from_secs(10), "the worker finishes");
-            std::thread::sleep(std::time::Duration::from_millis(1));
+            assert!(t.elapsed() < web_time::Duration::from_secs(10), "the worker finishes");
+            std::thread::sleep(web_time::Duration::from_millis(1));
         }
         assert_eq!((l.decoded, l.files), (6, 6));
     }

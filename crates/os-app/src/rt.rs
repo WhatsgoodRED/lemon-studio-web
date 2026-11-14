@@ -24,7 +24,7 @@
 
 use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use std::sync::Once;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 /// The priority asked for (rtkit allows up to its `MaxRealtimePriority`, 20 by default).
 const PRIORITY: i32 = 20;
@@ -34,7 +34,7 @@ const RTTIME_HARD: u64 = 200_000;
 /// The watchdog: how often it looks, and the CPU time since a thread last waited at which it demotes it. A thread may
 /// have run up to one period more than it reads (it waited just after the last look), and runs on until the next look:
 /// 120 + 20 + 20 ms stays under the hard cap.
-const WATCH_EVERY: std::time::Duration = std::time::Duration::from_millis(20);
+const WATCH_EVERY: web_time::Duration = web_time::Duration::from_millis(20);
 const WATCH_LIMIT_NS: u64 = 120_000_000;
 
 /// The promoted threads (kernel thread ids), for the SIGXCPU handler; 0 = free. A slot whose thread ended is taken
@@ -314,7 +314,7 @@ fn install_handler() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{Duration, Instant};
+    use web_time::{Duration, Instant};
 
     /// Several real-time threads spinning at once, promoted at about the same time (the feeder and the device callback
     /// of a stream, a second stream): each is put back to normal priority, none is killed. Three rounds; rtkit refuses

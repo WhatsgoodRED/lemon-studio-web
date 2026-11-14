@@ -6,7 +6,7 @@
 //! during a drag, popup menus painted with `os_ui::kit::menu` (never native menus), and the "Type in value" box.
 
 use std::ffi::c_void;
-use std::time::Instant;
+use web_time::Instant;
 
 use os_theme::Palette;
 use os_ui::kit::menu::{self as kmenu, MenuStyle};

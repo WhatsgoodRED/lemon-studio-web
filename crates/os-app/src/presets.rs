@@ -803,7 +803,7 @@ fn browse(app: &mut App, key: usize) -> Option<String> {
 // Drops.
 
 /// How long a preset dropped where a new instance is made waits for that instance (`pending_tick`).
-const WAIT: std::time::Duration = std::time::Duration::from_secs(20);
+const WAIT: web_time::Duration = web_time::Duration::from_secs(20);
 
 /// A preset file dropped at the mouse (from the desktop or the browser): into the plugin window under it, the plugin of
 /// the rack row or mixer slot under it, else into a new channel (a generator) or effect (in the slot under the mouse,
@@ -850,7 +850,7 @@ pub fn dropped(app: &mut App, path: &Path) -> Option<String> {
     if let Some(i) = app.plugins.available.iter().position(|a| same(&a.desc)) {
         crate::plugin_menu::add_generator(app, i, None);
         let row = app.state.project.channels.len() - 1;
-        app.plugins.preset_waits.push((row, path.to_path_buf(), std::time::Instant::now()));
+        app.plugins.preset_waits.push((row, path.to_path_buf(), web_time::Instant::now()));
         return Some(format!("Loading {name} in a new channel"));
     }
     if let Some(i) = app.plugins.effects.iter().position(|a| same(&a.desc)) {
@@ -858,7 +858,7 @@ pub fn dropped(app: &mut App, path: &Path) -> Option<String> {
         let slot = slot.or_else(|| app.state.project.mixer.iter().find(|m| m.index == t).and_then(|m| m.slots.iter().position(Option::is_none)).map(|k| k as u8));
         let Some(k) = slot else { return Some("Every slot of this track is in use".into()) };
         crate::plugin_menu::add_effect(app, i, Some(k));
-        app.plugins.preset_waits.push((crate::plugins::fx_key(t, k), path.to_path_buf(), std::time::Instant::now()));
+        app.plugins.preset_waits.push((crate::plugins::fx_key(t, k), path.to_path_buf(), web_time::Instant::now()));
         return Some(format!("Loading {name} in a new effect"));
     }
     let plugin = std::fs::read(path).ok().and_then(|b| decode(&b).map(|(h, _)| h.plugin)).filter(|p| !p.is_empty());

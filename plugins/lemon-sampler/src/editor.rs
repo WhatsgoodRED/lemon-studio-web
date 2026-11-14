@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use nih_plug::prelude::*;
 use os_ui::kit::menu::{Mark, MenuItem, MenuStyle};
@@ -1310,7 +1310,7 @@ pub fn wav_bytes(s: &os_engine::Sample, float: bool) -> Vec<u8> {
 pub fn paste_path() -> Option<PathBuf> {
     let d = os_paths::user_file("samples")?;
     std::fs::create_dir_all(&d).ok()?;
-    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let t = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     Some(d.join(format!("Pasted audio {t}.wav")))
 }
 
@@ -1475,7 +1475,7 @@ mod win32 {
     use std::ffi::c_void;
     use std::sync::atomic::{AtomicIsize, Ordering};
     use std::sync::Arc;
-    use std::time::Instant;
+    use web_time::Instant;
 
     use nih_plug::prelude::GuiContext;
     use os_plugkit::Opener;
