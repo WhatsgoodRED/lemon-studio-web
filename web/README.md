@@ -17,6 +17,24 @@ The output is plain static files (`index.html`, `lemon-web.js`, `lemon-worklets.
 `.htaccess` for Apache). No COOP/COEP headers are needed. Check it with `python3 web/test/serve.py <out-dir> 8765` and
 `node web/test/proof.js` (Playwright; writes screenshots and `results.json`). `node web/test/metrobar.js <url of studio-lemon/>` checks the "← MetroBar" link (to `../landing-beat-meter.html`, the leave prompt only with unsaved changes) and that a browser holding the first, dark MetroBar theme opens with the light one. `node web/test/daynight.js <url> [Highlight Zone url]` checks the day / night switch.
 
+## Phones and tablets
+
+- **Fit:** the canvas fills the page above the bar. Where it is smaller than the layouts' 1024 x 600 CSS px, `ui_scale`
+  (os-app `main.rs`) draws the UI smaller until it fits (an iPhone 14 held sideways lays out 1422 x 600 at 0.59), so
+  everything is on screen and pointer positions need no conversion. Plugin windows open at the same scale.
+- **Touch** (`fingers.rs`): winit hands finger input over as `WindowEvent::Touch`; `Shell::touch_out` turns it into the
+  mouse events the app and plugin windows take. A tap is a click (twice = double click), moving a finger more than
+  9 CSS px presses where it went down and drags (knobs, sliders, clips), holding it still for 0.5 s is a right click
+  (menus), two fingers scroll, spreading or pinching them is Ctrl + wheel (zoom).
+- **Page:** the bottom bar scrolls sideways and is taller on touch screens; a phone held upright shows "Turn your phone
+  sideways" (`#turn`, with a way to go on anyway). Any tap resumes an audio context the system stopped (Safari only
+  allows it inside a gesture), the Start audio button comes back while it is stopped, and iOS plays through the
+  ringer switch (`navigator.audioSession.type = 'playback'`, Safari 17+).
+- **Check:** `node web/test/mobile.js <url> <out dir>` (iPhone 14 sideways 844 x 390 and an Android tablet 1280 x 800,
+  CDP touch events: rack, channel menu by long press, Lemon Sampler, knob drag, play / stop, two-finger scroll, the
+  bar, portrait). Headless Chromium reports the canvas's device-pixel size at 1x whatever device scale is emulated, so
+  it runs at 1x; on a real phone the canvas is full resolution.
+
 ## Day and night
 
 Day (the built-in MetroBar theme, light) is the default; night is the built-in MetroBar Night theme (the first, dark

@@ -178,6 +178,8 @@ mod typein;
 mod views;
 mod detached_win;
 mod wallpaper;
+#[cfg(any(target_arch = "wasm32", test))]
+mod fingers;
 mod waves;
 mod win_clamp;
 #[cfg(windows)]
@@ -251,6 +253,12 @@ struct Shell {
     detached: Vec<detached_win::DetWin>,
     /// The key event being handled came to this detached window: it goes to the app on that window's surface.
     key_on: Option<app::Win>,
+    /// The web build on a touch screen: the fingers on the canvas, turned into mouse input (`fingers`).
+    #[cfg(target_arch = "wasm32")]
+    touches: fingers::Touches,
+    /// The last touch's device, for the input a held finger gives later (`fingers::Touches::hold`).
+    #[cfg(target_arch = "wasm32")]
+    touch_dev: Option<DeviceId>,
 }
 
 /// Frame timing for tuning (`OS_FRAMES=<file>`): per frame the time, what was repainted (`full` or the number of
@@ -437,7 +445,15 @@ pub(crate) fn gui_scale(system: f64) -> f64 {
 /// The main window's UI scale: its monitor's, or the one chosen (`gui_scale`). Read at every event and paint, so a new
 /// choice applies at once, as a change of the monitor's scale does.
 fn ui_scale(window: &Window) -> f64 {
-    gui_scale(window.scale_factor())
+    let k = gui_scale(window.scale_factor());
+    // The web build: a canvas smaller than the layouts' 1024 x 600 (a phone, a tablet, a small browser window) draws
+    // the UI smaller until it fits, so it is all there and the pointer still lands where it points.
+    #[cfg(target_arch = "wasm32")]
+    let k = {
+        let s = window.inner_size();
+        if s.width == 0 || s.height == 0 { k } else { k.min(f64::from(s.width) / 1024.0).min(f64::from(s.height) / 600.0).max(0.5) }
+    };
+    k
 }
 
 /// Device pixels per unit of the window system's own window places: points on macOS, pixels elsewhere (`layout`).
@@ -675,6 +691,14 @@ impl Shell {
         {
             let k = self.window.as_ref().map_or(1.0, |w| (w.scale_factor() / ui_scale(w)) as f32);
             self.pending |= web::run(&mut self.app, k);
+            // A finger held still: its right click (`fingers`); and the time to look again.
+            let hold = self.touches.hold(now);
+            if let (false, Some(w)) = (hold.is_empty(), self.window.clone()) {
+                self.touch_out(el, w.id(), hold);
+            }
+            if let Some(at) = self.touches.deadline() {
+                wake = wake.min(at);
+            }
         }
         self.pending |= self.app.tick();
         #[cfg(target_arch = "wasm32")]
@@ -727,6 +751,35 @@ impl Shell {
 }
 
 impl Shell {
+    /// The web build: touch input as the mouse events it stands for (`fingers::Out`), each handled as a real one.
+    #[cfg(target_arch = "wasm32")]
+    fn touch_out(&mut self, el: &ActiveEventLoop, id: WindowId, out: Vec<fingers::Out>) {
+        use fingers::{Btn, Out};
+        use winit::dpi::PhysicalPosition;
+        use winit::event::TouchPhase;
+        let Some(device_id) = self.touch_dev else { return };
+        let button = |b: Btn| if b == Btn::Left { MouseButton::Left } else { MouseButton::Right };
+        for o in out {
+            let e = match o {
+                Out::Move(x, y) => WindowEvent::CursorMoved { device_id, position: PhysicalPosition::new(x, y) },
+                Out::Down(b) => WindowEvent::MouseInput { device_id, state: ElementState::Pressed, button: button(b) },
+                Out::Up(b) => WindowEvent::MouseInput { device_id, state: ElementState::Released, button: button(b) },
+                Out::Wheel(dx, dy) => {
+                    WindowEvent::MouseWheel { device_id, delta: MouseScrollDelta::PixelDelta(PhysicalPosition::new(dx, dy)), phase: TouchPhase::Moved }
+                }
+                Out::Zoom(d) => {
+                    let mods = self.mods;
+                    self.mods = mods | ModifiersState::CONTROL;
+                    let delta = MouseScrollDelta::PixelDelta(PhysicalPosition::new(0.0, d));
+                    self.window_event(el, id, WindowEvent::MouseWheel { device_id, delta, phase: TouchPhase::Moved });
+                    self.mods = mods;
+                    continue;
+                }
+            };
+            self.window_event(el, id, e);
+        }
+    }
+
     /// The web build: what plugin windows changed becomes the app's damage, so it is painted and presented.
     #[cfg(target_arch = "wasm32")]
     fn web_plugin_damage(&mut self) {
@@ -932,6 +985,14 @@ impl ApplicationHandler for Shell {
     }
 
     fn window_event(&mut self, el: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        // The web build on a touch screen: fingers become mouse input (`fingers`), handled as the mouse's is below.
+        #[cfg(target_arch = "wasm32")]
+        if let WindowEvent::Touch(t) = &event {
+            let k = self.window.as_ref().map_or(1.0, |w| w.scale_factor());
+            self.touch_dev = Some(t.device_id);
+            let out = self.touches.feed(t, k, Instant::now());
+            return self.touch_out(el, id, out);
+        }
         // A detached window's native window: its own handling, but for its keys, which go where the main window's do.
         let det = self.detached_of(id);
         self.key_on = det.map(|i| self.detached[i].win);
@@ -1246,6 +1307,9 @@ impl ApplicationHandler for Shell {
             }
             WindowEvent::Resized(_) => {
                 self.follow_frame(&window);
+                // The web build: the fitted scale follows the canvas (`ui_scale`); plugin windows open at it.
+                #[cfg(target_arch = "wasm32")]
+                self.app.plugins.set_scale(ui_scale(&window) as f32);
                 self.inset = insets(&window);
                 self.app.invalidate();
                 window.request_redraw();
@@ -2104,6 +2168,10 @@ fn main() {
         main_win: layout::main_win(),
         detached: Vec::new(),
         key_on: None,
+        #[cfg(target_arch = "wasm32")]
+        touches: fingers::Touches::default(),
+        #[cfg(target_arch = "wasm32")]
+        touch_dev: None,
     };
     #[cfg(unix)]
     stop_signal::install();
