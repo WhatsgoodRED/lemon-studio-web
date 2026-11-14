@@ -9,7 +9,7 @@
 //   between visits, puts dropped and imported audio files in, and downloads exports and saved projects.
 
 // TODO(owner): the public URL of this build's source (GPL-3.0 §6). The repository is private for now.
-const SOURCE_URL = 'TODO-public-source-repository-url';
+const SOURCE_URL = 'https://github.com/WhatsgoodRED/lemon-studio-web/tree/web';
 
 import init, * as lemon from './pkg/lemonstudio.js';
 
