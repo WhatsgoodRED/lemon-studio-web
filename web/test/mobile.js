@@ -48,6 +48,18 @@ const DEVICES = [
     R.fits = { pass: geo.canvas[0] / k >= 1023 && geo.canvas[1] / k >= 599 && geo.canvas[0] <= d.viewport.width };
     await shot('1-start');
 
+    // Audio starts suspended on phones (always on iOS, often in headless Chromium): the "Start audio" veil covers the
+    // canvas until a tap. Tap its button; the context runs and the veil goes, so the next taps reach the app.
+    const audio = () => page.evaluate(() => ({ ctx: lemonWeb.ctx.state, veil: getComputedStyle(document.getElementById('start')).display }));
+    const a0 = await audio();
+    if (a0.veil !== 'none') {
+      const r = await page.evaluate(() => { const b = document.getElementById('start-btn').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
+      await shot('1a-start-audio');
+      await tap(...r);
+    }
+    const a1 = await audio();
+    R.start_audio = { pass: a1.ctx === 'running' && a1.veil === 'none', before: a0, after: a1 };
+
     // Instrument rack: its window's close box, then the toolbar's rack button opens it again.
     const rackOpen = () => region(A.sampler[0] - 30, A.sampler[1] - 12, 60, 24);
     const before = await rackOpen();

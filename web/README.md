@@ -31,7 +31,7 @@ The output is plain static files (`index.html`, `lemon-web.js`, `lemon-worklets.
   allows it inside a gesture), the Start audio button comes back while it is stopped, and iOS plays through the
   ringer switch (`navigator.audioSession.type = 'playback'`, Safari 17+).
 - **Check:** `node web/test/mobile.js <url> <out dir>` (iPhone 14 sideways 844 x 390 and an Android tablet 1280 x 800,
-  CDP touch events: rack, channel menu by long press, Lemon Sampler, knob drag, play / stop, two-finger scroll, the
+  CDP touch events: Start audio by tap, rack, channel menu by long press, Lemon Sampler, knob drag, play / stop, two-finger scroll, the
   bar, portrait). Headless Chromium reports the canvas's device-pixel size at 1x whatever device scale is emulated, so
   it runs at 1x; on a real phone the canvas is full resolution.
 
