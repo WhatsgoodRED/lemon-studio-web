@@ -19,6 +19,14 @@ pub fn temp_dir() -> std::path::PathBuf {
     std::env::temp_dir()
 }
 
+/// `std::process::id`, which panics on the web: there, 1.
+pub fn pid() -> u32 {
+    #[cfg(target_arch = "wasm32")]
+    return 1;
+    #[cfg(not(target_arch = "wasm32"))]
+    std::process::id()
+}
+
 /// Runs `job` on a thread named `name`, or at once on this one when there are no threads (the web).
 pub fn spawn<F: FnOnce() + Send + 'static>(name: &str, job: F) {
     #[cfg(target_arch = "wasm32")]

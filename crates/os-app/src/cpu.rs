@@ -287,7 +287,7 @@ fn handles_threads() -> (u32, u32) {
 /// Open file descriptors and threads.
 #[cfg(target_os = "macos")]
 fn handles_threads() -> (u32, u32) {
-    let pid = std::process::id() as libc::c_int;
+    let pid = os_web::pid() as libc::c_int;
     // SAFETY: with a null buffer `proc_pidinfo` only reports the bytes the descriptor list needs.
     let fd_bytes = unsafe { libc::proc_pidinfo(pid, libc::PROC_PIDLISTFDS, 0, std::ptr::null_mut(), 0) };
     let fds = (fd_bytes.max(0) as usize / std::mem::size_of::<libc::proc_fdinfo>()) as u32;
@@ -301,7 +301,7 @@ fn task_info() -> Option<libc::proc_taskinfo> {
     // SAFETY: a plain query on our own process into a struct of the size we pass.
     unsafe {
         let mut t: libc::proc_taskinfo = std::mem::zeroed();
-        let got = libc::proc_pidinfo(std::process::id() as libc::c_int, libc::PROC_PIDTASKINFO, 0, (&raw mut t).cast(), size);
+        let got = libc::proc_pidinfo(os_web::pid() as libc::c_int, libc::PROC_PIDTASKINFO, 0, (&raw mut t).cast(), size);
         (got == size).then_some(t)
     }
 }

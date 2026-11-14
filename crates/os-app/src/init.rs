@@ -430,8 +430,8 @@ mod tests {
         const INIT: (f64, f64) = (0.5, 140.0);
         const MOVED: (f64, f64) = (1.0, 90.0);
         let dir = os_web::temp_dir();
-        let path = dir.join(format!("lemon-init-open-{}.flp", std::process::id()));
-        let resaved = dir.join(format!("lemon-init-open-{}-resaved.flp", std::process::id()));
+        let path = dir.join(format!("lemon-init-open-{}.flp", os_web::pid()));
+        let resaved = dir.join(format!("lemon-init-open-{}-resaved.flp", os_web::pid()));
         let stored = |p: &std::path::Path| {
             let f = os_flp::FlpFile::parse(&os_web::fs::read(p).unwrap()).unwrap();
             let q = os_flp::project::load(&f).unwrap();

@@ -65,7 +65,7 @@ impl Drag {
     pub fn start() -> Option<Drag> {
         let (cx, cy) = cursor()?;
         let list: serde_json::Value = serde_json::from_str(&ask("j/clients")?).ok()?;
-        let pid = std::process::id() as u64;
+        let pid = os_web::pid() as u64;
         let num = |v: &serde_json::Value, i: usize| v[i].as_f64().unwrap_or(0.0);
         let (c, at) = list
             .as_array()?
@@ -104,7 +104,7 @@ fn cursor() -> Option<(f64, f64)> {
 /// This process's XWayland windows not made plain yet (`None`: no answer from Hyprland).
 fn ours() -> Option<Vec<String>> {
     let list: serde_json::Value = serde_json::from_str(&ask("j/clients")?).ok()?;
-    let pid = std::process::id() as u64;
+    let pid = os_web::pid() as u64;
     let done = PLAIN.lock().unwrap();
     Some(
         list.as_array()?

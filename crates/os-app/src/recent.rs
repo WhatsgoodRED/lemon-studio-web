@@ -104,7 +104,7 @@ mod tests {
     use crate::views::menus::RECENT_PICK;
 
     fn dir(name: &str) -> PathBuf {
-        let d = os_web::temp_dir().join(format!("lemon-recent-{name}-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("lemon-recent-{name}-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d

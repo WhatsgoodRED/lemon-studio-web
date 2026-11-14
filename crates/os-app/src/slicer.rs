@@ -182,7 +182,7 @@ mod tests {
         let mut f = b"RIFF".to_vec();
         f.extend((body.len() as u32).to_le_bytes());
         f.extend(body);
-        let p = os_web::temp_dir().join(format!("openstudio-slicer-{}-{name}.wav", std::process::id()));
+        let p = os_web::temp_dir().join(format!("openstudio-slicer-{}-{name}.wav", os_web::pid()));
         os_web::fs::write(&p, f).unwrap();
         p
     }
@@ -233,7 +233,7 @@ mod tests {
     /// bytes, and the reopened project hosts it again from them (the file's own spelling of the id kept).
     #[test]
     fn slicer_channels_save_and_reopen() {
-        let file = os_web::temp_dir().join(format!("openstudio-slicer-{}.flp", std::process::id()));
+        let file = os_web::temp_dir().join(format!("openstudio-slicer-{}.flp", os_web::pid()));
         let wav = loop_file("reopen");
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn a_sent_file_becomes_a_sliced_slicer_channel() {
         use tesla::sample::{Cue, Format, Sample};
-        let path = os_web::temp_dir().join(format!("openstudio-to-slicer-{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-to-slicer-{}.wav", os_web::pid()));
         let mut s = Sample::from_channels(44100, vec![vec![0.25; 44100]], Format::Int16);
         for (i, (pos, len)) in [(0usize, 11025usize), (11025, 11025), (22050, 22050)].into_iter().enumerate() {
             s.cues.push(Cue { id: i as u32 + 1, name: format!("Part {}", i + 1), pos, len: Some(len) });
@@ -287,7 +287,7 @@ mod tests {
         let row = before;
         let ch = &a.state.project.channels[row];
         assert!(is_slicer(ch));
-        assert_eq!(ch.name.as_deref(), Some(format!("openstudio-to-slicer-{}", std::process::id()).as_str()));
+        assert_eq!(ch.name.as_deref(), Some(format!("openstudio-to-slicer-{}", os_web::pid()).as_str()));
         let st = State::parse(ch.plugin_state.as_deref().unwrap()).unwrap();
         assert_eq!(st.slices.iter().map(|s| s.start).collect::<Vec<_>>(), [0, 11025, 22050]);
         assert_eq!(st.slices[1].name(), "Part 2");
@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn a_dropped_loop_goes_into_the_slicer() {
         use tesla::sample::{Cue, Format, Sample};
-        let first = os_web::temp_dir().join(format!("openstudio-drop-slicer-{}.wav", std::process::id()));
+        let first = os_web::temp_dir().join(format!("openstudio-drop-slicer-{}.wav", os_web::pid()));
         let mut s = Sample::from_channels(44100, vec![vec![0.25; 44100]], Format::Int16);
         s.cues.push(Cue { id: 1, name: "Part 1".into(), pos: 0, len: Some(22050) });
         s.cues.push(Cue { id: 2, name: "Part 2".into(), pos: 22050, len: Some(22050) });
@@ -329,7 +329,7 @@ mod tests {
         assert!(a.state.message.as_deref().is_some_and(|m| m.contains("loaded in Lemon Slicer")), "{:?}", a.state.message);
         assert!(a.state.plugin_edited, "the project counts as changed");
 
-        let bad = os_web::temp_dir().join(format!("openstudio-drop-slicer-{}.wav.txt", std::process::id()));
+        let bad = os_web::temp_dir().join(format!("openstudio-drop-slicer-{}.wav.txt", os_web::pid()));
         os_web::fs::write(&bad, b"not audio").unwrap();
         assert!(a.loop_to_slicer(row, &bad.to_string_lossy()));
         assert_eq!(loaded(&a).path(), dropped.to_string_lossy(), "the loop stays");

@@ -253,7 +253,7 @@ mod tests {
     /// A project written from the model renders to a WAV of the song's length, with no window and no device.
     #[test]
     fn renders_a_project_file() {
-        let dir = os_web::temp_dir().join(format!("lemon-render-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-render-{}", os_web::pid()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let (flp, out) = (dir.join("song.flp"), dir.join("song.wav"));
         let file = os_flp::project::create(&crate::app::test_project()).expect("create");
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn a_looping_sample_stops_at_its_notes_end() {
         use os_model::{Arrangement, Clip, ClipSource, Note, Pattern};
-        let dir = os_web::temp_dir().join(format!("lemon-render-loop-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-render-loop-{}", os_web::pid()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let (flp, out, sample) = (dir.join("loop.flp"), dir.join("loop.wav"), dir.join("cycle.wav"));
         // 550 frames of 16-bit mono at 44.1 kHz with a `smpl` loop over the whole file.

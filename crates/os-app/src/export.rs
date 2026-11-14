@@ -807,7 +807,7 @@ mod tests {
         assert!(find(&off, b"Info").is_none() && find(&off, b"Xing").is_none());
         assert!(on.len() > off.len(), "one frame more");
         // Nothing is cut off the end: without the tag, every frame decodes, the delay in front of the audio.
-        let path = os_web::temp_dir().join(format!("os-export-gapless-{}.mp3", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os-export-gapless-{}.mp3", os_web::pid()));
         os_web::fs::write(&path, &off).unwrap();
         let frames = os_engine::sample::load(&path).unwrap().frames();
         let _ = os_web::fs::remove_file(&path);
@@ -816,7 +816,7 @@ mod tests {
 
     #[test]
     fn writes_every_format() {
-        let dir = os_web::temp_dir().join(format!("lemon-export-test-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-export-test-{}", os_web::pid()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let mut job = Job::wav(&dir.join("mix.wav"));
         job.options.formats = [true, true, true, true];
@@ -852,7 +852,7 @@ mod tests {
     /// track's file takes the form's name, several are "<name> - <NN> <track name>".
     #[test]
     fn render_to_wave_file_writes_the_tracks() {
-        let dir = os_web::temp_dir().join(format!("lemon-export-tracks-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-export-tracks-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let mut job = Job::wav(&dir.join("Drums.wav"));

@@ -330,7 +330,7 @@ mod tests {
         assert!(app.top_message().is_some_and(|(_, t)| t.contains("over the 50 MB warning")));
         app.state.dialogs.clear();
 
-        let path = os_web::temp_dir().join(format!("os_size_notice_{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_size_notice_{}.flp", os_web::pid()));
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")));
         assert!(app.top_message().is_none(), "a small project is under every limit");

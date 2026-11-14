@@ -1179,7 +1179,7 @@ mod tests {
     }
 
     fn temp(name: &str) -> PathBuf {
-        let d = os_web::temp_dir().join(format!("os_plugdb_{name}_{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("os_plugdb_{name}_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d

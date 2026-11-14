@@ -1092,7 +1092,7 @@ mod tests {
     /// open like any folder.
     #[test]
     fn my_projects_lists_the_users_projects_folder() {
-        let dir = os_web::temp_dir().join(format!("os_myprojects_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_myprojects_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(dir.join("Song").join("Samples")).unwrap();
         os_web::fs::write(dir.join("Song").join("Song.lemon"), b"x").unwrap();

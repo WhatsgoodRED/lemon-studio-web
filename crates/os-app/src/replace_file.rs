@@ -40,7 +40,7 @@ pub fn replace(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 /// project's extension, so neither the browser nor a file dialog lists it.
 fn beside(target: &Path) -> PathBuf {
     let name = target.file_name().map_or_else(|| "file".into(), |n| n.to_string_lossy().into_owned());
-    target.with_file_name(format!(".{name}.{}.tmp", std::process::id()))
+    target.with_file_name(format!(".{name}.{}.tmp", os_web::pid()))
 }
 
 #[cfg(test)]
@@ -48,7 +48,7 @@ mod tests {
     use super::*;
 
     fn dir(name: &str) -> PathBuf {
-        let d = os_web::temp_dir().join(format!("lemon-replace-{name}-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("lemon-replace-{name}-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d

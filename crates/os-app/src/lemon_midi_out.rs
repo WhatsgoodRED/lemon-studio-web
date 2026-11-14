@@ -757,7 +757,7 @@ mod tests {
     /// state in place; a save keeps it byte for byte and a reopened project plays it again (spec §6.1-6.3).
     #[test]
     fn midi_out_channels_save_and_reopen() {
-        let path = os_web::temp_dir().join(format!("lemon-midi-out-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-midi-out-{}.flp", os_web::pid()));
         let mut a = app();
         a.add_midi_out();
         let row = a.state.project.channels.len() - 1;
@@ -874,7 +874,7 @@ mod tests {
     /// with their states, their names and their notes, no sample, on the master track.
     #[test]
     fn set_up_for_midi_export_saves() {
-        let dir = os_web::temp_dir().join(format!("lemon-midi-out-prep-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-midi-out-prep-{}", os_web::pid()));
         let _ = os_web::fs::create_dir_all(&dir);
         let (first, second) = (dir.join("a.flp"), dir.join("b.flp"));
         let mut a = app();

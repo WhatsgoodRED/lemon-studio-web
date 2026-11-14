@@ -180,7 +180,7 @@ pub(crate) mod tests {
     /// selected, named and set as it was, and is one undo step; Browse opens Channel presets in the browser, listing it.
     #[test]
     fn save_add_and_browse() {
-        let dir = os_web::temp_dir().join(format!("ls_channel_states_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("ls_channel_states_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         ROOT.with(|r| *r.borrow_mut() = Some(dir.clone()));

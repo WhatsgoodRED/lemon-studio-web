@@ -432,7 +432,7 @@ mod tests {
 
     /// A fresh scratch folder for one test, set as the user's projects folder (removed again by the caller).
     fn scratch(tag: &str) -> PathBuf {
-        let dir = os_web::temp_dir().join(format!("os_saveform_{tag}_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_saveform_{tag}_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         TEST_ROOT.with(|d| *d.borrow_mut() = Some(dir.join("Projects")));

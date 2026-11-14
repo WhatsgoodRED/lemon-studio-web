@@ -238,7 +238,7 @@ mod tests {
     /// again, and a file's 3x Osc channel is hosted from its own state and written back unchanged.
     #[test]
     fn osc3_channels_save_and_reopen() {
-        let path = os_web::temp_dir().join(format!("openstudio-osc3-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-osc3-{}.flp", os_web::pid()));
         let mut a = App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -312,7 +312,7 @@ mod tests {
     /// state staying 460 bytes (spec: plugins/3x-osc.md §1, plugins/lemon-3x-osc.md §6).
     #[test]
     fn osc3_custom_shape_plays_the_channel_sample() {
-        let dir = os_web::temp_dir().join(format!("openstudio-osc3-custom-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("openstudio-osc3-custom-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         // One period of a square, and of a saw.
@@ -444,7 +444,7 @@ mod tests {
         let Some(list) = std::env::var_os("OPENSTUDIO_FLP_CORPUS") else { return };
         let text = os_web::fs::read_to_string(list).unwrap();
         let (mut files, mut channels, mut older) = (0, 0, 0);
-        let out = os_web::temp_dir().join(format!("openstudio-osc3-corpus-{}.flp", std::process::id()));
+        let out = os_web::temp_dir().join(format!("openstudio-osc3-corpus-{}.flp", os_web::pid()));
         for path in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
             let Some(project) = os_web::fs::read(path).ok().and_then(|b| os_flp::FlpFile::parse(&b).ok()).and_then(|f| os_flp::project::load(&f).ok())
             else {

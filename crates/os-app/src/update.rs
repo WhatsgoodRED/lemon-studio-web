@@ -83,7 +83,7 @@ pub fn target() -> Result<PathBuf, String> {
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     let target = exe;
     let dir = target.parent().ok_or("Lemon Studio's program file has no folder.")?;
-    let probe = dir.join(format!(".lemonstudio-update-check-{}", std::process::id()));
+    let probe = dir.join(format!(".lemonstudio-update-check-{}", os_web::pid()));
     match os_web::fs::write(&probe, b"") {
         Ok(()) => {
             let _ = os_web::fs::remove_file(&probe);
@@ -102,7 +102,7 @@ fn updater() -> Result<PathBuf, String> {
     if os_web::fs::read(&path).is_ok_and(|b| b == bytes) {
         return Ok(path);
     }
-    let tmp = dir.join(format!("{UPDATER_NAME}.{}.tmp", std::process::id()));
+    let tmp = dir.join(format!("{UPDATER_NAME}.{}.tmp", os_web::pid()));
     os_web::fs::write(&tmp, bytes).map_err(|e| format!("{}: {e}", tmp.display()))?;
     #[cfg(unix)]
     {
@@ -324,7 +324,7 @@ fn apply(install: &Install) -> Result<(), String> {
     let target = target()?;
     let result = folder().ok_or("no user folder")?.join("result.json");
     let mut cmd = Command::new(exe);
-    cmd.arg("apply").arg("--pid").arg(std::process::id().to_string());
+    cmd.arg("apply").arg("--pid").arg(os_web::pid().to_string());
     cmd.arg("--staged").arg(&install.staged).arg("--target").arg(&target);
     cmd.arg("--version").arg(&install.version).arg("--result").arg(&result);
     if install.relaunch {

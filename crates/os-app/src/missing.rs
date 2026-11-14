@@ -292,7 +292,7 @@ pub(crate) mod tests {
     /// once every name is found.
     #[test]
     fn search_finds_folders_by_name() {
-        let root = os_web::temp_dir().join(format!("os_missing_search_{}", std::process::id()));
+        let root = os_web::temp_dir().join(format!("os_missing_search_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&root);
         os_web::fs::create_dir_all(root.join("a/b/c")).unwrap();
         os_web::fs::create_dir_all(root.join("d")).unwrap();
@@ -325,7 +325,7 @@ pub(crate) mod tests {
     /// project's folder, nothing is changed in the project, and only what is truly missing is listed.
     #[test]
     fn samples_beside_the_project_are_found() {
-        let dir = os_web::temp_dir().join(format!("os_missing_beside_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_missing_beside_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let wav = wav(4410);

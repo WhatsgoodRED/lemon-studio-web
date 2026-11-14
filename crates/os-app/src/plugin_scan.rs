@@ -322,7 +322,7 @@ mod tests {
     /// that tells nothing is scanned as usual.
     #[test]
     fn plugins_that_cannot_load_here_are_not_tried() {
-        let d = os_web::temp_dir().join(format!("os_scan_unsupported_{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("os_scan_unsupported_{}", os_web::pid()));
         let bundle = d.join("Old.vst");
         os_web::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
         let mut intel = 0xFEED_FACFu32.to_le_bytes().to_vec();
@@ -342,7 +342,7 @@ mod tests {
     /// A file that is not a plugin fails in this process without harm.
     #[test]
     fn a_broken_file_scans_as_an_error() {
-        let p = os_web::temp_dir().join(format!("os_scan_broken_{}.clap", std::process::id()));
+        let p = os_web::temp_dir().join(format!("os_scan_broken_{}.clap", os_web::pid()));
         os_web::fs::write(&p, b"not a plugin").unwrap();
         let r = scan_here(&p, Format::Clap);
         assert_eq!(r.status, Status::Error);

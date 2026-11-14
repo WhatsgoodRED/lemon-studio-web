@@ -788,6 +788,18 @@ impl ApplicationHandler for Shell {
             attrs.with_canvas(canvas).with_append(false).with_prevent_default(true).with_focusable(true).with_maximized(false)
         };
         let window = Rc::new(el.create_window(attrs).expect("create window"));
+        // The web build: the page's stylesheet sizes the canvas (the whole page but its bottom bar), not the size asked
+        // for above; winit follows the canvas's size from then on.
+        #[cfg(target_arch = "wasm32")]
+        {
+            use winit::platform::web::WindowExtWebSys;
+            if let Some(c) = window.canvas() {
+                let st = c.style();
+                for p in ["width", "height", "min-width", "min-height"] {
+                    let _ = st.remove_property(p);
+                }
+            }
+        }
         #[cfg(target_os = "macos")]
         if frame.is_some_and(|m| m.max) {
             set_maximized(&window, true);

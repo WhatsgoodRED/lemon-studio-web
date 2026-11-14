@@ -204,7 +204,7 @@ mod tests {
     /// match (spec §11).
     #[test]
     fn finds_the_folders_holding_a_match() {
-        let root = os_web::temp_dir().join(format!("os_index_{}", std::process::id()));
+        let root = os_web::temp_dir().join(format!("os_index_{}", os_web::pid()));
         let deep = root.join("Kits").join("808");
         os_web::fs::create_dir_all(&deep).unwrap();
         os_web::fs::create_dir_all(root.join("Loops")).unwrap();

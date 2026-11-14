@@ -747,7 +747,7 @@ mod tests {
     use super::*;
 
     fn tmp(name: &str) -> PathBuf {
-        let d = os_web::temp_dir().join(format!("os-filedlg-{name}-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("os-filedlg-{name}-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d

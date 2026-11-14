@@ -273,7 +273,7 @@ mod tests {
     }
 
     fn temp(tag: &str) -> PathBuf {
-        let d = os_web::temp_dir().join(format!("lemon-pattern-render-{tag}-{}", std::process::id()));
+        let d = os_web::temp_dir().join(format!("lemon-pattern-render-{tag}-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&d);
         os_web::fs::create_dir_all(&d).unwrap();
         d

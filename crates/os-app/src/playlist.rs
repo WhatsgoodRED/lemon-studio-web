@@ -6232,7 +6232,7 @@ mod tests {
         app.state.project.channels[0].sample_path = None;
         let ch = app.state.project.channels[0].index;
         assert!(!entry(&pick_menu(&app.state, ch, 0.0, 0.0), "Edit sample...").enabled, "no sample");
-        let dir = os_web::temp_dir().join(format!("ls_edit_sample_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("ls_edit_sample_{}", os_web::pid()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("Tone.wav");
         let tone = tesla::sample::Sample::from_channels(44100, vec![vec![0.25; 4410], vec![-0.25; 4410]], tesla::sample::Format::Int16);

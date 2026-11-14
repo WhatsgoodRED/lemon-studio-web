@@ -182,7 +182,7 @@ mod tests {
 
     /// A fresh folder for this test's backups (this thread's `folder`).
     fn scratch(tag: &str) -> PathBuf {
-        let dir = os_web::temp_dir().join(format!("os_backup_{tag}_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_backup_{tag}_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         TEST_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         dir

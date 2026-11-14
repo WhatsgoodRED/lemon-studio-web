@@ -6404,7 +6404,7 @@ mod tests {
             }
         }
         // A one-second sample; the first clip starts 250 ms into it, the second plays it from the top.
-        let wav = os_web::temp_dir().join(format!("os-engine-clip-start-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-clip-start-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 96000]).unwrap();
         let mut trimmed = Clip::new(0, 96, 0, ClipSource::Channel(0));
         trimmed.window = Some((250.0, 711.0));
@@ -6460,8 +6460,8 @@ mod tests {
         };
         // The hosted channels' file: one second at 44.1 kHz (the output runs at 48 kHz). The channel without an
         // instrument has a file of its own.
-        let hosted_wav = os_web::temp_dir().join(format!("os-engine-hosted-length-{}.wav", std::process::id()));
-        let own_wav = os_web::temp_dir().join(format!("os-engine-hosted-own-{}.wav", std::process::id()));
+        let hosted_wav = os_web::temp_dir().join(format!("os-engine-hosted-length-{}.wav", os_web::pid()));
+        let own_wav = os_web::temp_dir().join(format!("os-engine-hosted-own-{}.wav", os_web::pid()));
         write(&hosted_wav, 44100, 44100);
         write(&own_wav, 48000, 48000);
         // Channel 0 plays audio clips: one trimmed 250 ms in, one from the top. Channel 1 is a sampler whose notes are
@@ -6579,7 +6579,7 @@ mod tests {
             crate::sample::length(path).map(|(n, r)| (n as usize, r))
         }
         // 550 frames: about 11 ms, played out long before the note's end.
-        let wav = os_web::temp_dir().join(format!("os-engine-looped-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-looped-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 1100]).unwrap();
         let mut p = project(vec![long_note(0, 96, 0)], vec![]);
         p.channels[0].sample_path = Some(wav.to_string_lossy().into_owned());
@@ -6634,7 +6634,7 @@ mod tests {
                 self.1 += l.len() as u64;
             }
         }
-        let wav = os_web::temp_dir().join(format!("os-engine-pause-clip-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-pause-clip-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 4 * 96000]).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
@@ -6691,7 +6691,7 @@ mod tests {
                 r.fill(v);
             }
         }
-        let wav = os_web::temp_dir().join(format!("os-engine-clip-level-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-clip-level-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.5; 96000]).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 192, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
@@ -7250,7 +7250,7 @@ mod tests {
     #[test]
     fn clips_deleted_or_moved_while_playing_stop_sounding() {
         use os_model::{Clip, ClipSource};
-        let wav = os_web::temp_dir().join(format!("os-engine-playing-edit-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-playing-edit-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 192000]).unwrap();
         // A two-second sample in a clip from 0 to 192, and one more at 384 that keeps the song going.
         let with = |clip: Option<Clip>| {
@@ -7315,7 +7315,7 @@ mod tests {
                 self.1 += l.len() as u64;
             }
         }
-        let wav = os_web::temp_dir().join(format!("os-engine-playing-edit-hosted-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-playing-edit-hosted-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 192000]).unwrap();
         let f = |t: f64| laws::tick_to_frame(t, 96, 130.0, 48000);
         let mut lib = SampleLibrary::new(None);
@@ -7407,7 +7407,7 @@ mod tests {
     fn playback_started_inside_an_audio_clip_plays_it_from_there() {
         use os_model::{Clip, ClipSource};
         // A one-second ramp (each frame's value is its time) in a clip from tick 0 to 192 (0.92 s at 130 BPM).
-        let wav = os_web::temp_dir().join(format!("os-engine-clip-inside-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-clip-inside-{}.wav", os_web::pid()));
         let ramp: Vec<f32> = (0..48000).flat_map(|i| [i as f32 / 48000.0; 2]).collect();
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 192, 0, ClipSource::Channel(0))]);
@@ -7514,7 +7514,7 @@ mod tests {
     fn truncated_notes_on_transport_start_afresh() {
         use os_model::{Clip, ClipSource};
         // A one-second ramp (each frame's value is its time): any other place in the sample sounds different.
-        let wav = os_web::temp_dir().join(format!("os-engine-truncated-transport-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-truncated-transport-{}.wav", os_web::pid()));
         let ramp: Vec<f32> = (0..48000).flat_map(|i| [i as f32 / 48000.0; 2]).collect();
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
         let mut p = project(vec![long_note(0, 768, 0)], vec![]);
@@ -7568,7 +7568,7 @@ mod tests {
     #[test]
     fn audio_clip_fades_and_gain() {
         use os_model::{Clip, ClipSource};
-        let wav = os_web::temp_dir().join(format!("os-engine-clip-fades-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-clip-fades-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 96000]).unwrap();
         // A one-bar clip (1.846 s at 130 BPM) of a one-second DC sample: plain, then with fades and gain.
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0))]);
@@ -7646,7 +7646,7 @@ mod tests {
     #[test]
     fn automatic_crossfades_play_at_unity() {
         use os_model::{Clip, ClipSource};
-        let wav = os_web::temp_dir().join(format!("os-engine-crossfades-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-crossfades-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         // Two one-bar clips of a two-second DC sample on one track, the second from beat 3: 192 ticks of overlap.
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0)), Clip::new(192, 384, 0, ClipSource::Channel(0))]);
@@ -7793,7 +7793,7 @@ mod tests {
     #[test]
     fn a_clip_voice_that_ends_itself_is_choked_only_at_the_song_end() {
         use os_model::{Clip, ClipSource};
-        let wav = os_web::temp_dir().join(format!("os-engine-clip-ends-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-clip-ends-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         let mut first = Clip::new(0, 192, 0, ClipSource::Channel(0));
         first.window = Some((250.0, 1000.0));
@@ -7826,7 +7826,7 @@ mod tests {
     #[test]
     fn automatic_crossfades_on_a_hosted_sampler_play_at_unity() {
         use os_model::{Clip, ClipSource};
-        let wav = os_web::temp_dir().join(format!("os-engine-hosted-crossfades-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-hosted-crossfades-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0)), Clip::new(192, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
@@ -7877,7 +7877,7 @@ mod tests {
     #[test]
     fn an_instrument_without_voice_gains_plays_the_second_clip_on() {
         use os_model::{Clip, ClipSource};
-        let wav = os_web::temp_dir().join(format!("os-engine-unvoiced-crossfades-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-unvoiced-crossfades-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0)), Clip::new(192, 384, 0, ClipSource::Channel(0))]);
         p.channels[0].kind = ChannelKind::AudioClip;
@@ -7901,7 +7901,7 @@ mod tests {
     #[test]
     fn resample_stretch_multiplier_slows_the_clip() {
         use os_model::{Clip, ClipSource};
-        let wav = os_web::temp_dir().join(format!("os-engine-stretch-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-stretch-{}.wav", os_web::pid()));
         let ramp: Vec<f32> = (0..48000).flat_map(|i| [i as f32 / 48000.0; 2]).collect();
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
         let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0))]);
@@ -7924,7 +7924,7 @@ mod tests {
 
     impl Sines {
         fn new(name: &str, parts: &[(f64, f64)]) -> Sines {
-            let path = os_web::temp_dir().join(format!("os-engine-{name}-{}.wav", std::process::id()));
+            let path = os_web::temp_dir().join(format!("os-engine-{name}-{}.wav", os_web::pid()));
             let mut frames = Vec::new();
             for &(hz, secs) in parts {
                 for i in 0..(secs * 48000.0) as usize {
@@ -8808,7 +8808,7 @@ mod tests {
     #[test]
     fn audio_clips_end_at_the_loop_point() {
         use os_model::{Clip, ClipSource};
-        let wav = os_web::temp_dir().join(format!("os-engine-loop-clip-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-engine-loop-clip-{}.wav", os_web::pid()));
         crate::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 48000 * 4]).unwrap();
         for range in [(0, 192), (96, 192)] {
             let mut p = song(vec![], vec![Clip::new(0, 384, 0, ClipSource::Channel(0))]);

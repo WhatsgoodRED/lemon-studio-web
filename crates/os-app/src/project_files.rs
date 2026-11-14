@@ -328,7 +328,7 @@ mod tests {
     use super::*;
 
     fn scratch(tag: &str) -> PathBuf {
-        let dir = os_web::temp_dir().join(format!("os_projfiles_{tag}_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_projfiles_{tag}_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         dir

@@ -47,7 +47,7 @@ mod tests {
     }
 
     fn wav() -> std::path::PathBuf {
-        let path = os_web::temp_dir().join(format!("os-preview-track-{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os-preview-track-{}.wav", os_web::pid()));
         if !path.vexists() {
             let audio: Vec<f32> = (0..48_000).map(|i| ((i / 2) as f32 * 440.0 * std::f32::consts::TAU / 48_000.0).sin() * 0.5).collect();
             os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&path).unwrap(), 48_000, &audio).unwrap();

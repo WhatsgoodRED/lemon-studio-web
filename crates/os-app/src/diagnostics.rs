@@ -16,7 +16,7 @@ use crate::app::App;
 fn report_path() -> Option<PathBuf> {
     if cfg!(test) {
         let thread = format!("{:?}", std::thread::current().id()).chars().filter(char::is_ascii_digit).collect::<String>();
-        return Some(os_web::temp_dir().join(format!("lemon-diagnostics-{}-{thread}.txt", std::process::id())));
+        return Some(os_web::temp_dir().join(format!("lemon-diagnostics-{}-{thread}.txt", os_web::pid())));
     }
     os_paths::user_file("Diagnostics.txt")
 }

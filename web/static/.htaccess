@@ -1,0 +1,11 @@
+# Lemon Studio web build on Apache (Hostinger). No COOP/COEP needed: the build uses no SharedArrayBuffer.
+AddType application/wasm .wasm
+AddType text/javascript .js .mjs
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE application/wasm text/javascript text/html text/plain
+</IfModule>
+<IfModule mod_headers.c>
+  <FilesMatch "\.(wasm|js)$">
+    Header set Cache-Control "public, max-age=3600"
+  </FilesMatch>
+</IfModule>

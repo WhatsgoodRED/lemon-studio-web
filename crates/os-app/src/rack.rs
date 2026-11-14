@@ -3185,7 +3185,7 @@ mod tests {
     /// engine holds the project as it is after the save (equivalence harness, I'll Be Your Madonna and Electro).
     #[test]
     fn a_save_hands_what_it_writes_in_to_playback() {
-        let file = os_web::temp_dir().join(format!("openstudio-save-dirty-{}.flp", std::process::id()));
+        let file = os_web::temp_dir().join(format!("openstudio-save-dirty-{}.flp", os_web::pid()));
         let mut a = crate::app::App::new(None);
         a.state.project = crate::app::test_project();
         (a.state.file, a.state.path) = (None, None);
@@ -3203,7 +3203,7 @@ mod tests {
     /// A project opens on the pattern it was saved on, with the loop lengths saved into that pattern.
     #[test]
     fn the_current_pattern_and_its_loops_reopen() {
-        let file = os_web::temp_dir().join(format!("openstudio-current-pattern-{}.flp", std::process::id()));
+        let file = os_web::temp_dir().join(format!("openstudio-current-pattern-{}.flp", os_web::pid()));
         let mut a = crate::app::App::new(None);
         a.state.project = crate::app::test_project();
         a.state.file = None;
@@ -3874,7 +3874,7 @@ mod tests {
     /// Lock, zip, groups, swing, loop lengths and a restructured rack survive saving into an opened file ("Saving").
     #[test]
     fn rack_settings_save_and_reopen() {
-        let path = os_web::temp_dir().join(format!("os_rack_save_{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_rack_save_{}.flp", os_web::pid()));
         let mut app = App::new(None);
         crate::patterns::pat_mut(&mut app.state, 1).notes = vec![os_model::Note::step(2, 0), os_model::Note::step(0, 1)];
         app.save_to(path.clone());
@@ -4233,7 +4233,7 @@ mod tests {
         b.extend((body.len() as u32).to_le_bytes());
         b.extend(body);
         let dir = dir.map_or_else(os_web::temp_dir, std::path::Path::to_path_buf);
-        let p = dir.join(format!("os-app-tags-{name}-{}-{k}.wav", std::process::id()));
+        let p = dir.join(format!("os-app-tags-{name}-{}-{k}.wav", os_web::pid()));
         os_web::fs::write(&p, b).unwrap();
         p
     }
@@ -4339,7 +4339,7 @@ mod tests {
         let ch = &app.state.project.channels[n];
         assert_eq!((ch.misc.root, ch.sound.stretch), (67, auto(4.0, [0; 4])), "a drop below the rows");
         // The browser's send, from a folder holding one sample.
-        let dir = os_web::temp_dir().join(format!("os-app-tags-browser-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os-app-tags-browser-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let sent = tagged_wav(Some(&dir), "sent", 0.5, &[smpl(71), acid(2, 0, 120.0)]);
@@ -4423,7 +4423,7 @@ mod tests {
         let mut app = App::new(None);
         let r = sampler_row(&app);
         let y = crate::views::rack::name_rect(&app.state, r).unwrap().cy();
-        let dir = os_web::temp_dir().join(format!("os-app-tags-history-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os-app-tags-history-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         app.state.browser_folders.push(dir.clone());
@@ -4760,7 +4760,7 @@ mod tests {
         let enabled = |app: &App| options_menu(&app.state, 0.0, 0.0).items.iter().find(|i| i.label == "Restretch all").map(|i| (i.enabled, i.key));
         assert_eq!(enabled(&app), Some((true, "Ctrl+Alt+R")));
         assert_eq!(run(&mut app, RCmd::Restretch).as_deref(), Some("No stretched channels to restretch"));
-        let wav = os_web::temp_dir().join(format!("os-rack-restretch-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-rack-restretch-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 282240]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let src = os_model::ClipSource::Channel(app.state.project.channels.last().unwrap().index);
@@ -4799,7 +4799,7 @@ mod tests {
     /// The name button draws the channel's icon and, with Show waveform preview ticked, its sample's waveform.
     #[test]
     fn name_button_shows_the_icon_and_the_waveform() {
-        let wav = os_web::temp_dir().join(format!("os_rack_wave_{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os_rack_wave_{}.wav", os_web::pid()));
         let frames: Vec<f32> = (0..9600).flat_map(|i| [(i as f32 * 0.05).sin() * 0.8; 2]).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &frames).unwrap();
         let mut app = lock_app();

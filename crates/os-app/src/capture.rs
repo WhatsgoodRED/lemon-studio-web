@@ -488,7 +488,7 @@ mod tests {
     /// The WAV leaves out the frames before the head, or starts with silence for a negative one.
     #[test]
     fn a_wav_from_the_head_on() {
-        let dir = os_web::temp_dir().join(format!("lemon_capture_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon_capture_{}", os_web::pid()));
         os_web::fs::create_dir_all(&dir).unwrap();
         let part = dir.join("t.wav.part");
         let raw: Vec<u8> = (0..8).flat_map(|i| (i as f32).to_le_bytes()).collect();

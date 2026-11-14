@@ -10564,7 +10564,7 @@ mod tests {
             assert_eq!(a.plugins.recreation_file_state(key, file).as_ref(), Some(fl), "{file}: the state as it was opened");
         }
         assert!(!a.plugins.hosted.contains_key(&fx_key(4, 0)), "Stereo Shaper: the engine's");
-        let path = os_web::temp_dir().join(format!("lemon-fl-recreations-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-fl-recreations-{}.flp", os_web::pid()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
         let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
@@ -10599,7 +10599,7 @@ mod tests {
         assert_eq!(a.plugins.descriptor(key).map(|d| d.name), Some(crate::plugins::LEMON_DROP.to_string()));
         assert_eq!(crate::mixer::slot_name(&a.state, 2, 3).as_deref(), Some(crate::plugins::LEMON_DROP));
         assert_eq!(a.plugins.recreation_file_state(key, "Wave Candy").as_ref(), Some(&fl));
-        let path = os_web::temp_dir().join(format!("lemon-wave-candy-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-wave-candy-{}.flp", os_web::pid()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
         let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
@@ -10635,7 +10635,7 @@ mod tests {
             assert_eq!(crate::mixer::slot_name(&a.state, *t, *k).as_deref(), Some(*lemon));
             assert_eq!(a.plugins.recreation_file_state(key, file).as_ref(), Some(fl), "{file}: the state as it was opened");
         }
-        let path = os_web::temp_dir().join(format!("lemon-fl-modulation-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-fl-modulation-{}.flp", os_web::pid()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
         let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
@@ -10667,7 +10667,7 @@ mod tests {
         let key = fx_key(1, 0);
         assert_eq!(a.plugins.descriptor(key).map(|d| d.name), Some(LEMON_PEAK_CONTROLLER.to_string()));
         assert_eq!(a.plugins.recreation_file_state(key, "Fruity Peak Controller").as_ref(), Some(&fl), "the state as it was opened");
-        let path = os_web::temp_dir().join(format!("lemon-fl-peak-controller-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-fl-peak-controller-{}.flp", os_web::pid()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
         let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
@@ -10704,7 +10704,7 @@ mod tests {
         let key = fx_key(1, 0);
         assert_eq!(a.plugins.descriptor(key).map(|d| d.name), Some(LEMON_VOCODER.to_string()));
         assert_eq!(a.plugins.recreation_file_state(key, VOCODEX_FILE_NAME).as_ref(), Some(&fl), "the state as it was opened");
-        let path = os_web::temp_dir().join(format!("lemon-vocodex-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-vocodex-{}.flp", os_web::pid()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
         let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
@@ -10738,7 +10738,7 @@ mod tests {
         let key = fx_key(1, 0);
         assert_eq!(a.plugins.descriptor(key).map(|d| d.name), Some(LEMON_FORMULA_CONTROLLER.to_string()));
         assert_eq!(a.plugins.recreation_file_state(key, "Fruity Formula Controller").as_ref(), Some(&fl), "the state as it was opened");
-        let path = os_web::temp_dir().join(format!("lemon-fl-formula-controller-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-fl-formula-controller-{}.flp", os_web::pid()));
         a.save_to(path.clone());
         assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
         let saved = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
@@ -10776,7 +10776,7 @@ mod tests {
     /// selected sampler channel's sample (spec: plugins/tesla/README.md "Version 1").
     #[test]
     fn a_sent_sample_lands_on_the_playlist_or_the_channel() {
-        let path = os_web::temp_dir().join(format!("openstudio-sent-{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-sent-{}.wav", os_web::pid()));
         let s = tesla::sample::Sample::from_channels(44100, vec![vec![0.5; 44100]], tesla::sample::Format::Int16);
         os_web::fs::write(&path, tesla::wav::write(&s, tesla::wav::Depth::Own)).unwrap();
         let p = path.to_string_lossy().into_owned();
@@ -10904,7 +10904,7 @@ mod tests {
         // A changed mixer is kept: the save gives the new file a playlist, which the mixer is stored after.
         app.state.project.mixer[3].name = Some("Drums".into());
         app.state.project.mixer[3].volume = Some(0.5);
-        let path = os_web::temp_dir().join(format!("openstudio-new-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-new-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved") && !m.contains("not stored")), "{:?}", app.state.message);
         let file = os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap();
@@ -10993,7 +10993,7 @@ mod tests {
             assert_eq!((app.state.project.play_truncated, on(&app)), (want, Some(want)));
         }
         // Saved and opened again.
-        let path = os_web::temp_dir().join(format!("lemon-project-settings-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-project-settings-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", app.state.message);
         assert!(!app.unsaved());
@@ -11019,7 +11019,7 @@ mod tests {
     #[test]
     fn theme_picture_covers_the_workspace() {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("lemon-theme-picture-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-theme-picture-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(dir.join("pics")).unwrap();
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
@@ -11065,7 +11065,7 @@ mod tests {
     fn theme_options_toggle_the_applied_theme() {
         use crate::views::settings::{SAct, NOTE_COLORS_CHECK, THEME};
         use os_theme::{FlTheme, Palette};
-        let dir = os_web::temp_dir().join(format!("lemon-theme-options-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-theme-options-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let saved = || os_web::fs::read_to_string(dir.join("current.flstheme")).unwrap_or_default();
@@ -11120,7 +11120,7 @@ mod tests {
     fn skins_and_themes_are_chosen_apart() {
         use crate::views::settings::{SAct, THEME};
         use os_theme::{presets::PRESETS, FlTheme, Palette};
-        let dir = os_web::temp_dir().join(format!("lemon-skins-themes-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-skins-themes-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
@@ -11187,7 +11187,7 @@ mod tests {
         use crate::views::settings::{SAct, SAVE_PRESET, THEME};
         use winit::keyboard::{Key, NamedKey};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("lemon-theme-library-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-theme-library-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let themes = dir.join("themes");
@@ -11259,7 +11259,7 @@ mod tests {
         use crate::views::settings::{SAct, THEME};
         use winit::keyboard::Key;
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("lemon-theme-undo-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-theme-undo-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
@@ -11308,7 +11308,7 @@ mod tests {
     fn faint_text_is_warned_and_fixed() {
         use crate::views::settings::{SAct, FIX_TEXT, THEME};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("lemon-theme-faint-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-theme-faint-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
@@ -11343,7 +11343,7 @@ mod tests {
         use crate::views::settings::{SAct, THEME};
         use os_theme::{presets::PRESETS, FlTheme};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("lemon-theme-adjust-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-theme-adjust-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
@@ -11524,7 +11524,7 @@ mod tests {
         assert_eq!(app.state.project.bar, Some((5, 3)));
         assert!(app.unsaved());
         // Saved and opened again: time division, five beats of three steps.
-        let path = os_web::temp_dir().join(format!("lemon-project-division-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-project-division-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let mut opened = App::new(None);
         opened.open(path.clone());
@@ -11606,7 +11606,7 @@ mod tests {
         assert!(app.state.project == before && !app.unsaved());
         // Saved at 72: the header holds the new PPQ, the ticks are the new ones (rounded to the nearest).
         project_pick(&mut app, &mut c, TIMEBASE, "72", 11);
-        let path = os_web::temp_dir().join(format!("lemon-project-timebase-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-project-timebase-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let _ = os_web::fs::remove_file(&path);
@@ -11687,7 +11687,7 @@ mod tests {
         assert!(app.unsaved());
         // Saved (44 = 0) and opened with the setting on: the file's value. Switched on there and saved over it, then
         // opened with the setting off: on.
-        let path = os_web::temp_dir().join(format!("lemon-project-crossfades-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-project-crossfades-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let mut opened = App::new(None);
         opened.open(path.clone());
@@ -11873,7 +11873,7 @@ mod tests {
     fn auto_name_channels_on_every_sample_path() {
         use crate::browser::BCmd;
         use crate::prefs::{self, AUTO_NAME_CHANNELS};
-        let dir = os_web::temp_dir().join(format!("os_auto_name_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_auto_name_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let wav = |n: &str| {
@@ -11923,7 +11923,7 @@ mod tests {
     fn browser_middle_click_sends_a_sample() {
         use crate::views::browser::{rows, Item};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("os_middle_send_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_middle_send_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let p = dir.join("Grv Clap 03.wav");
@@ -11982,7 +11982,7 @@ mod tests {
         });
         assert_eq!(shown(&app).as_deref(), Some("Triangular"));
         // Saved and opened again; back to Circular in the opened project (23 = 0, patched), saved over it.
-        let path = os_web::temp_dir().join(format!("lemon-project-panning-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-project-panning-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let mut opened = App::new(None);
         opened.open(path.clone());
@@ -12711,7 +12711,7 @@ mod tests {
 
         // An audio clip (spec: ui/playlist.md §9a): hovering it shows its handles, a handle under the mouse lights,
         // dragging the fade-in triangle repaints that clip and the hint bar only.
-        let wav = os_web::temp_dir().join(format!("os-repaint-clip-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-repaint-clip-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.4; 96000]).unwrap();
         crate::playlist::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 4, 384).expect("audio clip");
         app.state.playlist.sel.clear();
@@ -12764,7 +12764,7 @@ mod tests {
     /// playback, windows over the playlist, drags, a popup (no move: the window repaints) and random steps.
     #[test]
     fn playlist_scroll_moves_pixels() {
-        let wav = os_web::temp_dir().join(format!("os-scroll-move-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-scroll-move-{}.wav", os_web::pid()));
         let audio: Vec<f32> = (0..480_000)
             .map(|i| {
                 let t = (i / 2) as f32 / 48000.0;
@@ -13042,7 +13042,7 @@ mod tests {
     /// Saves a failed comparison's two frames in the temp folder, named after the process: suites running side by side
     /// would otherwise overwrite each other's.
     fn dump(a: &Canvas, b: &Canvas) {
-        let id = std::process::id();
+        let id = os_web::pid();
         let _ = a.pixmap.save_png(os_web::temp_dir().join(format!("os_partial_{id}.png")));
         let _ = b.pixmap.save_png(os_web::temp_dir().join(format!("os_full_{id}.png")));
     }
@@ -14455,7 +14455,7 @@ mod tests {
                 v.retain(|e| e.id != 51);
             }
         }
-        let path = os_web::temp_dir().join(format!("lemon-legacy-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-legacy-{}.flp", os_web::pid()));
         os_web::fs::write(&path, file.to_bytes().expect("bytes")).expect("write");
         let mut app = App::new(None);
         app.open(path.clone());
@@ -14505,7 +14505,7 @@ mod tests {
         fake::live(true);
         // Saving a project never saved goes to the file dialog without Lemon Studio's Save as form (`crate::save_form`).
         crate::prefs::set_choice(&crate::prefs::ASK_DATA_FOLDER, crate::save_form::DONT_ASK);
-        let dir = os_web::temp_dir().join(format!("os_dialog_unsaved_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_dialog_unsaved_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         for design in [Design::Citrus, Design::Lemon] {
@@ -14583,7 +14583,7 @@ mod tests {
         use winit::keyboard::NamedKey;
         let Ok(mut c) = Canvas::new(1280, 800, 1.0) else { return };
         fake::live(true);
-        let dir = os_web::temp_dir().join(format!("os_dialog_browse_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_dialog_browse_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(dir.join("Beats")).unwrap();
         os_web::fs::write(dir.join("Beats").join("Loop.flp"), b"not a project").unwrap();
@@ -14666,7 +14666,7 @@ mod tests {
         let out = std::path::PathBuf::from(out);
         let Ok(mut c) = Canvas::new(1280, 800, 1.0) else { return };
         fake::live(true);
-        let dir = os_web::temp_dir().join(format!("os_dialog_shots_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_dialog_shots_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(dir.join("Drums")).unwrap();
         os_web::fs::create_dir_all(dir.join("Vocals")).unwrap();
@@ -15745,7 +15745,7 @@ mod tests {
     /// A clicked browser sample plays from its file (the 5 s cut-off is the transport's job).
     #[test]
     fn browser_sample_preview_project() {
-        let path = os_web::temp_dir().join(format!("os_preview_test_{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_preview_test_{}.wav", os_web::pid()));
         let (rate, n) = (44100u32, 44100usize);
         let mut wav = Vec::new();
         wav.extend(b"RIFF");
@@ -15781,7 +15781,7 @@ mod tests {
         let mut app = App::new(None);
         app.plugins = crate::plugins::Plugins::default();
         app.plugins.available = crate::plugins::builtin();
-        let wav = os_web::temp_dir().join(format!("os-app-audio-clip-channel-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-audio-clip-channel-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
         let path = wav.to_string_lossy().into_owned();
         crate::playlist::add_audio_clip(&mut app.state, &path, 0, 0).expect("audio clip added");
@@ -15830,7 +15830,7 @@ mod tests {
         a.plugins.set_rate(48000);
         let n = 60 * 48000;
         let level = |f: usize| 0.1 + 0.8 * f as f32 / n as f32;
-        let wav = os_web::temp_dir().join(format!("os-app-long-clip-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-long-clip-{}.wav", os_web::pid()));
         let src: Vec<f32> = (0..n).flat_map(|f| [level(f), level(f)]).collect();
         let mut bytes = Vec::new();
         os_engine::wav::write_f32_stereo(&mut bytes, 48000, &src).unwrap();
@@ -15849,7 +15849,7 @@ mod tests {
         a.plugin_tick();
         a.transport.set_instruments(a.plugins.instruments());
         let p = crate::rack::play_project(&a.state);
-        let out = os_web::temp_dir().join(format!("os-app-long-clip-{}-export.wav", std::process::id()));
+        let out = os_web::temp_dir().join(format!("os-app-long-clip-{}-export.wav", os_web::pid()));
         a.plugins.set_offline(true);
         a.transport.export(&p, PlayMode::Song, 48000, crate::export::Job::wav(&out));
         let t0 = web_time::Instant::now();
@@ -15884,7 +15884,7 @@ mod tests {
         use serde_json::json;
         use web_time::Duration;
         // 20 seconds of two tones and their overtones at 44100 Hz (the sampler resamples it to 48 kHz).
-        let wav = os_web::temp_dir().join(format!("os-app-keep-on-disk-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-keep-on-disk-{}.wav", os_web::pid()));
         let src: Vec<f32> = (0..20 * 44100)
             .flat_map(|f| {
                 let t = f as f32 / 44100.0;
@@ -15912,7 +15912,7 @@ mod tests {
             let second = os_model::Clip { position: first.position + first.length, length: first.length / 2, window: Some((10_000.0, 20_000.0)), ..first };
             crate::playlist::arr_mut(&mut a.state).clips.push(second);
             let p = crate::rack::play_project(&a.state);
-            let out = os_web::temp_dir().join(format!("os-app-keep-on-disk-{}-{keep}.wav", std::process::id()));
+            let out = os_web::temp_dir().join(format!("os-app-keep-on-disk-{}-{keep}.wav", os_web::pid()));
             // As `start_export` does with high quality off.
             a.plugins.set_offline(false);
             lemon_sampler::stream::export_started();
@@ -15955,7 +15955,7 @@ mod tests {
         a.plugins = crate::plugins::Plugins::default();
         a.plugins.available = crate::plugins::builtin();
         a.plugins.set_rate(48000);
-        let wav = os_web::temp_dir().join(format!("os-app-crossfade-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-crossfade-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.25; 2 * 96000]).unwrap();
         crate::playlist::add_audio_clip(&mut a.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let row = a.state.project.channels.len() - 1;
@@ -15971,7 +15971,7 @@ mod tests {
         }
         assert!(os_model::crossfade::derive(&mut a.state.project, a.state.tempo), "the overlap makes a crossfade");
         let p = crate::rack::play_project(&a.state);
-        let out = os_web::temp_dir().join(format!("os-app-crossfade-{}-export.wav", std::process::id()));
+        let out = os_web::temp_dir().join(format!("os-app-crossfade-{}-export.wav", os_web::pid()));
         a.plugins.set_offline(true);
         a.transport.export(&p, PlayMode::Song, 48000, crate::export::Job::wav(&out));
         let t0 = web_time::Instant::now();
@@ -16024,7 +16024,7 @@ mod tests {
     #[test]
     fn sampler_settings_save_and_reopen() {
         use serde_json::json;
-        let flp = os_web::temp_dir().join(format!("os_sampler_settings_{}.flp", std::process::id()));
+        let flp = os_web::temp_dir().join(format!("os_sampler_settings_{}.flp", os_web::pid()));
         let mut a = App::new(None);
         a.plugins = crate::plugins::Plugins::default();
         a.plugins.available = crate::plugins::builtin();
@@ -16143,7 +16143,7 @@ mod tests {
     #[test]
     fn sampler_loop_points_are_frames_of_the_file() {
         use serde_json::json;
-        let wav = os_web::temp_dir().join(format!("os_loop_points_{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os_loop_points_{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &[0.25; 4002]).unwrap();
         let mut pl = crate::plugins::Plugins::default();
         pl.available = crate::plugins::builtin();
@@ -16178,8 +16178,8 @@ mod tests {
     /// loading ends with every sampler channel hosted on the shared decode (spec: ui/project-loading.md).
     #[test]
     fn opened_projects_load_their_samplers_first() {
-        let flp = os_web::temp_dir().join(format!("os_loading_{}.flp", std::process::id()));
-        let wav = os_web::temp_dir().join(format!("os_loading_{}.wav", std::process::id()));
+        let flp = os_web::temp_dir().join(format!("os_loading_{}.flp", os_web::pid()));
+        let wav = os_web::temp_dir().join(format!("os_loading_{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.25; 96000]).unwrap();
         let wav = wav.to_string_lossy().into_owned();
         let mut app = App::new(None);
@@ -16217,7 +16217,7 @@ mod tests {
     #[test]
     fn channel_misc_save_and_reopen() {
         use crate::misc_page::M;
-        let flp = os_web::temp_dir().join(format!("os_channel_misc_{}.flp", std::process::id()));
+        let flp = os_web::temp_dir().join(format!("os_channel_misc_{}.flp", os_web::pid()));
         let reopen = |a: &mut App| {
             a.save_to(flp.clone());
             assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", a.state.message);
@@ -16314,7 +16314,7 @@ mod tests {
     /// Opening, loading and saving leave no unsaved changes; an edit does; "Save new version" numbers the file.
     #[test]
     fn unsaved_changes_and_new_versions() {
-        let dir = os_web::temp_dir().join(format!("os_versions_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_versions_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let mut app = App::new(None);
@@ -16351,7 +16351,7 @@ mod tests {
     #[test]
     fn flps_migrate_to_lemon_files() {
         use crate::dialog::fake;
-        let dir = os_web::temp_dir().join(format!("os_lemon_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_lemon_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let mut app = App::new(None);
@@ -16528,7 +16528,7 @@ mod tests {
     fn shift_ctrl_s_is_save_as() {
         use crate::dialog::fake;
         use winit::keyboard::Key;
-        let dir = os_web::temp_dir().join(format!("os_save_as_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_save_as_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         let mut app = App::new(None);
@@ -16711,7 +16711,7 @@ mod tests {
     fn browser_dropped_folder() {
         use crate::views::browser::{rows, Item};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("os_browser_test_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_browser_test_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(dir.join("Kicks")).unwrap();
         os_web::fs::write(dir.join("Kicks").join("Kick 01.wav"), b"x").unwrap();
@@ -16754,7 +16754,7 @@ mod tests {
         use crate::views::browser::{rows, Item};
         use winit::keyboard::{Key, NamedKey};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("os_browser_arrows_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_browser_arrows_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(dir.join("Kicks")).unwrap();
         os_web::fs::write(dir.join("Kicks").join("Kick 01.wav"), b"x").unwrap();
@@ -16833,7 +16833,7 @@ mod tests {
     fn browser_row_menu() {
         use crate::views::browser::{disk_key, rows, Item, Row};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("os_browser_menu_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_browser_menu_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(dir.join("Snare 01.wav")).unwrap(), 44100, &[0.0; 8]).unwrap();
@@ -16938,7 +16938,7 @@ mod tests {
     fn browser_long_labels_scroll_while_hovered() {
         use crate::views::browser::{disk_key, rows};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("os_browser_marquee_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_browser_marquee_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(&dir).unwrap();
         os_web::fs::write(dir.join("A very long file name that does not fit in the browser.txt"), b"x").unwrap();
@@ -19542,7 +19542,7 @@ mod tests {
         key(&mut app, "t", false, true, false);
         assert_eq!(piano::pattern_mut(&mut app.state).markers, vec![os_model::TimeMarker::new(192, "Marker 1")]);
         // It is saved with the pattern and comes back on open.
-        let path = os_web::temp_dir().join(format!("os_piano_marker_{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_piano_marker_{}.flp", os_web::pid()));
         app.save_to(path.clone());
         assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", app.state.message);
         app.open(path.clone());
@@ -19785,7 +19785,7 @@ mod tests {
         let (mut app, _, _, _) = ruler_app(&mut c);
         app.state.playlist_bar_w = 200.0;
         app.state.playlist.snap = crate::snap::EditorSnap::Grid(pl::Snap::None);
-        let wav = os_web::temp_dir().join(format!("os-app-stretch-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-stretch-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ci = pl::clips(&app.state).len() - 1;
@@ -19815,7 +19815,7 @@ mod tests {
         // Saved with a new project's audio clip channel.
         app.key(&winit::keyboard::Key::Character("y".into()), true, false);
         app.state.project.channels[row].sound.set_stretch_multiplier(2.0);
-        let path = os_web::temp_dir().join(format!("os-app-stretch-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os-app-stretch-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let ch = back.channels.iter().find(|c| c.kind == ChannelKind::AudioClip).expect("the audio clip channel");
@@ -19840,7 +19840,7 @@ mod tests {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let (mut app, _, _, _) = ruler_app(&mut c);
         app.state.playlist_bar_w = 200.0;
-        let wav = os_web::temp_dir().join(format!("os-app-colorful-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-colorful-{}.wav", os_web::pid()));
         let sine: Vec<f32> = (0..48000)
             .flat_map(|i| {
                 let v = (2.0 * std::f32::consts::PI * 100.0 * i as f32 / 48000.0).sin() * 0.3;
@@ -19898,7 +19898,7 @@ mod tests {
         app.state.project.ppq = 96;
         app.state.tempo = 130.0;
         app.state.playlist.reset();
-        let wav = os_web::temp_dir().join(format!("os-app-fit-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-fit-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 282240]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let row = app.state.project.channels.len() - 1;
@@ -19961,7 +19961,7 @@ mod tests {
         app.state.project.ppq = 96;
         app.state.tempo = 140.0;
         app.state.playlist.reset();
-        let wav = os_web::temp_dir().join(format!("os-app-fit-bar-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-fit-bar-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 44100, &vec![0.25; 2 * 176400]).unwrap();
         app.state.project.bar = Some((3, 2));
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
@@ -20025,7 +20025,7 @@ mod tests {
         let ch = app.state.project.channels[row].index;
         app.state.project.patterns[0].notes = vec![os_model::Note { length: ppq, ..os_model::Note::step(ch, 0) }];
         crate::playlist::arr_mut(&mut app.state).clips = vec![Clip::new(0, 4 * ppq, 0, ClipSource::Pattern(1))];
-        app.state.path = Some(os_web::temp_dir().join(format!("os-plugin-render-{}.flp", std::process::id())));
+        app.state.path = Some(os_web::temp_dir().join(format!("os-plugin-render-{}.flp", os_web::pid())));
         (app, ppq)
     }
 
@@ -20041,7 +20041,7 @@ mod tests {
         assert!(bare.render_all(512).iter().all(|v| v.abs() < 1e-6), "a bare engine is silent for a plugin channel");
         pl::run(&mut app, pl::Cmd::ExportTracks).unwrap();
         let m = finish_playlist_render(&mut app);
-        let dir = os_web::temp_dir().join("Rendered").join(format!("os-plugin-render-{} tracks", std::process::id()));
+        let dir = os_web::temp_dir().join("Rendered").join(format!("os-plugin-render-{} tracks", os_web::pid()));
         assert!(m.starts_with("Exported 1 track"), "{m}");
         let t1 = os_engine::sample::load(&dir.join("01 Track 1.wav")).expect("track file");
         assert!(loud(&t1), "the plugin channel's track is not silent");
@@ -20084,10 +20084,10 @@ mod tests {
         app.key(&winit::keyboard::Key::Character("z".into()), true, false);
         assert_eq!(pl::clips(&app.state)[0].position, step + 5, "one undo step");
         // Export: two files (tracks 1 and 3), the same length, each with sound only where its clip is.
-        app.state.path = Some(os_web::temp_dir().join(format!("os-export-{}.flp", std::process::id())));
+        app.state.path = Some(os_web::temp_dir().join(format!("os-export-{}.flp", os_web::pid())));
         pl::run(&mut app, pl::Cmd::ExportTracks).unwrap();
         let m = finish_playlist_render(&mut app);
-        let dir = os_web::temp_dir().join("Rendered").join(format!("os-export-{} tracks", std::process::id()));
+        let dir = os_web::temp_dir().join("Rendered").join(format!("os-export-{} tracks", os_web::pid()));
         assert!(m.starts_with("Exported 2 tracks"), "{m}");
         let read = |name: &str| os_engine::sample::load(&dir.join(name)).expect(name);
         let (t1, t3) = (read("01 Track 1.wav"), read("03 Track 3.wav"));
@@ -20135,7 +20135,7 @@ mod tests {
         pl::run(&mut app, pl::Cmd::ArrDelete);
         assert_eq!((app.state.project.arrangements.len(), app.state.project.arrangement().unwrap().number), (2, added));
         // Saved and read back with "Verse" shown.
-        let path = os_web::temp_dir().join(format!("os-app-arrangements-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os-app-arrangements-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let names: Vec<_> = back.arrangements.iter().map(|a| a.name.clone().unwrap_or_default()).collect();
@@ -20163,7 +20163,7 @@ mod tests {
         let (Ok(mut c), Ok(mut whole)) = (Canvas::new(1920, 1080, 1.0), Canvas::new(1920, 1080, 1.0)) else { return };
         let (mut app, _, _, _) = ruler_app(&mut c);
         app.state.playlist_bar_w = 400.0;
-        let wav = os_web::temp_dir().join(format!("os-app-handle-fades-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-handle-fades-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ci = pl::clips(&app.state).len() - 1;
@@ -20212,7 +20212,7 @@ mod tests {
         let (Ok(mut c), Ok(mut whole)) = (Canvas::new(1920, 1080, 1.0), Canvas::new(1920, 1080, 1.0)) else { return };
         let (mut app, _, _, _) = ruler_app(&mut c);
         app.state.playlist_bar_w = 400.0;
-        let wav = os_web::temp_dir().join(format!("os-app-loading-sweep-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-loading-sweep-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ci = pl::clips(&app.state).len() - 1;
@@ -20267,7 +20267,7 @@ mod tests {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let (mut app, _, _, _) = ruler_app(&mut c);
         app.state.playlist_bar_w = 400.0;
-        let wav = os_web::temp_dir().join(format!("os-app-clip-fades-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-clip-fades-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let ci = pl::clips(&app.state).len() - 1;
@@ -20332,7 +20332,7 @@ mod tests {
         app.state.playlist_bar_w = 400.0;
         app.state.project.auto_crossfades = Some(true);
         app.state.tempo = 130.0;
-        let wav = os_web::temp_dir().join(format!("os-app-crossfades-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-crossfades-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &vec![0.5; 2 * 96000]).unwrap();
         // Two 2 s clips (416 ticks at 130 BPM), the second from tick 192: 224 ticks of overlap.
         let path = wav.to_string_lossy().into_owned();
@@ -20429,7 +20429,7 @@ mod tests {
         assert_eq!(xf(&app), (Some(ms(224, 130.0, 96)), Some(ms(224, 130.0, 96))));
 
         // Saved and opened again: worked out on opening, nothing changes; saved again, the same bytes.
-        let flp = os_web::temp_dir().join(format!("os-app-crossfades-{}.flp", std::process::id()));
+        let flp = os_web::temp_dir().join(format!("os-app-crossfades-{}.flp", os_web::pid()));
         app.save_to(flp.clone());
         let bytes = |p: &Project| p.arrangements.iter().flat_map(|a| a.clips.iter().map(|c| c.raw[36..57].to_vec())).collect::<Vec<_>>();
         let mut opened = App::new(None);
@@ -20620,7 +20620,7 @@ mod tests {
         use crate::playlist as pl;
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let (mut app, _, _, _) = ruler_app(&mut c);
-        let wav = os_web::temp_dir().join(format!("os-app-unique-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-unique-{}.wav", os_web::pid()));
         // A ramp: its second half is louder than its first.
         let ramp: Vec<f32> = (0..96000).flat_map(|i| [i as f32 / 96000.0; 2]).collect();
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &ramp).unwrap();
@@ -20669,7 +20669,7 @@ mod tests {
     fn audio_clip_double_click_opens_its_sampler() {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let (mut app, ruler, g, bar) = ruler_app(&mut c);
-        let wav = os_web::temp_dir().join(format!("os-app-clip-dblclick-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-clip-dblclick-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         crate::playlist::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 1, 0).expect("audio clip added");
         let row = app.state.project.channels.len() - 1;
@@ -21210,7 +21210,7 @@ mod tests {
         use crate::shortcuts::{Form, CLIP_CHANNEL, CLIP_PROPERTIES};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let (mut app, _, g, _) = ruler_app(&mut c);
-        let wav = os_web::temp_dir().join(format!("os-app-clip-dblclick-sc-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-clip-dblclick-sc-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
         crate::playlist::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 1, 0).expect("audio clip added");
         let row = app.state.project.channels.len() - 1;
@@ -21381,7 +21381,7 @@ mod tests {
         assert_eq!(app.state.project.automation(ch).unwrap().points.len(), n + 1);
 
         // Save (new project) and read back.
-        let path = os_web::temp_dir().join(format!("openstudio-pl-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-pl-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let _ = os_web::fs::remove_file(&path);
@@ -21728,7 +21728,7 @@ mod tests {
         let (orig, copy) = (on_track(&app, 0)[0], on_track(&app, 0)[1]);
         assert_eq!((orig.group(), copy.group(), on_track(&app, 1)[1].group()), (1, 2, 2), "the copy takes the lowest free number");
         // The group survives saving.
-        let path = os_web::temp_dir().join(format!("openstudio-pl-groups-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-pl-groups-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let _ = os_web::fs::remove_file(&path);
@@ -21864,7 +21864,7 @@ mod tests {
         app.state.playlist.row_h = 60.0;
         app.state.playlist_bar_w = 90.0;
         app.state.playlist_scroll = (180.0, 24.0);
-        let path = os_web::temp_dir().join(format!("openstudio-pl-view-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-pl-view-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let v = back.playlist_view.expect("view saved");
@@ -22460,8 +22460,8 @@ mod tests {
         click(&mut app, &mut c, undo);
         assert_eq!(app.state.message.as_deref(), Some("Nothing to undo"));
         // Save: Save as... (the save dialog even with a file), Save new version on the right.
-        let path = os_web::temp_dir().join(format!("os_toolbar_save_{}_song.lemon", std::process::id()));
-        let next = path.with_file_name(format!("os_toolbar_save_{}_song_2.lemon", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_toolbar_save_{}_song.lemon", os_web::pid()));
+        let next = path.with_file_name(format!("os_toolbar_save_{}_song_2.lemon", os_web::pid()));
         let _ = os_web::fs::remove_file(&next);
         app.save_to(path.clone());
         let save = hit_rect(&app, &Action::Util(Util::Save));
@@ -22974,7 +22974,7 @@ mod tests {
         use crate::toolbar::{BarHit, Layout, Panel, PRESETS};
         use views::menus::{pick, FILE_SAVE};
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
-        let dir = os_web::temp_dir().join(format!("lemon-toolbar-presets-{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("lemon-toolbar-presets-{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         THEME_DIR.with(|d| *d.borrow_mut() = Some(dir.clone()));
         let mut app = App::new(None);
@@ -23097,7 +23097,7 @@ mod tests {
         app.state.set_knob(KnobId::ChanPan(row), 0.25);
         app.state.set_knob(KnobId::AutoLfo(row, LfoKnob::Pulse), 0.75);
         // Saved and loaded back: the levels as the range, the LFO's fields as set.
-        let path = os_web::temp_dir().join(format!("os_clip_lfo_{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_clip_lfo_{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let _ = os_web::fs::remove_file(&path);
@@ -23163,7 +23163,7 @@ mod tests {
         assert_eq!((s.rack.groups.len(), s.rack.filter), (3, Filter::Group(1)));
         assert_eq!(s.rack.groups[1].members.iter().copied().collect::<Vec<_>>(), [5, 7]);
         // Saved as FL stores them: types 4 and 5, the groups before Unsorted, the automation's points and no link.
-        let path = os_web::temp_dir().join(format!("os_add_clips_{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os_add_clips_{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let _ = os_web::fs::remove_file(&path);
@@ -23315,7 +23315,7 @@ mod tests {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let mut app = App::new(None);
         app.state.project = test_project();
-        let wav = os_web::temp_dir().join(format!("os-app-switch-{}.wav", std::process::id()));
+        let wav = os_web::temp_dir().join(format!("os-app-switch-{}.wav", os_web::pid()));
         os_engine::wav::write_f32_stereo(&mut os_web::fs::File::create(&wav).unwrap(), 48000, &[0.5; 9600]).unwrap();
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         pl::add_audio_clip(&mut app.state, &wav.to_string_lossy(), 1, 0).expect("audio clip added");
@@ -23408,7 +23408,7 @@ mod tests {
         pl::run(&mut plain, Cmd::Rack(crate::rack::RCmd::StretchClips(true, sm::STRETCH)));
         assert!(!plain.modal_open());
         // Saving keeps the methods.
-        let path = os_web::temp_dir().join(format!("os-app-switch-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os-app-switch-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         let clips: Vec<[u32; 4]> = back.channels.iter().filter(|c| c.kind == ChannelKind::AudioClip).map(|c| c.sound.stretch).collect();
@@ -23493,7 +23493,7 @@ mod tests {
         assert!(app.unsaved() && app.state.piano.dirty);
         assert_eq!(crate::views::playlist::marker_label(&want), "3/8", "shown once in the marker lanes");
         // Saved with the pattern.
-        let path = os_web::temp_dir().join(format!("os-app-timesig-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("os-app-timesig-{}.flp", os_web::pid()));
         app.save_to(path.clone());
         let back = os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(&path).unwrap()).unwrap()).unwrap();
         assert_eq!(back.pattern(1).unwrap().markers, [want.clone(), TimeMarker::new(192, "Mid")]);
@@ -23921,7 +23921,7 @@ mod tests {
             }
             assert!(app.sweep.is_none(), "the scan ends");
         };
-        let dir = os_web::temp_dir().join(format!("os_plugin_folder_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_plugin_folder_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         os_web::fs::create_dir_all(dir.join("sub")).unwrap();
         os_web::fs::write(dir.join("sub").join("Broken.clap"), b"not a plugin").unwrap();
@@ -24110,7 +24110,7 @@ mod tests {
         }
         let tempo = f64::from(a.state.tempo);
         let export = |a: &mut App, tag: &str| -> Vec<f32> {
-            let path = os_web::temp_dir().join(format!("lemon-vst2-{tag}-{}.wav", std::process::id()));
+            let path = os_web::temp_dir().join(format!("lemon-vst2-{tag}-{}.wav", os_web::pid()));
             a.transport.export(&a.state.project, os_engine::PlayMode::Song, rate, crate::export::Job::wav(&path));
             let t0 = web_time::Instant::now();
             let _secs = loop {
@@ -24182,7 +24182,7 @@ mod tests {
 
         // Saved: both plugins stored as wrapped VST2 plugins with their state, the clip aimed at the EQ. Kars' last
         // parameter is first moved off its default, so the state that comes back is known not to be the default one.
-        let path = os_web::temp_dir().join(format!("lemon-vst2-{}.flp", std::process::id()));
+        let path = os_web::temp_dir().join(format!("lemon-vst2-{}.flp", os_web::pid()));
         let moved = {
             let mut p = a.plugins.hosted[&row].plugin.lock().unwrap();
             let info = p.param_info(p.param_count() - 1).unwrap();
@@ -24251,7 +24251,7 @@ mod tests {
         assert_eq!(v.plugins.state(row), fresh, "Kars' copy starts from its defaults");
         // Saved untouched: the copies leave both wrappers as the file had them, so the VST2 plugins and their settings
         // stay in the project (spec: flp/events/plugins.md §4).
-        let path2 = os_web::temp_dir().join(format!("lemon-vst2-copies-{}.flp", std::process::id()));
+        let path2 = os_web::temp_dir().join(format!("lemon-vst2-copies-{}.flp", os_web::pid()));
         let reread = |p: &std::path::Path| os_flp::project::load(&os_flp::FlpFile::parse(&os_web::fs::read(p).unwrap()).unwrap()).unwrap();
         let wrappers = |p: &os_model::Project| {
             let slot = p.mixer.iter().find(|m| m.index == track).and_then(|m| m.slots[0].clone());

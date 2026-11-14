@@ -145,6 +145,7 @@ mod mac {
 
 #[cfg(test)]
 mod tests {
+    use os_web::fs::VPath;
     use crate::app::App;
     use crate::views::menus::{active, item_at, works, TOOLS_MENU};
 

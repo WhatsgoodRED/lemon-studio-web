@@ -328,7 +328,7 @@ pub(crate) mod tests {
         let mut file = b"RIFF".to_vec();
         file.extend((body.len() as u32).to_le_bytes());
         file.extend(body);
-        let p = os_web::temp_dir().join(format!("lemon-slicer-{}-{name}.wav", std::process::id()));
+        let p = os_web::temp_dir().join(format!("lemon-slicer-{}-{name}.wav", os_web::pid()));
         os_web::fs::write(&p, file).unwrap();
         p
     }

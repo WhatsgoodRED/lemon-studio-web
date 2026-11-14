@@ -1273,7 +1273,7 @@ mod tests {
 
     /// A temporary folder holding `files` (paths relative to it; audio files get a short WAV, others nothing).
     fn folder(name: &str, files: &[&str]) -> std::path::PathBuf {
-        let dir = os_web::temp_dir().join(format!("os_{name}_{}", std::process::id()));
+        let dir = os_web::temp_dir().join(format!("os_{name}_{}", os_web::pid()));
         let _ = os_web::fs::remove_dir_all(&dir);
         for f in files {
             let p = dir.join(f);

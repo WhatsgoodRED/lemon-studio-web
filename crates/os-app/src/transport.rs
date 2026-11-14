@@ -3302,7 +3302,7 @@ mod tests {
         let fx: SharedEffect = Arc::new(Mutex::new(Slow(entered.clone())));
         let t = Transport::new(None);
         t.set_effects(vec![(0, 0, fx.clone())]);
-        let path = os_web::temp_dir().join(format!("openstudio-drop-test-{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-drop-test-{}.wav", os_web::pid()));
         t.export(&project, PlayMode::Pattern(1), 48000, crate::export::Job::wav(&path));
         let t0 = Instant::now();
         while !entered.load(Ordering::Acquire) {
@@ -3319,7 +3319,7 @@ mod tests {
     fn export_writes_a_wav_file() {
         let (_, project) = looping_engine();
         let t = Transport::new(None);
-        let path = os_web::temp_dir().join(format!("openstudio-export-test-{}.wav", std::process::id()));
+        let path = os_web::temp_dir().join(format!("openstudio-export-test-{}.wav", os_web::pid()));
         t.export(&project, PlayMode::Pattern(1), 48000, crate::export::Job::wav(&path));
         assert!(matches!(t.export_status(), Export::Running(_) | Export::Done(_)), "running at once");
         let t0 = Instant::now();
