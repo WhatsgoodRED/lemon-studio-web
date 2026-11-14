@@ -120,7 +120,19 @@ async function startAudio() {
   web.out = out; web.analyser = analyser;
   setInterval(pump, 5);
   if (ctx.state !== 'running') $('start').style.display = 'flex';
+  // iPhone and iPad: play through the ringer switch (Safari 17+), and a context the system stopped (a call, the tab
+  // in the background: "interrupted" or "suspended") asks for a tap again.
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  ctx.onstatechange = () => { $('start').style.display = ctx.state === 'running' || ctx.state === 'closed' ? 'none' : 'flex'; };
 }
+
+// Any tap or click resumes a context that is not running: Safari only allows it inside the gesture, and counts
+// touchend (not touchstart) as one.
+function unlockAudio() {
+  const ctx = web.ctx;
+  if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
+}
+for (const t of ['touchend', 'pointerup', 'mousedown', 'keydown']) document.addEventListener(t, unlockAudio, { capture: true, passive: true });
 
 function pump() {
   if (!web.out) return;
@@ -245,10 +257,12 @@ function followApp() {
 // ---- page wiring ------------------------------------------------------------------------------------------------
 
 $('start-btn').onclick = async () => {
-  await web.ctx.resume();
-  $('start').style.display = 'none';
+  try { await web.ctx.resume(); } catch (e) {}
+  if (web.ctx.state === 'running') $('start').style.display = 'none';
   $('lemon-canvas').focus();
 };
+// A phone held upright: the "turn sideways" note (index.html #turn) can be put away.
+$('turn-anyway').onclick = () => document.documentElement.classList.add('upright');
 $('b-mic').onclick = () => startMic();
 $('b-import').onclick = () => $('file-audio').click();
 $('b-open').onclick = () => $('file-project').click();
