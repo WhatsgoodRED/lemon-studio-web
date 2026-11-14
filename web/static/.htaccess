@@ -8,4 +8,8 @@ AddType text/javascript .js .mjs
   <FilesMatch "\.(wasm|js)$">
     Header set Cache-Control "public, max-age=3600"
   </FilesMatch>
+  # The page names versioned file URLs (build.sh), so it must never be served stale.
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
 </IfModule>
