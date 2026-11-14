@@ -2242,6 +2242,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lemon-tune"
+version = "0.0.1"
+dependencies = [
+ "lemon-small-fx",
+ "nih_plug",
+ "os-plugkit",
+]
+
+[[package]]
 name = "lemon-vocoder"
 version = "0.0.1"
 dependencies = [
@@ -3081,6 +3090,7 @@ dependencies = [
  "lemon-stereo-enhancer",
  "lemon-stereo-shaper",
  "lemon-transient-processor",
+ "lemon-tune",
  "lemon-vocoder",
  "libc",
  "midir",

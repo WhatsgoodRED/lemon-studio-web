@@ -56,6 +56,16 @@ then the text). Not on the web: plugins' own file dialogs (load a sample by drop
 Drop's floating window, keys typed into an editor (they stay the app's). `node web/test/plugins.js <out> <url>` opens
 all of them (`lemon_test`, `lemon_test_plugins`).
 
+## Lemon Tune (pitch correction)
+
+Lemon Studio's own pitch correction for vocals (`plugins/lemon-small-fx/src/tune.rs`, module crate `plugins/lemon-tune`,
+in the mixer's effect list as "Lemon Tune"): Key, Scale (Chromatic, Major, Minor, Harmonic minor, Major/Minor
+pentatonic, Blues), Retune speed (Hard = 0 ms, default 20 ms) and Amount. YIN pitch detection on a low-passed copy at
+about 12 kHz every 5 ms, TD-PSOLA resynthesis; 36 ms latency at 48 kHz, reported to the host (`Sound::latency`), so
+playback and export stay in time. `cargo test --release tune` in plugins/lemon-small-fx; the ignored `real_vocal` test
+tunes a raw f32 stereo file (`LEMON_TUNE_IN`, `LEMON_TUNE_SET`, `LEMON_TUNE_OUT`) and prints how far its notes sit from
+the nearest semitone before and after.
+
 ## Not done yet
 
 - Time stretching and pitch shifting at quality: build Signalsmith Stretch with a wasm libc++ (wasi-sdk) or port it.

@@ -33,6 +33,7 @@ pub mod stereo_enhancer;
 pub mod stereo_shaper;
 pub mod ticks;
 pub mod transient_processor;
+pub mod tune;
 pub mod view;
 pub mod vocoder;
 
@@ -131,6 +132,10 @@ pub trait Sound: Send {
     /// Forgets what the sound holds (a delay line), as at the start of a song.
     fn reset(&mut self);
     fn process(&mut self, left: &mut [f32], right: &mut [f32]);
+    /// How late the sound comes out (samples), told to the host so it keeps the mix in time (Lemon Tune's look-ahead).
+    fn latency(&self) -> u32 {
+        0
+    }
 }
 
 /// Everything that makes one of the effects.
@@ -281,7 +286,7 @@ impl<K: Kind> Plugin for SmallFx<K> {
         Some(Box::new(editor::FxEditor::new(K::SPEC, self.params.clone(), self.shared.clone())))
     }
 
-    fn initialize(&mut self, _layout: &AudioIOLayout, config: &BufferConfig, _ctx: &mut impl InitContext<Self>) -> bool {
+    fn initialize(&mut self, _layout: &AudioIOLayout, config: &BufferConfig, ctx: &mut impl InitContext<Self>) -> bool {
         let rate = config.sample_rate.round() as u32;
         self.shared.rate.store(rate, Ordering::Relaxed);
         self.raw_seen = u64::MAX;
@@ -293,6 +298,9 @@ impl<K: Kind> Plugin for SmallFx<K> {
                 d.set(v);
             }
             None => self.dsp = Some((K::SPEC.sound)(rate, v)),
+        }
+        if let Some(d) = &self.dsp {
+            ctx.set_latency_samples(d.latency());
         }
         true
     }
@@ -334,7 +342,7 @@ impl<K: Kind> Vst3Plugin for SmallFx<K> {
 mod tests {
     use super::*;
 
-    pub const SPECS: [&Spec; 13] = [
+    pub const SPECS: [&Spec; 14] = [
         soft_clipper::SPEC,
         fast_distortion::SPEC,
         balance::SPEC,
@@ -348,6 +356,7 @@ mod tests {
         peak_controller::SPEC,
         formula_controller::SPEC,
         vocoder::SPEC,
+        tune::SPEC,
     ];
 
     /// Every effect: ids unique, starts inside the ranges, a control per setting, the plugin ids distinct.
@@ -373,6 +382,7 @@ mod tests {
         }
         let ids = [
             <soft_clipper::LemonSoftClipper as ClapPlugin>::CLAP_ID,
+            <tune::LemonTune as ClapPlugin>::CLAP_ID,
             <fast_distortion::LemonFastDistortion as ClapPlugin>::CLAP_ID,
             <balance::LemonBalance as ClapPlugin>::CLAP_ID,
             <stereo_enhancer::LemonStereoEnhancer as ClapPlugin>::CLAP_ID,
@@ -385,6 +395,7 @@ mod tests {
         ];
         let classes = [
             <soft_clipper::LemonSoftClipper as Vst3Plugin>::VST3_CLASS_ID,
+            <tune::LemonTune as Vst3Plugin>::VST3_CLASS_ID,
             <fast_distortion::LemonFastDistortion as Vst3Plugin>::VST3_CLASS_ID,
             <balance::LemonBalance as Vst3Plugin>::VST3_CLASS_ID,
             <stereo_enhancer::LemonStereoEnhancer as Vst3Plugin>::VST3_CLASS_ID,
