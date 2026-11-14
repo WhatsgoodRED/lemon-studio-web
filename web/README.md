@@ -15,7 +15,7 @@ web/build.sh [out-dir]                             # default ../studio-lemon; PR
 
 The output is plain static files (`index.html`, `lemon-web.js`, `lemon-worklets.js`, `pkg/`, the licence files and an
 `.htaccess` for Apache). No COOP/COEP headers are needed. Check it with `python3 web/test/serve.py <out-dir> 8765` and
-`node web/test/proof.js` (Playwright; writes screenshots and `results.json`).
+`node web/test/proof.js` (Playwright; writes screenshots and `results.json`). `node web/test/metrobar.js <url of studio-lemon/>` checks the "← MetroBar" link (to `../landing-beat-meter.html`, the leave prompt only with unsaved changes) and that a browser holding the first, dark MetroBar theme opens with the light one.
 
 ## How it works
 

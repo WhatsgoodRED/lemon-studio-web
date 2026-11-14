@@ -467,7 +467,8 @@ fn screens(el: &ActiveEventLoop) -> Vec<[i32; 4]> {
 }
 
 fn insets(window: &Window) -> (u32, u32, u32, u32) {
-    if is_maximized(window) || window.fullscreen().is_some() {
+    // In a web page the canvas has no window frame to draw (the page around it is the frame).
+    if cfg!(target_arch = "wasm32") || is_maximized(window) || window.fullscreen().is_some() {
         return (0, 0, 0, 0);
     }
     let k = ui_scale(window) as f32;

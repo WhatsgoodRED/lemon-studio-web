@@ -198,54 +198,60 @@ pub mod lemon {
     pub const TEXT: Color = Color::rgb(0xececec);
 }
 
-/// MetroBar Studio's palette (metrobarz.com's dark palette): deep red on green-tinted near-black greys.
+/// MetroBar Studio's palette: metrobarz.com, which is always light (`:root[data-theme="light"]`): deep red on pale
+/// green-tinted greys, near-black ink, near-white buttons with thin borders.
 pub mod metrobar {
     use crate::Color;
     /// Accent: "on" controls, selection, the playhead, record (flat, no glow).
     pub const ACCENT: Color = Color::rgb(0xaf0000);
     /// Text and glyphs on the accent.
     pub const ON_ACCENT: Color = Color::rgb(0xffffff);
-    pub const BG: Color = Color::rgb(0x111413);
-    pub const PANEL: Color = Color::rgb(0x1a1e1d);
-    pub const FG: Color = Color::rgb(0xe9ece8);
-    pub const MUTED: Color = Color::rgb(0x8e9893);
-    pub const LINE: Color = Color::rgb(0x2c3331);
-    pub const CELL: Color = Color::rgb(0x252b29);
-    pub const S1: Color = Color::rgb(0x4b5652);
-    pub const S2: Color = Color::rgb(0x66716c);
-    pub const S3: Color = Color::rgb(0x838d88);
-    pub const S4: Color = Color::rgb(0xa1aaa5);
-    pub const S5: Color = Color::rgb(0xbfc6c2);
-    /// The colour set for clips and channels.
+    pub const BG: Color = Color::rgb(0xeef0ec);
+    pub const PANEL: Color = Color::rgb(0xe2e5df);
+    pub const FG: Color = Color::rgb(0x15181a);
+    pub const MUTED: Color = Color::rgb(0x5d6662);
+    pub const LINE: Color = Color::rgb(0xc5cbc4);
+    pub const CELL: Color = Color::rgb(0xd3d8d1);
+    /// Buttons and input boxes: near white, with a thin `LINE` border.
+    pub const FACE: Color = Color::rgb(0xf8f9f7);
+    pub const S1: Color = Color::rgb(0x4b5551);
+    pub const S2: Color = Color::rgb(0x626c68);
+    pub const S3: Color = Color::rgb(0x7a847f);
+    pub const S4: Color = Color::rgb(0x939c97);
+    pub const S5: Color = Color::rgb(0xabb3ae);
+    /// The colour set for clips and channels (the light page's `--r0`..`--r7`).
     pub const SET: [Color; 8] = [
-        Color::rgb(0xd9a62e),
-        Color::rgb(0x3fa7d6),
-        Color::rgb(0xe0679c),
-        Color::rgb(0x59b36b),
-        Color::rgb(0xa77fe0),
-        Color::rgb(0xe07b39),
-        Color::rgb(0x3cbfb0),
-        Color::rgb(0xc9c94a),
+        Color::rgb(0xa87800),
+        Color::rgb(0x1f7aa8),
+        Color::rgb(0xb83c72),
+        Color::rgb(0x2f8a42),
+        Color::rgb(0x7a52b8),
+        Color::rgb(0xb35416),
+        Color::rgb(0x1d8f82),
+        Color::rgb(0x8a8a10),
     ];
-    /// Lemon skin lightness -> MetroBar lightness (Lemon's workspace lands on BG, its toolbar on PANEL, its raised
-    /// faces on CELL / LINE, its dark highlight on S1).
+    /// Lemon skin lightness -> MetroBar lightness. Lemon is dark, MetroBar light, so the ramp turns over: Lemon's
+    /// workspace (0.149) lands on BG, its toolbar (0.18) on PANEL, its raised faces on CELL / LINE, its dark highlight
+    /// (0.40) a step darker, its text (0.93) on FG; its near-black wells are lighter than BG, and pure black (edges,
+    /// hairlines) a visible line.
     pub(crate) const RAMP: &[(f32, f32)] = &[
-        (0.0, 0.0),
-        (0.07, 0.035),
-        (0.122, 0.055),
-        (0.149, 0.0725),
-        (0.18, 0.09),
-        (0.231, 0.11),
-        (0.278, 0.157),
-        (0.333, 0.186),
-        (0.40, 0.30),
-        (0.5, 0.40),
-        (0.6, 0.52),
-        (0.84, 0.755),
-        (1.0, 1.0),
+        (0.0, 0.72),
+        (0.04, 0.80),
+        (0.07, 0.965),
+        (0.122, 0.95),
+        (0.149, 0.93),
+        (0.18, 0.886),
+        (0.231, 0.86),
+        (0.278, 0.83),
+        (0.333, 0.78),
+        (0.40, 0.70),
+        (0.5, 0.58),
+        (0.6, 0.46),
+        (0.84, 0.25),
+        (1.0, 0.09),
     ];
     /// Hue and saturation of the greys.
-    pub(crate) const TINT: (f32, f32) = (160.0, 0.075);
+    pub(crate) const TINT: (f32, f32) = (110.0, 0.08);
 }
 
 /// Lemon: Classic lightness -> Lemon lightness. Classic's toolbar (0.19) lands on DARK (#3b3b3b, 0.231) and the
@@ -433,26 +439,26 @@ pub fn palette(design: Design, theme: Option<&FlTheme>) -> Palette {
     p
 }
 
-/// The MetroBar Studio theme's tokens, set outright over either skin (metrobarz.com's dark palette).
+/// The MetroBar Studio theme's tokens, set outright over either skin (metrobarz.com's light palette).
 fn metrobar_tokens() -> Vec<(&'static str, Color)> {
     let c = Color::rgb;
     use metrobar::*;
     vec![
         ("toolbar", PANEL),
-        ("toolbar_line", BG),
+        ("toolbar_line", LINE),
         ("toolbar_edge", LINE),
-        ("sunken", c(0x151917)),
-        ("sunken_dark", c(0x0e100f)),
-        ("time_panel", c(0x0e100f)),
-        ("menu_panel", c(0x161a19)),
+        ("sunken", c(0xf4f5f2)),
+        ("sunken_dark", FACE),
+        ("time_panel", CELL),
+        ("menu_panel", PANEL),
         ("menu_text", FG),
-        ("news_panel", c(0x161a19)),
-        ("button", CELL),
-        ("button_hi", c(0x333b38)),
+        ("news_panel", PANEL),
+        ("button", FACE),
+        ("button_hi", c(0xe9ebe7)),
         ("glyph", FG),
-        ("glyph_dim", MUTED),
+        ("glyph_dim", S2),
         ("text", FG),
-        ("text_dim", S4),
+        ("text_dim", MUTED),
         ("text_faint", S3),
         ("on_top", ACCENT),
         ("on_bottom", ACCENT),
@@ -460,19 +466,20 @@ fn metrobar_tokens() -> Vec<(&'static str, Color)> {
         ("pill", ACCENT),
         ("pill_text", ON_ACCENT),
         ("record", ACCENT),
-        ("tempo_box", BG),
+        ("tempo_box", FACE),
         ("accent", ACCENT),
-        ("accent_dim", c(0x4a1210)),
+        // The page's --land-soft: the accent 38 % into a cell.
+        ("accent_dim", c(0xc58682)),
         ("workspace", BG),
-        ("watermark", c(0x181c1b)),
-        ("version_text", S1),
-        ("browser_title", c(0x161a19)),
+        ("watermark", c(0xd9ddd6)),
+        ("version_text", S4),
+        ("browser_title", PANEL),
         ("browser_tabs", BG),
         ("browser_tab_outline", ACCENT),
-        ("browser_list", c(0x0e1110)),
+        ("browser_list", c(0xf4f5f2)),
         ("browser_row_hi", CELL),
-        ("browser_folder", c(0xd5dad6)),
-        ("browser_footer", BG),
+        ("browser_folder", FG),
+        ("browser_footer", PANEL),
         ("browser_search", ACCENT),
         ("cat_project", FG),
         ("cat_recent", SET[3]),
@@ -480,81 +487,82 @@ fn metrobar_tokens() -> Vec<(&'static str, Color)> {
         ("cat_plugin_presets", SET[2]),
         ("cat_channel_presets", SET[4]),
         ("cat_mixer_presets", SET[6]),
-        ("splitter", BG),
-        ("splitter_dark", c(0x0b0d0c)),
+        ("splitter", LINE),
+        ("splitter_dark", S5),
         ("window_title", PANEL),
         ("window_title_float", PANEL),
-        ("window_title_hi", c(0x222826)),
-        ("window_body", c(0x161a19)),
-        ("window_border", c(0x0b0d0c)),
-        ("picker", c(0x151917)),
-        ("track_header", c(0x1f2422)),
-        ("overview", c(0x3a4340)),
-        ("ruler", c(0x0e100f)),
+        ("window_title_hi", CELL),
+        ("window_body", BG),
+        ("window_border", S5),
+        ("picker", c(0xf4f5f2)),
+        ("track_header", c(0xe7eae4)),
+        ("overview", LINE),
+        ("ruler", PANEL),
         ("ruler_text", MUTED),
-        ("grid", c(0x161a19)),
-        ("grid_alt", PANEL),
-        ("grid_gap", c(0x101312)),
-        ("grid_bar", c(0x0a0c0b)),
+        ("grid", c(0xf4f5f2)),
+        ("grid_alt", c(0xe9ece6)),
+        ("grid_gap", c(0xdde1da)),
+        ("grid_bar", LINE),
         ("scrollbar", BG),
         ("playhead", ACCENT),
         ("mixer_bg", BG),
         ("mixer_strip", PANEL),
-        ("mixer_strip_dark", c(0x131615)),
+        ("mixer_strip_dark", c(0xd9ddd6)),
         ("mixer_panel", PANEL),
-        ("slot", c(0x151917)),
-        ("slot_text", S2),
-        ("slot_text_used", c(0xd5dad6)),
+        ("slot", FACE),
+        ("slot_text", S3),
+        ("slot_text_used", FG),
         ("fader_handle", S1),
         // Meters stay green / yellow / red so levels read.
-        ("meter_low", SET[3]),
-        ("meter_high", SET[0]),
+        ("meter_low", c(0x2f9e47)),
+        ("meter_high", c(0xe0ae1c)),
         ("meter_clip", c(0xe5352b)),
         ("rack_row_box", CELL),
-        ("name_button", CELL),
-        ("name_button_sel", c(0x3a4340)),
-        ("name_text", c(0xdfe3df)),
+        ("name_button", FACE),
+        ("name_button_sel", LINE),
+        ("name_text", FG),
         ("rack_inset", PANEL),
-        ("rack_inset_border", BG),
-        ("rack_control_border", c(0x0e100f)),
+        ("rack_inset_border", LINE),
+        ("rack_control_border", S5),
         ("step_a", LINE),
-        ("step_b", c(0x3a2725)),
-        ("step_dim_a", c(0x1f2422)),
-        ("step_dim_b", c(0x261b1a)),
-        ("step_dim_border", c(0x161a19)),
+        ("step_b", c(0xdfc4c0)),
+        ("step_dim_a", PANEL),
+        ("step_dim_b", c(0xecdcda)),
+        ("step_dim_border", LINE),
         ("step_on", ACCENT),
         ("add_hover", ACCENT),
-        ("menu_drop", PANEL),
-        ("menu_drop_hi", LINE),
+        ("menu_drop", FACE),
+        ("menu_drop_hi", CELL),
         ("menu_drop_text", FG),
-        ("menu_drop_disabled", S2),
-        ("menu_pop", PANEL),
-        ("menu_pop_border", c(0x0b0d0c)),
-        ("menu_pop_hi", c(0x6e0000)),
+        ("menu_drop_disabled", S4),
+        ("menu_pop", FACE),
+        ("menu_pop_border", S5),
+        ("menu_pop_hi", c(0xecd3d0)),
         ("menu_pop_text", FG),
-        ("menu_pop_shortcut", S4),
-        ("menu_pop_dim", S2),
-        ("menu_pop_head", c(0x151917)),
+        ("menu_pop_shortcut", S2),
+        ("menu_pop_dim", S4),
+        ("menu_pop_head", PANEL),
         ("menu_pop_head_text", MUTED),
-        ("clip", c(0x2f6f8c)),
-        ("pr_row", c(0x161a19)),
-        ("pr_row_black", c(0x121514)),
-        ("pr_row_sel", c(0x1f1a1a)),
-        ("pr_row_black_sel", c(0x1a1515)),
-        ("pr_bar", c(0x0a0c0b)),
-        ("note_top", c(0xb81010)),
+        ("clip", c(0x3f8db3)),
+        ("pr_row", c(0xf4f5f2)),
+        ("pr_row_black", c(0xe6e9e3)),
+        ("pr_row_sel", c(0xf3e9e8)),
+        ("pr_row_black_sel", c(0xe8dcdb)),
+        ("pr_bar", LINE),
+        ("note_top", c(0xc41a1a)),
         ("note_bottom", ACCENT),
-        ("note_rim", c(0x5c0000)),
+        ("note_rim", c(0x6e0000)),
         ("note_text", ON_ACCENT),
-        ("note_sel_top", c(0xf2dede)),
-        ("note_sel_bottom", c(0xe6c4c4)),
-        ("note_sel_rim", c(0x6e0000)),
-        ("note_sel_text", c(0x3a0000)),
-        ("key_white", FG),
-        ("key_white_left", c(0xc9cfcb)),
-        ("key_black", PANEL),
-        ("key_black_left", BG),
-        ("key_c", c(0xd8ddd9)),
+        // Selected notes: ink, as the page's lit tiles under the cursor.
+        ("note_sel_top", c(0x2a2f31)),
+        ("note_sel_bottom", FG),
+        ("note_sel_rim", c(0x000000)),
+        ("note_sel_text", ON_ACCENT),
+        ("key_white", c(0xffffff)),
+        ("key_white_left", c(0xe9ebe7)),
+        ("key_black", c(0x2a2f2d)),
+        ("key_black_left", FG),
+        ("key_c", c(0xf1f2ef)),
         ("key_label", ACCENT),
         ("key_lit", c(0xc41a1a)),
         ("key_lit_left", ACCENT),
@@ -562,7 +570,7 @@ fn metrobar_tokens() -> Vec<(&'static str, Color)> {
         ("key_black_lit", ACCENT),
         ("key_black_lit_left", c(0x6e0000)),
         ("velocity", ACCENT),
-        ("velocity_dot", c(0x5c0000)),
+        ("velocity_dot", c(0x7d0000)),
     ]
 }
 
@@ -664,7 +672,7 @@ impl Retint {
             let l2 = map.ramp_l(l).clamp(0.0, 1.0);
             let chroma = f32::from(c.r.max(c.g).max(c.b) - c.r.min(c.g).min(c.b)) / 255.0;
             if chroma > 0.09 {
-                // Lemon's lemon-tinted wells and hovers: a dark red of the same lightness.
+                // Lemon's lemon-tinted wells and hovers: a red tint of the same (turned over) lightness.
                 let (kh, _, _) = metrobar::ACCENT.hsl();
                 return Color::from_hsl_pub(kh, (s * 0.6).min(0.45), l2, c.a);
             }
@@ -890,8 +898,10 @@ mod tests {
         assert_eq!(p.brand_lit(lemon::MAIN), metrobar::ACCENT);
         assert_eq!(p.brand_sel(lemon::MAIN), metrobar::ACCENT);
         assert!(p.brand_lit(lemon::HIGHLIGHT).hsl().2 < 0.45, "no glow: {}", p.brand_lit(lemon::HIGHLIGHT));
+        // Light: Lemon's dark greys come out light, its text dark.
         let g = p.s(0x313436);
-        assert!(g.hsl().2 < 0.2, "{g}");
+        assert!(g.hsl().2 > 0.8, "{g}");
+        assert!(p.text.hsl().2 < 0.2 && p.workspace.hsl().2 > 0.85);
     }
 
     #[test]

@@ -10350,7 +10350,18 @@ fn saved_fl_text() -> Option<String> {
     if saved.is_none() && !cfg!(test) {
         return default_fl_text();
     }
-    saved
+    saved.map(|t| metrobar_current(&t).unwrap_or(t))
+}
+
+/// The look of the built-in MetroBar theme (`MetroBarLook` in its file): 2 = light, as metrobarz.com. A MetroBar theme
+/// saved with an older look (the first, dark one, kept in a browser's settings) is replaced by the built-in theme.
+const METROBAR_LOOK: &str = "2";
+
+/// `text` is a MetroBar theme of an older look: the built-in MetroBar theme to use instead.
+pub fn metrobar_current(text: &str) -> Option<String> {
+    let th = os_theme::FlTheme::parse(text);
+    let look = os_theme::fl::get_key(text, "MetroBarLook").map(str::trim);
+    (th.metrobar && look != Some(METROBAR_LOOK)).then(default_fl_text).flatten()
 }
 
 /// The theme a fresh install starts with: the built-in MetroBar theme.
@@ -10393,6 +10404,19 @@ fn load_theme_inner() -> Theme {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A browser that kept the first (dark) MetroBar theme gets the built-in light one; the current one is kept.
+    #[test]
+    fn an_old_metrobar_theme_is_replaced() {
+        let old = "Hue=42\nSaturation=-50\nLightness=-200\nContrast=-8\nText=0\nSelected=11468800\nTextColor=15330536\nBackMode=1\nBackColor=1250321\nLemonStudioColors=MetroBar\n";
+        let new = metrobar_current(old).expect("replaced");
+        assert_eq!(Some(new.clone()), default_fl_text());
+        assert!(metrobar_current(&new).is_none());
+        let p = os_theme::design::palette(Design::Lemon, Some(&os_theme::FlTheme::parse(&new)));
+        assert!(p.workspace.hsl().2 > 0.85 && p.text.hsl().2 < 0.2);
+        // Other themes are left alone.
+        assert!(metrobar_current(os_theme::fl::DARK_TEXT).is_none());
+    }
 
     fn frame(app: &mut App, c: &mut Canvas, damage: Option<Rect>) {
         app.paint(c, damage);

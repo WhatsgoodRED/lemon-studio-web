@@ -236,7 +236,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo, width: f32) {
         ui.hit(r, Action::MenuItem(menus::HELP_MENU, menus::HELP_ABOUT), "About MetroBar Studio");
     }
     let _ = lemon;
-    icons::metronome(ui.c, lx, mid, 26.0 * h / 81.0, t.glyph_dim, t.accent);
+    icons::metronome(ui.c, lx, mid, 26.0 * h / 81.0, t.glyph, t.button, t.accent);
 }
 
 /// A group separator at band x `x` of row `row`.
@@ -1063,7 +1063,7 @@ pub fn paint_palette(ui: &mut Ui, s: &State, f: &FrameInfo, width: f32) {
                 panel(ui, &Ctx { s, f, a, fit: f32::INFINITY, preview: true }, pn);
                 ui.forget(mark);
             }
-            Tile::Logo => icons::metronome(ui.c, r.cx(), r.cy(), 13.0, t.glyph_dim, t.accent),
+            Tile::Logo => icons::metronome(ui.c, r.cx(), r.cy(), 13.0, t.glyph, t.button, t.accent),
         }
         ui.c.pop_clip();
         let label = Rect::new(r.x - GAP / 2.0, r.bottom() + 2.0, r.w + GAP, LABEL_H - 2.0);

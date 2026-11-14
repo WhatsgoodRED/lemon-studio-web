@@ -218,6 +218,14 @@ $('b-import').onclick = () => $('file-audio').click();
 $('b-open').onclick = () => $('file-project').click();
 $('b-save').onclick = () => { lemon.lemon_save(); };
 $('b-export').onclick = () => { lemon.lemon_export(); $('lemon-canvas').focus(); };
+// Leaving (the "<- MetroBar" link, a reload, closing the tab): the browser asks first only while the project has
+// unsaved changes. Settings and imported files are kept in IndexedDB; the open project is not saved by itself.
+window.addEventListener('beforeunload', (e) => {
+  let unsaved = false;
+  try { unsaved = web.ready && !!web.state().unsaved; } catch (_) {}
+  keep();
+  if (unsaved) { e.preventDefault(); e.returnValue = ''; }
+});
 $('file-audio').onchange = (e) => { importFiles([...e.target.files]); e.target.value = ''; };
 $('file-project').onchange = (e) => { importFiles([...e.target.files]); e.target.value = ''; };
 

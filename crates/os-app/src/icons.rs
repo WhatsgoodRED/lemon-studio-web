@@ -182,29 +182,64 @@ pub fn wordmark_w(h: f32) -> f32 {
     crate::wordmark::W * h / crate::wordmark::CAP
 }
 
-/// The MetroBar app icon's metronome (`icon.svg` on metrobarz.com), fitted into a square of side `2 r` centred on
-/// (`cx`, `cy`): body and base in `fg`, pendulum and weight in `accent`.
-pub fn metronome(cv: &mut Canvas, cx: f32, cy: f32, r: f32, fg: Color, accent: Color) {
-    // icon.svg's metronome spans x 184..328, y 116..297 (512 units); centred on (256, 206).
-    let k = 2.0 * r / 190.0;
-    let (ox, oy) = (cx - 256.0 * k, cy - 206.0 * k);
-    let mut body = Glyph::new();
-    body.commands("M 196 290 L 316 290 L 284 116 L 228 116 Z", ox, oy, k, Some(13.0 * k));
-    body.commands("M 191 283 L 321 283 Q 328 283 328 290 Q 328 297 321 297 L 191 297 Q 184 297 184 290 Q 184 283 191 283 Z", ox, oy, k, None);
-    cv.glyph(fg, &body);
-    let mut arm = Glyph::new();
-    arm.commands("M 256 262 L 302 142", ox, oy, k, Some(12.0 * k));
-    // The weight: a 26 x 22 block turned 21 degrees about (301, 167).
-    let (s, c) = 21f32.to_radians().sin_cos();
-    let at = |x: f32, y: f32| (301.0 + (x - 301.0) * c - (y - 167.0) * s, 167.0 + (x - 301.0) * s + (y - 167.0) * c);
-    let pts = [at(288.0, 156.0), at(314.0, 156.0), at(314.0, 178.0), at(288.0, 178.0)];
-    let d = format!(
-        "M {} {} L {} {} L {} {} L {} {} Z",
-        pts[0].0, pts[0].1, pts[1].0, pts[1].1, pts[2].0, pts[2].1, pts[3].0, pts[3].1
-    );
-    arm.commands(&d, ox, oy, k, None);
-    cv.glyph(accent, &arm);
-    cv.fill_circle(ox + 256.0 * k, oy + 262.0 * k, 13.0 * k, fg);
+/// MetroBar's metronome (metrobarz.com's "pyramid metronome drawn like a line sketch", `.metro` in
+/// landing-beat-meter.html): ink outlines on a pale case, seen straight on, the arm upright on its low pivot with the
+/// sliding weight, a winding key on the side and the diamond badge lit red. Fitted so its height is `2.2 r`, centred on
+/// (`cx`, `cy`): outlines in `ink`, the case in `case`, pivot and badge in `accent`.
+pub fn metronome(cv: &mut Canvas, cx: f32, cy: f32, r: f32, ink: Color, case: Color, accent: Color) {
+    // The page's drawing: viewBox 0 0 140 212, ink from y 3 (the cap's peak) to 208 (the feet), x 24..118 (the key).
+    let k = 2.2 * r / 205.0;
+    let (ox, oy) = (cx - 71.0 * k, cy - 105.5 * k);
+    // The page draws 1.1 px outlines at any size (non-scaling strokes): about a pixel, a little more on big drawings.
+    let line = (1.1 * k * 1.43).max(1.0);
+    let face = case.mix(ink, 0.08);
+    let outline = |cv: &mut Canvas, d: &str, fill: Color, w: f32| {
+        let mut g = Glyph::new();
+        g.commands(d, ox, oy, k, None);
+        cv.glyph(fill, &g);
+        let mut g = Glyph::new();
+        g.commands(d, ox, oy, k, Some(w));
+        cv.glyph(ink, &g);
+    };
+    let stroke = |cv: &mut Canvas, d: &str, c: Color, w: f32| {
+        let mut g = Glyph::new();
+        g.commands(d, ox, oy, k, Some(w));
+        cv.glyph(c, &g);
+    };
+    // Feet, plinth with its trim line, body, face, tempo strip.
+    let mut feet = Glyph::new();
+    feet.commands("M 34 203 L 46 203 L 46 208 L 34 208 Z M 94 203 L 106 203 L 106 208 L 94 208 Z", ox, oy, k, None);
+    cv.glyph(ink, &feet);
+    outline(cv, "M 34 141 L 106 141 L 116 204 L 24 204 Z", case, line);
+    stroke(cv, "M 29 198 L 111 198", ink, line * 0.75);
+    outline(cv, "M 40 138 L 100 138 L 84 24 L 56 24 Z", case, line);
+    outline(cv, "M 48 132 L 92 132 L 80 34 L 60 34 Z", face, line * 0.85);
+    outline(cv, "M 63 36 L 77 36 L 77 130 L 63 130 Z", case, line * 0.75);
+    if r >= 20.0 {
+        // The tempo scale, where there is room for it.
+        stroke(cv, "M 66 44 L 74 44 M 64 53.1 L 76 53.1 M 66 62.3 L 74 62.3 M 64 71.4 L 76 71.4 M 66 80.6 L 74 80.6 M 64 89.7 L 76 89.7 M 66 98.9 L 74 98.9 M 64 108 L 76 108", case.mix(ink, 0.55), line * 0.7);
+    }
+    // Cap, lip, the slot the arm swings in.
+    outline(cv, "M 54 24 L 86 24 L 80 9 L 60 9 Z", case, line);
+    stroke(cv, "M 60 9 L 70 3 L 80 9", ink, line * 0.75);
+    outline(cv, "M 31 146 L 109 146 L 107 138 L 33 138 Z", case, line);
+    stroke(cv, "M 52 141.5 L 88 141.5", ink, (2.4 * k * 1.43).max(1.5));
+    // The arm, upright, with its weight (the page's `translate(0 70)`) and two screws.
+    outline(cv, "M 67.6 136 L 72.4 136 L 71.6 20 L 68.4 20 Z", case, line);
+    outline(cv, "M 60 63 L 80 63 L 76 77 L 64 77 Z", case, line);
+    let dot = (2.0 * k).max(0.9);
+    cv.fill_circle(ox + 66.5 * k, oy + 68.5 * k, dot, ink);
+    cv.fill_circle(ox + 73.5 * k, oy + 68.5 * k, dot, ink);
+    cv.fill_circle(ox + 70.0 * k, oy + 136.0 * k, (2.6 * k).max(1.2), accent);
+    // The badge, lit as on the tick, with its wheel.
+    outline(cv, "M 70 160 L 84 170 L 70 180 L 56 170 Z", accent, line);
+    if r >= 14.0 {
+        cv.stroke_circle(ox + 70.0 * k, oy + 170.0 * k, 4.4 * k, line * 0.75, case);
+    }
+    // The winding key.
+    stroke(cv, "M 96 112 L 102 112", ink, (1.6 * k * 1.43).max(1.0));
+    cv.fill_circle(ox + 102.0 * k, oy + 112.0 * k, (2.8 * k).max(1.0), ink);
+    outline(cv, "M 104 112 L 109 104 L 118 102 L 116 112 L 118 122 L 109 120 Z", case, line);
 }
 
 /// Lemon Studio logo (greyscale mark, `logo.rs`) in one tint, fitted into a circle of radius `r`.
