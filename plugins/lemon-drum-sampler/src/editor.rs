@@ -31,7 +31,7 @@ pub struct DrumEditor {
     /// The open editor window (0 = closed).
     #[cfg_attr(not(windows), allow(dead_code))]
     hwnd: Arc<AtomicIsize>,
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
     slot: os_plugkit::gui::Slot,
 }
 
@@ -42,7 +42,7 @@ impl DrumEditor {
             shared,
             scale: AtomicU32::new(1f32.to_bits()),
             hwnd: Arc::new(AtomicIsize::new(0)),
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
             slot: Default::default(),
         }
     }
@@ -55,7 +55,7 @@ impl Editor for DrumEditor {
         match parent {
             #[cfg(windows)]
             ParentWindowHandle::Win32Hwnd(hwnd) => Box::new(win32::open(hwnd, scale, self.params.clone(), self.shared.clone(), self.hwnd.clone())),
-            #[cfg(target_os = "linux")]
+            #[cfg(any(target_os = "linux", target_arch = "wasm32"))]
             ParentWindowHandle::X11Window(window) => Box::new(gui::open(window, scale, self.params.clone(), self.shared.clone(), &self.slot)),
             // macOS hosts set no scale (sizes are points): the editor paints at its window's backing scale.
             #[cfg(target_os = "macos")]
@@ -869,7 +869,7 @@ mod win32 {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
 mod gui {
     use std::sync::atomic::Ordering;
     use std::sync::Arc;
@@ -941,51 +941,60 @@ mod gui {
         }
     }
 
-    impl Ed {
-        fn run(mut self) {
-            while let Some(input) = self.win.next() {
-                match input {
-                    Input::Expose => self.dirty = true,
-                    Input::Tick => self.poll(),
-                    Input::Down { x, y, btn: b, dbl } => {
-                        let (x, y) = (x / self.scale, y / self.scale);
-                        let acts = self.logic.down(x, y, btn(b), self.mods(), dbl && b == Button::Left);
-                        self.act(acts);
-                    }
-                    Input::Move { x, y } => {
-                        let acts = self.logic.moved(x / self.scale, y / self.scale, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Delta { dx, dy } => {
-                        let acts = self.logic.delta(dx / self.scale, dy / self.scale, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Up { .. } => {
-                        self.win.unlock();
-                        let acts = self.logic.up(Btn::Left);
-                        self.act(acts);
-                    }
-                    Input::Leave => {
-                        if !self.win.locked() && !self.logic.dragging() {
-                            let acts = self.logic.leave();
-                            self.act(acts);
-                        }
-                    }
-                    Input::Wheel { x, y, notches } => {
-                        let acts = self.logic.wheel(x / self.scale, y / self.scale, notches, self.mods());
-                        self.act(acts);
-                    }
-                    // A dropped file loads onto the chosen pad.
-                    Input::Drop { path } => {
-                        self.logic.load(None, &path);
-                        self.dirty = true;
-                    }
-                    Input::Key { .. } => {}
+    impl os_plugkit::Step for Ed {
+        fn step(&mut self, input: Input) -> bool {
+            match input {
+                Input::Expose => self.dirty = true,
+                Input::Tick => self.poll(),
+                Input::Down { x, y, btn: b, dbl } => {
+                    let (x, y) = (x / self.scale, y / self.scale);
+                    let acts = self.logic.down(x, y, btn(b), self.mods(), dbl && b == Button::Left);
+                    self.act(acts);
                 }
-                if self.dirty && self.win.idle() {
-                    self.paint();
+                Input::Move { x, y } => {
+                    let acts = self.logic.moved(x / self.scale, y / self.scale, self.mods());
+                    self.act(acts);
                 }
+                Input::Delta { dx, dy } => {
+                    let acts = self.logic.delta(dx / self.scale, dy / self.scale, self.mods());
+                    self.act(acts);
+                }
+                Input::Up { .. } => {
+                    self.win.unlock();
+                    let acts = self.logic.up(Btn::Left);
+                    self.act(acts);
+                }
+                Input::Leave => {
+                    if !self.win.locked() && !self.logic.dragging() {
+                        let acts = self.logic.leave();
+                        self.act(acts);
+                    }
+                }
+                Input::Wheel { x, y, notches } => {
+                    let acts = self.logic.wheel(x / self.scale, y / self.scale, notches, self.mods());
+                    self.act(acts);
+                }
+                // A dropped file loads onto the chosen pad.
+                Input::Drop { path } => {
+                    self.logic.load(None, &path);
+                    self.dirty = true;
+                }
+                Input::Key { .. } => {}
             }
+            if self.dirty && self.win.idle() {
+                self.paint();
+            }
+            true
+        }
+
+        fn win(&mut self) -> &mut Window {
+            &mut self.win
+        }
+    }
+
+    impl Ed {
+        fn run(self) {
+            os_plugkit::drive(self)
         }
 
         fn mods(&self) -> Mods {
@@ -1050,6 +1059,7 @@ mod gui {
     }
 
     /// The open sample dialog: the desktop's own (through its portal on Linux; on macOS AppKit's).
+    #[cfg(not(target_arch = "wasm32"))]
     fn file_dialog(win: &Window) -> Option<String> {
         if os_plugkit::no_modal() {
             return None;
@@ -1061,6 +1071,12 @@ mod gui {
                 .pick_file()
         });
         path.flatten().map(|p| p.to_string_lossy().into_owned())
+    }
+
+    /// No desktop file dialog in the browser: nothing is picked.
+    #[cfg(target_arch = "wasm32")]
+    fn file_dialog(_win: &Window) -> Option<String> {
+        None
     }
 }
 

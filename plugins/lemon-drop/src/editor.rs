@@ -31,7 +31,7 @@ pub struct DropEditor {
     pub scale: AtomicU32,
     #[cfg_attr(not(windows), allow(dead_code))]
     hwnd: Arc<AtomicIsize>,
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
     slot: os_plugkit::gui::Slot,
 }
 
@@ -42,7 +42,7 @@ impl DropEditor {
             shared,
             scale: AtomicU32::new(1f32.to_bits()),
             hwnd: Arc::new(AtomicIsize::new(0)),
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
             slot: Default::default(),
         }
     }
@@ -55,7 +55,7 @@ impl Editor for DropEditor {
         match parent {
             #[cfg(windows)]
             ParentWindowHandle::Win32Hwnd(hwnd) => Box::new(win32::open(hwnd, scale, params, shared, context, self.hwnd.clone())),
-            #[cfg(target_os = "linux")]
+            #[cfg(any(target_os = "linux", target_arch = "wasm32"))]
             ParentWindowHandle::X11Window(window) => Box::new(gui::open(window, scale, params, shared, context, &self.slot)),
             #[cfg(target_os = "macos")]
             ParentWindowHandle::AppKitNsView(v) => {
@@ -926,7 +926,7 @@ mod win32 {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
 mod gui {
     use std::sync::Arc;
 
@@ -1004,51 +1004,60 @@ mod gui {
         }
     }
 
+    impl os_plugkit::Step for Ed {
+        fn step(&mut self, input: Input) -> bool {
+            match input {
+                Input::Expose => self.dirty = true,
+                // Input only changes the state; the tick draws it, so a moving mouse never starves the animation.
+                Input::Tick => {
+                    self.poll();
+                    if self.dirty {
+                        self.paint();
+                    }
+                }
+                Input::Down { x, y, btn: b, dbl } => {
+                    let (x, y) = (x / self.scale, y / self.scale);
+                    let acts = self.logic.down(x, y, btn(b), self.mods(), dbl && b == Button::Left);
+                    self.act(acts);
+                }
+                Input::Move { x, y } => {
+                    let acts = self.logic.moved(x / self.scale, y / self.scale, self.mods());
+                    self.act(acts);
+                }
+                Input::Delta { dx, dy } => {
+                    let acts = self.logic.delta(dx / self.scale, dy / self.scale, self.mods());
+                    self.act(acts);
+                }
+                Input::Up { .. } => {
+                    self.win.unlock();
+                    let acts = self.logic.up(Btn::Left);
+                    self.act(acts);
+                }
+                Input::Leave => {
+                    if !self.win.locked() && !self.logic.dragging() {
+                        let acts = self.logic.leave();
+                        self.act(acts);
+                    }
+                }
+                Input::Wheel { x, y, notches } => {
+                    let acts = self.logic.wheel(x / self.scale, y / self.scale, notches, self.mods());
+                    self.act(acts);
+                }
+                Input::Key { .. } | Input::Drop { .. } => {}
+            }
+            true
+        }
+
+        fn win(&mut self) -> &mut Window {
+            &mut self.win
+        }
+    }
+
     impl Ed {
         fn run(mut self) {
             #[cfg(target_os = "macos")]
             self.win.set_tick(web_time::Duration::from_millis(u64::from(super::TIMER_MS)));
-            while let Some(input) = self.win.next() {
-                match input {
-                    Input::Expose => self.dirty = true,
-                    // Input only changes the state; the tick draws it, so a moving mouse never starves the animation.
-                    Input::Tick => {
-                        self.poll();
-                        if self.dirty {
-                            self.paint();
-                        }
-                    }
-                    Input::Down { x, y, btn: b, dbl } => {
-                        let (x, y) = (x / self.scale, y / self.scale);
-                        let acts = self.logic.down(x, y, btn(b), self.mods(), dbl && b == Button::Left);
-                        self.act(acts);
-                    }
-                    Input::Move { x, y } => {
-                        let acts = self.logic.moved(x / self.scale, y / self.scale, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Delta { dx, dy } => {
-                        let acts = self.logic.delta(dx / self.scale, dy / self.scale, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Up { .. } => {
-                        self.win.unlock();
-                        let acts = self.logic.up(Btn::Left);
-                        self.act(acts);
-                    }
-                    Input::Leave => {
-                        if !self.win.locked() && !self.logic.dragging() {
-                            let acts = self.logic.leave();
-                            self.act(acts);
-                        }
-                    }
-                    Input::Wheel { x, y, notches } => {
-                        let acts = self.logic.wheel(x / self.scale, y / self.scale, notches, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Key { .. } | Input::Drop { .. } => {}
-                }
-            }
+            os_plugkit::drive(self)
         }
 
         fn mods(&self) -> Mods {

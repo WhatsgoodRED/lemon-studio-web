@@ -34,7 +34,7 @@ pub struct ReverbEditor {
     #[cfg_attr(not(windows), allow(dead_code))]
     hwnd: Arc<AtomicIsize>,
     /// Linux and macOS: the open editor's thread waker, for the same.
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
     slot: os_plugkit::gui::Slot,
 }
 
@@ -45,7 +45,7 @@ impl ReverbEditor {
             shared,
             scale: AtomicU32::new(1f32.to_bits()),
             hwnd: Arc::new(AtomicIsize::new(0)),
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
             slot: Default::default(),
         }
     }
@@ -53,7 +53,7 @@ impl ReverbEditor {
     fn notify(&self) {
         #[cfg(windows)]
         win32::post_changed(self.hwnd.load(Ordering::Acquire));
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
         os_plugkit::gui::notify(&self.slot);
     }
 }
@@ -66,7 +66,7 @@ impl Editor for ReverbEditor {
             ParentWindowHandle::Win32Hwnd(hwnd) => {
                 Box::new(win32::open(hwnd, scale, self.params.clone(), self.shared.clone(), context, self.hwnd.clone()))
             }
-            #[cfg(target_os = "linux")]
+            #[cfg(any(target_os = "linux", target_arch = "wasm32"))]
             ParentWindowHandle::X11Window(window) => Box::new(gui::open(window, scale, self.params.clone(), self.shared.clone(), context, &self.slot)),
             // macOS hosts set no scale (sizes are points): the editor paints at its window's backing scale.
             #[cfg(target_os = "macos")]
@@ -757,7 +757,7 @@ mod win32 {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
 mod gui {
     use std::sync::atomic::Ordering;
     use std::sync::Arc;
@@ -834,46 +834,55 @@ mod gui {
         }
     }
 
-    impl Ed {
-        fn run(mut self) {
-            while let Some(input) = self.win.next() {
-                match input {
-                    Input::Expose => self.dirty = true,
-                    Input::Tick => self.poll(),
-                    Input::Down { x, y, btn: b, dbl } => {
-                        let (x, y) = (x / self.scale, y / self.scale);
-                        let acts = self.logic.down(x, y, btn(b), self.mods(), dbl && b == Button::Left);
-                        self.act(acts);
-                    }
-                    Input::Move { x, y } => {
-                        let acts = self.logic.moved(x / self.scale, y / self.scale, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Delta { dx, dy } => {
-                        let acts = self.logic.delta(dx / self.scale, dy / self.scale, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Up { .. } => {
-                        self.win.unlock();
-                        let acts = self.logic.up(Btn::Left);
-                        self.act(acts);
-                    }
-                    Input::Leave => {
-                        if !self.win.locked() && !self.logic.dragging() {
-                            let acts = self.logic.leave();
-                            self.act(acts);
-                        }
-                    }
-                    Input::Wheel { x, y, notches } => {
-                        let acts = self.logic.wheel(x / self.scale, y / self.scale, notches, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Key { .. } | Input::Drop { .. } => {}
+    impl os_plugkit::Step for Ed {
+        fn step(&mut self, input: Input) -> bool {
+            match input {
+                Input::Expose => self.dirty = true,
+                Input::Tick => self.poll(),
+                Input::Down { x, y, btn: b, dbl } => {
+                    let (x, y) = (x / self.scale, y / self.scale);
+                    let acts = self.logic.down(x, y, btn(b), self.mods(), dbl && b == Button::Left);
+                    self.act(acts);
                 }
-                if self.dirty && self.win.idle() {
-                    self.paint();
+                Input::Move { x, y } => {
+                    let acts = self.logic.moved(x / self.scale, y / self.scale, self.mods());
+                    self.act(acts);
                 }
+                Input::Delta { dx, dy } => {
+                    let acts = self.logic.delta(dx / self.scale, dy / self.scale, self.mods());
+                    self.act(acts);
+                }
+                Input::Up { .. } => {
+                    self.win.unlock();
+                    let acts = self.logic.up(Btn::Left);
+                    self.act(acts);
+                }
+                Input::Leave => {
+                    if !self.win.locked() && !self.logic.dragging() {
+                        let acts = self.logic.leave();
+                        self.act(acts);
+                    }
+                }
+                Input::Wheel { x, y, notches } => {
+                    let acts = self.logic.wheel(x / self.scale, y / self.scale, notches, self.mods());
+                    self.act(acts);
+                }
+                Input::Key { .. } | Input::Drop { .. } => {}
             }
+            if self.dirty && self.win.idle() {
+                self.paint();
+            }
+            true
+        }
+
+        fn win(&mut self) -> &mut Window {
+            &mut self.win
+        }
+    }
+
+    impl Ed {
+        fn run(self) {
+            os_plugkit::drive(self)
         }
 
         fn mods(&self) -> Mods {

@@ -41,7 +41,7 @@ pub struct TeslaEditor {
     /// The open editor window (0 = closed).
     #[cfg_attr(not(windows), allow(dead_code))]
     hwnd: Arc<AtomicIsize>,
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
     slot: os_plugkit::gui::Slot,
 }
 
@@ -51,7 +51,7 @@ impl TeslaEditor {
             params,
             scale: AtomicU32::new(1f32.to_bits()),
             hwnd: Arc::new(AtomicIsize::new(0)),
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
             slot: Default::default(),
         }
     }
@@ -63,7 +63,7 @@ impl Editor for TeslaEditor {
         match parent {
             #[cfg(windows)]
             ParentWindowHandle::Win32Hwnd(hwnd) => Box::new(win32::open(hwnd, scale, self.params.clone(), context, self.hwnd.clone())),
-            #[cfg(target_os = "linux")]
+            #[cfg(any(target_os = "linux", target_arch = "wasm32"))]
             ParentWindowHandle::X11Window(window) => Box::new(gui::open(window, scale, self.params.clone(), context, &self.slot)),
             #[cfg(target_os = "macos")]
             ParentWindowHandle::AppKitNsView(view) => {
@@ -3242,7 +3242,7 @@ mod win32 {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
 mod gui {
     use std::sync::atomic::Ordering;
     use std::sync::Arc;
@@ -3322,50 +3322,59 @@ mod gui {
         }
     }
 
-    impl Ed {
-        fn run(mut self) {
-            while let Some(input) = self.win.next() {
-                match input {
-                    Input::Expose => self.dirty = true,
-                    Input::Tick => self.poll(),
-                    Input::Down { x, y, btn: b, dbl } => {
-                        let acts = self.logic.down(x / self.scale, y / self.scale, btn(b), self.mods(), dbl && b == Button::Left);
+    impl os_plugkit::Step for Ed {
+        fn step(&mut self, input: Input) -> bool {
+            match input {
+                Input::Expose => self.dirty = true,
+                Input::Tick => self.poll(),
+                Input::Down { x, y, btn: b, dbl } => {
+                    let acts = self.logic.down(x / self.scale, y / self.scale, btn(b), self.mods(), dbl && b == Button::Left);
+                    self.act(acts);
+                }
+                Input::Move { x, y } => {
+                    let acts = self.logic.moved(x / self.scale, y / self.scale, self.mods());
+                    self.act(acts);
+                }
+                Input::Delta { .. } => {}
+                Input::Up { .. } => {
+                    let acts = self.logic.up(Btn::Left);
+                    self.act(acts);
+                }
+                Input::Leave => {
+                    if !self.logic.dragging() {
+                        let acts = self.logic.leave();
                         self.act(acts);
-                    }
-                    Input::Move { x, y } => {
-                        let acts = self.logic.moved(x / self.scale, y / self.scale, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Delta { .. } => {}
-                    Input::Up { .. } => {
-                        let acts = self.logic.up(Btn::Left);
-                        self.act(acts);
-                    }
-                    Input::Leave => {
-                        if !self.logic.dragging() {
-                            let acts = self.logic.leave();
-                            self.act(acts);
-                        }
-                    }
-                    Input::Wheel { x, y, notches } => {
-                        let acts = self.logic.wheel(x / self.scale, y / self.scale, notches, self.mods());
-                        self.act(acts);
-                    }
-                    Input::Key { sym, .. } => {
-                        if let Some(k) = Key::from_sym(sym) {
-                            let acts = self.logic.key(k, self.mods());
-                            self.act(acts);
-                        }
-                    }
-                    Input::Drop { path } => {
-                        self.logic.open(&path);
-                        self.dirty = true;
                     }
                 }
-                if self.dirty && self.win.idle() {
-                    self.paint();
+                Input::Wheel { x, y, notches } => {
+                    let acts = self.logic.wheel(x / self.scale, y / self.scale, notches, self.mods());
+                    self.act(acts);
+                }
+                Input::Key { sym, .. } => {
+                    if let Some(k) = Key::from_sym(sym) {
+                        let acts = self.logic.key(k, self.mods());
+                        self.act(acts);
+                    }
+                }
+                Input::Drop { path } => {
+                    self.logic.open(&path);
+                    self.dirty = true;
                 }
             }
+            if self.dirty && self.win.idle() {
+                self.paint();
+            }
+            true
+        }
+
+        fn win(&mut self) -> &mut Window {
+            &mut self.win
+        }
+    }
+
+    impl Ed {
+        fn run(self) {
+            os_plugkit::drive(self)
         }
 
         fn mods(&self) -> Mods {
@@ -3492,6 +3501,7 @@ mod gui {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn file_dialog(win: &Window, save: Option<String>) -> Option<String> {
         if os_plugkit::no_modal() {
             return None;
@@ -3504,6 +3514,12 @@ mod gui {
             }
         });
         path.flatten().map(|p| p.to_string_lossy().into_owned())
+    }
+
+    /// No desktop file dialog in the browser: nothing is picked.
+    #[cfg(target_arch = "wasm32")]
+    fn file_dialog(_win: &Window, _save: Option<String>) -> Option<String> {
+        None
     }
 }
 

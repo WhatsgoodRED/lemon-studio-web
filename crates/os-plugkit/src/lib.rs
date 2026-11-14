@@ -20,7 +20,9 @@ pub mod win;
 pub mod x11;
 #[cfg(target_os = "macos")]
 pub mod mac;
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(target_arch = "wasm32")]
+pub mod web;
+#[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
 pub mod input;
 
 /// The editor window of this platform where it runs the plugins' shared editor loop: `x11` on Linux, `mac` on macOS.
@@ -28,6 +30,31 @@ pub mod input;
 pub use x11 as gui;
 #[cfg(target_os = "macos")]
 pub use mac as gui;
+#[cfg(target_arch = "wasm32")]
+pub use web as gui;
+
+/// An editor's event handler (Linux, macOS, web): one input, then a paint if one is due. False ends the editor.
+#[cfg(any(target_os = "linux", target_os = "macos", target_arch = "wasm32"))]
+pub trait Step {
+    fn step(&mut self, input: gui::Input) -> bool;
+    fn win(&mut self) -> &mut gui::Window;
+}
+
+/// Runs an editor: its loop on its own thread (Linux, macOS), or kept for the host to hand it each input (web).
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub fn drive<E: Step>(mut ed: E) {
+    while let Some(input) = ed.win().next() {
+        if !ed.step(input) {
+            break;
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn drive<E: Step + 'static>(mut ed: E) {
+    let parent = ed.win().parent();
+    web::register(Box::new(ed), parent);
+}
 
 use os_theme::design::Design;
 use os_theme::Palette;

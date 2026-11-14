@@ -2585,7 +2585,7 @@ impl<P: ClapPlugin> Wrapper<P> {
             return false;
         }
 
-        #[cfg(all(target_family = "unix", not(target_os = "macos")))]
+        #[cfg(any(all(target_family = "unix", not(target_os = "macos")), target_arch = "wasm32"))]
         if CStr::from_ptr(api) == CLAP_WINDOW_API_X11 {
             return true;
         }
@@ -2608,7 +2608,7 @@ impl<P: ClapPlugin> Wrapper<P> {
     ) -> bool {
         check_null_ptr!(false, api, is_floating);
 
-        #[cfg(all(target_family = "unix", not(target_os = "macos")))]
+        #[cfg(any(all(target_family = "unix", not(target_os = "macos")), target_arch = "wasm32"))]
         {
             *api = CLAP_WINDOW_API_X11.as_ptr();
         }

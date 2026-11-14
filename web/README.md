@@ -45,13 +45,19 @@ Settings ▸ Theme moves the switch too (`look` in `lemon_state`).
 Everything web-only is behind `cfg(target_arch = "wasm32")`; native builds are unchanged (`os_web::fs` re-exports
 `std::fs`, `VPath::vexists` is `Path::exists`, and so on).
 
+## Plugin windows
+
+Every built-in instrument and effect opens its window inside the canvas (`plugin_window::web` in os-app, the editors in
+`os_plugkit::web`). An editor cannot block in a loop of its own on the page's one thread, so each editor's loop body is
+its `os_plugkit::Step` and `os_plugkit::drive` either loops (native) or keeps it for the host to hand it each input
+(web). Popup menus and "Type in value" boxes are overlays: `popup` / `type_in` return `None` at once, and when the user
+picks, the input that opened them is delivered again with the answers waiting (a menu row that opens a box gets the row,
+then the text). Not on the web: plugins' own file dialogs (load a sample by dropping it on the channel instead), Lemon
+Drop's floating window, keys typed into an editor (they stay the app's). `node web/test/plugins.js <out> <url>` opens
+all of them (`lemon_test`, `lemon_test_plugins`).
+
 ## Not done yet
 
-- Plugin editors: the built-in plugins' editors draw with os-ui but run in windows of their own, each on its own
-  thread with a blocking event loop (`os_plugkit::gui`). On the web a plugin's window does not open, so its sound
-  works with its saved or default settings, but it cannot be edited. Needed: an `os_plugkit::web` shell (a floating
-  panel in the main canvas or a second canvas), each plugin's `gui::Ed::run` loop turned into a per-event handler,
-  and the modal popups and type-in boxes made non-blocking.
 - Time stretching and pitch shifting at quality: build Signalsmith Stretch with a wasm libc++ (wasi-sdk) or port it.
 - MP3 / OGG export: LAME and libvorbis need a C toolchain for wasm (wasi-sdk or emscripten).
 - Audio runs on the page's main thread: heavy UI work can starve it (the worklet keeps about 43 ms). Moving the

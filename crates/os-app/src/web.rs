@@ -23,9 +23,13 @@ enum Cmd {
     Export,
     /// MetroBar's day / night switch: the MetroBar Night theme (true) or the MetroBar (day) theme.
     Night(bool),
+    /// Browser tests (`web/test`): "gen:<name>" adds an instrument channel, "fx:<name>" an effect on mixer track 1.
+    Test(String),
 }
 
 thread_local! {
+    /// The plugin lists for `lemon_test_plugins`.
+    static APP_PLUGINS: RefCell<String> = const { RefCell::new(String::new()) };
     static QUEUE: RefCell<Vec<Cmd>> = const { RefCell::new(Vec::new()) };
     static DOWNLOADS: RefCell<Vec<PathBuf>> = const { RefCell::new(Vec::new()) };
     static STATE: RefCell<String> = const { RefCell::new(String::new()) };
@@ -34,6 +38,18 @@ thread_local! {
 fn push(c: Cmd) {
     QUEUE.with(|q| q.borrow_mut().push(c));
     crate::wake_ui();
+}
+
+/// Browser tests: see `Cmd::Test`.
+#[wasm_bindgen]
+pub fn lemon_test(cmd: &str) {
+    push(Cmd::Test(cmd.into()));
+}
+
+/// Browser tests: the built-in instruments and effects, as `{"gen":[...],"fx":[...]}`.
+#[wasm_bindgen]
+pub fn lemon_test_plugins() -> String {
+    APP_PLUGINS.with(|p| p.borrow().clone())
 }
 
 #[wasm_bindgen]
@@ -124,10 +140,31 @@ pub(crate) fn run(app: &mut App, scale: f32) -> bool {
             Cmd::Save => save(app),
             Cmd::Export => app.open_export(false),
             Cmd::Night(night) => app.set_metrobar_night(night),
+            Cmd::Test(t) => {
+                let msg = if let Some(name) = t.strip_prefix("gen:") {
+                    app.plugins.index_of(name).and_then(|i| crate::plugin_menu::add_generator(app, i, None))
+                } else if let Some(rest) = t.strip_prefix("fx:") {
+                    // "fx:<track>:<name>", or "fx:<name>" for track 1.
+                    let (track, name) = rest.split_once(':').and_then(|(n, name)| Some((n.parse::<u16>().ok()?, name))).unwrap_or((1, rest));
+                    app.state.selected_mixer = track;
+                    app.plugins.effect_index(name).and_then(|i| crate::plugin_menu::add_effect(app, i, None))
+                } else {
+                    None
+                };
+                if let Some(m) = msg {
+                    web_sys::console::log_1(&format!("lemon_test {t}: {m}").into());
+                }
+            }
         }
         app.invalidate();
     }
     publish(app);
+    if APP_PLUGINS.with(|p| !p.borrow().is_empty()) && !any {
+        return any;
+    }
+    let list = |v: &[crate::plugins::Available]| v.iter().map(|a| format!("\"{}\"", esc(&a.desc.name))).collect::<Vec<_>>().join(",");
+    let json = format!("{{\"gen\":[{}],\"fx\":[{}]}}", list(&app.plugins.available), list(&app.plugins.effects));
+    APP_PLUGINS.with(|p| *p.borrow_mut() = json);
     any
 }
 

@@ -45,6 +45,14 @@ mod cocoa;
 #[cfg(target_os = "macos")]
 pub use cocoa::{default_position, lift_hide, lift_show, pointer, row_window_at, screen_to_main, stack, take_exposed, take_keys, take_lift_input, FrameWindow};
 
+#[cfg(target_arch = "wasm32")]
+mod web;
+#[cfg(target_arch = "wasm32")]
+pub use web::{
+    busy, composite, default_position, event as web_event, lift_hide, lift_show, screen_to_main, stack, take_damage as web_damage, take_exposed, take_lift_input,
+    tick as web_tick, FrameWindow,
+};
+
 /// TOOLS > Set keyboard focus of all plugins to ▸ (Lemon Studio's design; spec: ui/channel-switches.md §6): whether
 /// plugin editors take the computer keyboard (Enabled, the default) or never get it (Disabled), the keys then going to
 /// Lemon Studio as those pressed in an editor already do (`take_keys`: the typing keyboard, Space). Saved in `.lemon` files (`lemon_state`).

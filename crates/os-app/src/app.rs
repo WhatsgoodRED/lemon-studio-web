@@ -4215,11 +4215,12 @@ impl App {
             || self.state.cpu.fps_view
     }
 
-    /// Linux: a plugin window is open (its X11 events and the editor's run loop are served on the tick).
+    /// Linux: a plugin window is open (its X11 events and the editor's run loop are served on the tick). Web: the same
+    /// for the editors drawn in the canvas (their ticks and paints come from the app's).
     fn plugin_windows_busy(&self) -> bool {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_arch = "wasm32"))]
         return crate::plugin_window::busy();
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_arch = "wasm32")))]
         false
     }
 

@@ -677,6 +677,10 @@ impl Shell {
             self.pending |= web::run(&mut self.app, k);
         }
         self.pending |= self.app.tick();
+        #[cfg(target_arch = "wasm32")]
+        if crate::plugin_window::web_tick() {
+            self.web_plugin_damage();
+        }
         self.sync_detached(el);
         // The startup splash: the opened project's loading moves its gauge on; once the main window has shown and
         // nothing is loading, it finishes. It is dropped when it has faded away.
@@ -719,6 +723,20 @@ impl Shell {
         }
         el.set_control_flow(ControlFlow::WaitUntil(wake));
         self.watchdog.next(wake, held);
+    }
+}
+
+impl Shell {
+    /// The web build: what plugin windows changed becomes the app's damage, so it is painted and presented.
+    #[cfg(target_arch = "wasm32")]
+    fn web_plugin_damage(&mut self) {
+        let k = self.app.plugins.scale.max(0.5);
+        for r in crate::plugin_window::web_damage() {
+            let (x0, y0) = ((r[0] - 1) as f32 / k, (r[1] - 1) as f32 / k);
+            let (x1, y1) = ((r[2] + 1) as f32 / k, (r[3] + 1) as f32 / k);
+            self.app.damage_rect(os_ui::Rect::new(x0.floor(), y0.floor(), (x1 - x0).ceil() + 1.0, (y1 - y0).ceil() + 1.0));
+        }
+        self.pending = true;
     }
 }
 
@@ -971,6 +989,14 @@ impl ApplicationHandler for Shell {
             }
             e => e,
         };
+        // The web build: plugin windows are drawn in this canvas; input over them (or with a plugin's menu open) is
+        // theirs (`plugin_window::web`).
+        #[cfg(target_arch = "wasm32")]
+        if crate::plugin_window::web_event(&event, (self.inset.0, self.inset.1), self.mods) {
+            self.web_plugin_damage();
+            window.request_redraw();
+            return;
+        }
         match event {
             WindowEvent::CloseRequested => {
                 self.app.close_requested();
@@ -1272,6 +1298,8 @@ impl ApplicationHandler for Shell {
                     self.app.paint_region(canvas, d.as_deref());
                     #[cfg(plugin_windows)]
                     self.app.sync_lift(canvas);
+                    #[cfg(target_arch = "wasm32")]
+                    crate::plugin_window::composite(canvas);
                 }
                 // A scrolled playlist moved its pixels instead of repainting them: the buffer moves them too.
                 let moved = self.app.take_moved();

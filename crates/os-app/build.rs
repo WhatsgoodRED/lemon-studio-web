@@ -137,7 +137,8 @@ fn main() {
     // `plugin_windows`: plugin editors open in Lemon Studio's frame windows (Win32 on Windows, X11 on Linux, AppKit on
     // macOS).
     println!("cargo::rustc-check-cfg=cfg(plugin_windows)");
-    if matches!(std::env::var("CARGO_CFG_TARGET_OS").as_deref(), Ok("windows" | "linux" | "macos")) {
+    // The web build draws them into its canvas (`plugin_window::web`).
+    if matches!(std::env::var("CARGO_CFG_TARGET_OS").as_deref(), Ok("windows" | "linux" | "macos")) || std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("wasm32") {
         println!("cargo::rustc-cfg=plugin_windows");
     }
     println!("cargo:rerun-if-changed=assets/lemonstudio.rc");
