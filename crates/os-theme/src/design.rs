@@ -254,6 +254,57 @@ pub mod metrobar {
     pub(crate) const TINT: (f32, f32) = (110.0, 0.08);
 }
 
+/// MetroBar Studio's night look (the first MetroBar theme, metrobarz.com's dark palette): the same deep red on
+/// green-tinted near-black greys, white on red, no glow.
+pub mod metrobar_night {
+    use crate::Color;
+    /// Accent: "on" controls, selection, the playhead, record (flat, no glow).
+    pub const ACCENT: Color = Color::rgb(0xaf0000);
+    /// Text and glyphs on the accent.
+    pub const ON_ACCENT: Color = Color::rgb(0xffffff);
+    pub const BG: Color = Color::rgb(0x111413);
+    pub const PANEL: Color = Color::rgb(0x1a1e1d);
+    pub const FG: Color = Color::rgb(0xe9ece8);
+    pub const MUTED: Color = Color::rgb(0x8e9893);
+    pub const LINE: Color = Color::rgb(0x2c3331);
+    pub const CELL: Color = Color::rgb(0x252b29);
+    pub const S1: Color = Color::rgb(0x4b5652);
+    pub const S2: Color = Color::rgb(0x66716c);
+    pub const S3: Color = Color::rgb(0x838d88);
+    pub const S4: Color = Color::rgb(0xa1aaa5);
+    pub const S5: Color = Color::rgb(0xbfc6c2);
+    /// The colour set for clips and channels.
+    pub const SET: [Color; 8] = [
+        Color::rgb(0xd9a62e),
+        Color::rgb(0x3fa7d6),
+        Color::rgb(0xe0679c),
+        Color::rgb(0x59b36b),
+        Color::rgb(0xa77fe0),
+        Color::rgb(0xe07b39),
+        Color::rgb(0x3cbfb0),
+        Color::rgb(0xc9c94a),
+    ];
+    /// Lemon skin lightness -> MetroBar lightness (Lemon's workspace lands on BG, its toolbar on PANEL, its raised
+    /// faces on CELL / LINE, its dark highlight on S1).
+    pub(crate) const RAMP: &[(f32, f32)] = &[
+        (0.0, 0.0),
+        (0.07, 0.035),
+        (0.122, 0.055),
+        (0.149, 0.0725),
+        (0.18, 0.09),
+        (0.231, 0.11),
+        (0.278, 0.157),
+        (0.333, 0.186),
+        (0.40, 0.30),
+        (0.5, 0.40),
+        (0.6, 0.52),
+        (0.84, 0.755),
+        (1.0, 1.0),
+    ];
+    /// Hue and saturation of the greys.
+    pub(crate) const TINT: (f32, f32) = (160.0, 0.075);
+}
+
 /// Lemon: Classic lightness -> Lemon lightness. Classic's toolbar (0.19) lands on DARK (#3b3b3b, 0.231) and the
 /// 0.33 raised greys on DARK_HIGHLIGHT (#666666, 0.40); the near-black lists and rulers lift to about #151515.
 const LEMON_RAMP: &[(f32, f32)] = &[
@@ -429,14 +480,147 @@ fn overrides(d: Design) -> Vec<(&'static str, Color)> {
 pub fn palette(design: Design, theme: Option<&FlTheme>) -> Palette {
     let mut p = skin_palette(design, theme);
     p.wallpaper = theme.and_then(fl::wallpaper);
-    if theme.is_some_and(|t| t.metrobar) {
-        for (name, c) in metrobar_tokens() {
+    if let Some(t) = theme.filter(|t| t.metrobar) {
+        for (name, c) in if t.metrobar_night { metrobar_night_tokens() } else { metrobar_tokens() } {
             if let Some(slot) = p.get_mut(name) {
                 *slot = c;
             }
         }
     }
     p
+}
+
+/// The MetroBar Night theme's tokens, set outright over either skin.
+fn metrobar_night_tokens() -> Vec<(&'static str, Color)> {
+    let c = Color::rgb;
+    use metrobar_night::*;
+    vec![
+        ("toolbar", PANEL),
+        ("toolbar_line", BG),
+        ("toolbar_edge", LINE),
+        ("sunken", c(0x151917)),
+        ("sunken_dark", c(0x0e100f)),
+        ("time_panel", c(0x0e100f)),
+        ("menu_panel", c(0x161a19)),
+        ("menu_text", FG),
+        ("news_panel", c(0x161a19)),
+        ("button", CELL),
+        ("button_hi", c(0x333b38)),
+        ("glyph", FG),
+        ("glyph_dim", MUTED),
+        ("text", FG),
+        ("text_dim", S4),
+        ("text_faint", S3),
+        ("on_top", ACCENT),
+        ("on_bottom", ACCENT),
+        ("on_glyph", ON_ACCENT),
+        ("pill", ACCENT),
+        ("pill_text", ON_ACCENT),
+        ("record", ACCENT),
+        ("tempo_box", BG),
+        ("accent", ACCENT),
+        ("accent_dim", c(0x4a1210)),
+        ("workspace", BG),
+        ("watermark", c(0x181c1b)),
+        ("version_text", S1),
+        ("browser_title", c(0x161a19)),
+        ("browser_tabs", BG),
+        ("browser_tab_outline", ACCENT),
+        ("browser_list", c(0x0e1110)),
+        ("browser_row_hi", CELL),
+        ("browser_folder", c(0xd5dad6)),
+        ("browser_footer", BG),
+        ("browser_search", ACCENT),
+        ("cat_project", FG),
+        ("cat_recent", SET[3]),
+        ("cat_plugin_db", SET[1]),
+        ("cat_plugin_presets", SET[2]),
+        ("cat_channel_presets", SET[4]),
+        ("cat_mixer_presets", SET[6]),
+        ("splitter", BG),
+        ("splitter_dark", c(0x0b0d0c)),
+        ("window_title", PANEL),
+        ("window_title_float", PANEL),
+        ("window_title_hi", c(0x222826)),
+        ("window_body", c(0x161a19)),
+        ("window_border", c(0x0b0d0c)),
+        ("picker", c(0x151917)),
+        ("track_header", c(0x1f2422)),
+        ("overview", c(0x3a4340)),
+        ("ruler", c(0x0e100f)),
+        ("ruler_text", MUTED),
+        ("grid", c(0x161a19)),
+        ("grid_alt", PANEL),
+        ("grid_gap", c(0x101312)),
+        ("grid_bar", c(0x0a0c0b)),
+        ("scrollbar", BG),
+        ("playhead", ACCENT),
+        ("mixer_bg", BG),
+        ("mixer_strip", PANEL),
+        ("mixer_strip_dark", c(0x131615)),
+        ("mixer_panel", PANEL),
+        ("slot", c(0x151917)),
+        ("slot_text", S2),
+        ("slot_text_used", c(0xd5dad6)),
+        ("fader_handle", S1),
+        // Meters stay green / yellow / red so levels read.
+        ("meter_low", SET[3]),
+        ("meter_high", SET[0]),
+        ("meter_clip", c(0xe5352b)),
+        ("rack_row_box", CELL),
+        ("name_button", CELL),
+        ("name_button_sel", c(0x3a4340)),
+        ("name_text", c(0xdfe3df)),
+        ("rack_inset", PANEL),
+        ("rack_inset_border", BG),
+        ("rack_control_border", c(0x0e100f)),
+        ("step_a", LINE),
+        ("step_b", c(0x3a2725)),
+        ("step_dim_a", c(0x1f2422)),
+        ("step_dim_b", c(0x261b1a)),
+        ("step_dim_border", c(0x161a19)),
+        ("step_on", ACCENT),
+        ("add_hover", ACCENT),
+        ("menu_drop", PANEL),
+        ("menu_drop_hi", LINE),
+        ("menu_drop_text", FG),
+        ("menu_drop_disabled", S2),
+        ("menu_pop", PANEL),
+        ("menu_pop_border", c(0x0b0d0c)),
+        ("menu_pop_hi", c(0x6e0000)),
+        ("menu_pop_text", FG),
+        ("menu_pop_shortcut", S4),
+        ("menu_pop_dim", S2),
+        ("menu_pop_head", c(0x151917)),
+        ("menu_pop_head_text", MUTED),
+        ("clip", c(0x2f6f8c)),
+        ("pr_row", c(0x161a19)),
+        ("pr_row_black", c(0x121514)),
+        ("pr_row_sel", c(0x1f1a1a)),
+        ("pr_row_black_sel", c(0x1a1515)),
+        ("pr_bar", c(0x0a0c0b)),
+        ("note_top", c(0xb81010)),
+        ("note_bottom", ACCENT),
+        ("note_rim", c(0x5c0000)),
+        ("note_text", ON_ACCENT),
+        ("note_sel_top", c(0xf2dede)),
+        ("note_sel_bottom", c(0xe6c4c4)),
+        ("note_sel_rim", c(0x6e0000)),
+        ("note_sel_text", c(0x3a0000)),
+        ("key_white", FG),
+        ("key_white_left", c(0xc9cfcb)),
+        ("key_black", PANEL),
+        ("key_black_left", BG),
+        ("key_c", c(0xd8ddd9)),
+        ("key_label", ACCENT),
+        ("key_lit", c(0xc41a1a)),
+        ("key_lit_left", ACCENT),
+        ("key_lit_edge", c(0x7d0000)),
+        ("key_black_lit", ACCENT),
+        ("key_black_lit_left", c(0x6e0000)),
+        ("velocity", ACCENT),
+        ("velocity_dot", c(0x5c0000)),
+    ]
 }
 
 /// The MetroBar Studio theme's tokens, set outright over either skin (metrobarz.com's light palette).
@@ -644,6 +828,8 @@ pub struct Retint {
     pub text_to: (Color, Color),
     /// The MetroBar Studio theme: greys through `metrobar::RAMP`, key colours kept flat (no lighter glow).
     pub metrobar: bool,
+    /// Its night look: greys through `metrobar_night::RAMP`.
+    pub metrobar_night: bool,
 }
 
 impl Retint {
@@ -658,6 +844,7 @@ impl Retint {
             text_from: (lemon::TEXT, lemon::DARK),
             text_to: (lemon::TEXT, lemon::DARK),
             metrobar: th.metrobar,
+            metrobar_night: th.metrobar_night,
         };
         let bg = r.surface(lemon::DARK);
         let text = th.text_color.unwrap_or(if bg.hsl().2 > 0.5 { Color::rgb(0x1e1e1e) } else { lemon::TEXT });
@@ -668,7 +855,8 @@ impl Retint {
     pub fn surface(&self, c: Color) -> Color {
         if self.metrobar {
             let (_, s, l) = c.hsl();
-            let map = DesignMap { ramp: metrobar::RAMP, tint: metrobar::TINT, ..map_of(Design::Lemon).expect("lemon") };
+            let (ramp, tint) = if self.metrobar_night { (metrobar_night::RAMP, metrobar_night::TINT) } else { (metrobar::RAMP, metrobar::TINT) };
+            let map = DesignMap { ramp, tint, ..map_of(Design::Lemon).expect("lemon") };
             let l2 = map.ramp_l(l).clamp(0.0, 1.0);
             let chroma = f32::from(c.r.max(c.g).max(c.b) - c.r.min(c.g).min(c.b)) / 255.0;
             if chroma > 0.09 {
@@ -676,7 +864,7 @@ impl Retint {
                 let (kh, _, _) = metrobar::ACCENT.hsl();
                 return Color::from_hsl_pub(kh, (s * 0.6).min(0.45), l2, c.a);
             }
-            return Color::from_hsl_pub(metrobar::TINT.0, metrobar::TINT.1, l2, c.a);
+            return Color::from_hsl_pub(tint.0, tint.1, l2, c.a);
         }
         let l = fl::DARK.invert(c).hsl().2;
         let (h, s, _) = BASE_TINT.hsl();
@@ -902,6 +1090,25 @@ mod tests {
         let g = p.s(0x313436);
         assert!(g.hsl().2 > 0.8, "{g}");
         assert!(p.text.hsl().2 < 0.2 && p.workspace.hsl().2 > 0.85);
+    }
+
+    /// MetroBar Night: every token set, the first (dark) MetroBar palette, the same flat red.
+    #[test]
+    fn metrobar_night_is_the_dark_palette() {
+        let names: Vec<&str> = metrobar_night_tokens().iter().map(|(n, _)| *n).collect();
+        for n in Palette::NAMES {
+            assert!(names.contains(n), "{n}");
+        }
+        let (_, text) = crate::presets::PRESETS.iter().find(|(n, _)| *n == "MetroBar Night").expect("MetroBar Night preset");
+        let th = FlTheme::parse(text);
+        assert!(th.metrobar && th.metrobar_night);
+        let p = palette(Design::Lemon, Some(&th));
+        assert_eq!((p.workspace, p.toolbar, p.text, p.accent), (metrobar_night::BG, metrobar_night::PANEL, metrobar_night::FG, metrobar::ACCENT));
+        assert_eq!(p.brand_lit(lemon::MAIN), metrobar::ACCENT);
+        assert!(p.brand_lit(lemon::HIGHLIGHT).hsl().2 < 0.45, "no glow");
+        assert!(p.s(0x313436).hsl().2 < 0.2);
+        let day = crate::presets::PRESETS.iter().find(|(n, _)| *n == "MetroBar").map(|(_, t)| FlTheme::parse(t)).unwrap();
+        assert!(day.metrobar && !day.metrobar_night);
     }
 
     #[test]

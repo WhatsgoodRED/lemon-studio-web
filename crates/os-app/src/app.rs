@@ -5243,6 +5243,27 @@ impl App {
         self.invalidate();
     }
 
+    /// MetroBar's day / night switch (the web page's sun / moon toggle): applies the built-in MetroBar (day) or
+    /// MetroBar Night theme live and keeps it as `current.flstheme`, as a Themes tile would.
+    pub fn set_metrobar_night(&mut self, night: bool) {
+        let Some(text) = metrobar_fl_text(night) else { return };
+        if self.state.fl_text.as_deref() == Some(text.as_str()) {
+            return;
+        }
+        let name = if night { "MetroBar Night" } else { "MetroBar" };
+        self.theme_mark(crate::theme_library::Step::Other);
+        self.theme = skin_theme(self.design(), name, Some(&text));
+        os_theme::set_current(&self.theme.colors);
+        self.state.fl_text = Some(text.clone());
+        self.state.theme_base = Some(text.clone());
+        if let Some(d) = theme_dir() {
+            let _ = os_web::fs::create_dir_all(&d);
+            let _ = os_web::fs::write(d.join("current.flstheme"), &text);
+        }
+        self.sync_preset();
+        self.invalidate();
+    }
+
     /// The Themes tile shown as chosen (spec: ui/theme-presets.md "Settings"): Default when no theme file colours the
     /// skin (or the stock Dark theme does, whatever its options), else the tile whose theme has the applied colours; none
     /// when the theme came from elsewhere (Load theme..., a drop, a `theme.txt`). While the window is open the tiles'
@@ -10353,20 +10374,45 @@ fn saved_fl_text() -> Option<String> {
     saved.map(|t| metrobar_current(&t).unwrap_or(t))
 }
 
-/// The look of the built-in MetroBar theme (`MetroBarLook` in its file): 2 = light, as metrobarz.com. A MetroBar theme
-/// saved with an older look (the first, dark one, kept in a browser's settings) is replaced by the built-in theme.
+/// The look of the built-in MetroBar themes (`MetroBarLook` in their files): 2 = the day (light, as metrobarz.com) and
+/// night themes. A MetroBar theme saved with an older look (the first, dark one, kept in a browser's settings) is
+/// replaced by a built-in one.
 const METROBAR_LOOK: &str = "2";
 
-/// `text` is a MetroBar theme of an older look: the built-in MetroBar theme to use instead.
-pub fn metrobar_current(text: &str) -> Option<String> {
-    let th = os_theme::FlTheme::parse(text);
-    let look = os_theme::fl::get_key(text, "MetroBarLook").map(str::trim);
-    (th.metrobar && look != Some(METROBAR_LOOK)).then(default_fl_text).flatten()
+/// The MetroBar look the page asks for (web: MetroBar's day / night switch, `metrobar.bookDay`); none natively.
+pub fn wanted_night() -> Option<bool> {
+    #[cfg(all(target_arch = "wasm32", not(test)))]
+    return Some(crate::web::night());
+    #[cfg(not(all(target_arch = "wasm32", not(test))))]
+    None
 }
 
-/// The theme a fresh install starts with: the built-in MetroBar theme.
+/// `text` is a MetroBar theme of an older look, or of the other look than the page asks for: the built-in MetroBar
+/// theme to use instead.
+pub fn metrobar_current(text: &str) -> Option<String> {
+    metrobar_current_for(text, wanted_night())
+}
+
+/// `metrobar_current` with the look asked for (`None`: keep a current day or night theme, an old one becomes day).
+pub fn metrobar_current_for(text: &str, night: Option<bool>) -> Option<String> {
+    let th = os_theme::FlTheme::parse(text);
+    if !th.metrobar {
+        return None;
+    }
+    let current = os_theme::fl::get_key(text, "MetroBarLook").map(str::trim) == Some(METROBAR_LOOK);
+    let night = night.unwrap_or(current && th.metrobar_night);
+    (!current || th.metrobar_night != night).then(|| metrobar_fl_text(night)).flatten()
+}
+
+/// The theme a fresh install starts with: the built-in MetroBar theme (its night look when the page asks for it).
 pub fn default_fl_text() -> Option<String> {
-    os_theme::presets::PRESETS.iter().find(|(n, _)| *n == "MetroBar").map(|(_, t)| t.to_string())
+    metrobar_fl_text(wanted_night().unwrap_or(false))
+}
+
+/// The built-in MetroBar theme: "MetroBar" (day) or "MetroBar Night".
+pub fn metrobar_fl_text(night: bool) -> Option<String> {
+    let name = if night { "MetroBar Night" } else { "MetroBar" };
+    os_theme::presets::PRESETS.iter().find(|(n, _)| *n == name).map(|(_, t)| t.to_string())
 }
 
 /// The folder `current.flstheme` is kept in: the user folder; in tests this thread's folder, none unless one is set
@@ -10416,6 +10462,22 @@ mod tests {
         assert!(p.workspace.hsl().2 > 0.85 && p.text.hsl().2 < 0.2);
         // Other themes are left alone.
         assert!(metrobar_current(os_theme::fl::DARK_TEXT).is_none());
+    }
+
+    /// MetroBar's day / night switch: the look asked for wins over a saved MetroBar theme of the other look; a saved
+    /// night theme stays night with no look asked for; other themes are left alone.
+    #[test]
+    fn the_metrobar_look_follows_the_switch() {
+        let (day, night) = (metrobar_fl_text(false).unwrap(), metrobar_fl_text(true).unwrap());
+        assert!(night.contains("LemonStudioColors=MetroBarNight") && night.contains("MetroBarLook=2"));
+        assert!(metrobar_current_for(&night, None).is_none());
+        assert!(metrobar_current_for(&night, Some(true)).is_none());
+        assert_eq!(metrobar_current_for(&night, Some(false)), Some(day.clone()));
+        assert_eq!(metrobar_current_for(&day, Some(true)), Some(night.clone()));
+        assert!(metrobar_current_for(&day, Some(false)).is_none());
+        let old = "Hue=42\nSaturation=-50\nLightness=-200\nSelected=11468800\nLemonStudioColors=MetroBar\n";
+        assert_eq!(metrobar_current_for(old, Some(true)), Some(night));
+        assert!(metrobar_current_for(os_theme::fl::DARK_TEXT, Some(true)).is_none());
     }
 
     fn frame(app: &mut App, c: &mut Canvas, damage: Option<Rect>) {

@@ -21,6 +21,8 @@ enum Cmd {
     Open(PathBuf),
     Save,
     Export,
+    /// MetroBar's day / night switch: the MetroBar Night theme (true) or the MetroBar (day) theme.
+    Night(bool),
 }
 
 thread_local! {
@@ -57,6 +59,24 @@ pub fn lemon_save() {
 #[wasm_bindgen]
 pub fn lemon_export() {
     push(Cmd::Export);
+}
+
+/// The page's day / night switch was flipped: the app takes the MetroBar Night (true) or MetroBar theme, live.
+#[wasm_bindgen]
+pub fn lemon_set_night(night: bool) {
+    push(Cmd::Night(night));
+}
+
+#[wasm_bindgen]
+extern "C" {
+    /// The look the page's day / night switch is on (`metrobar.bookDay`, shared with the MetroBar app): true = night.
+    #[wasm_bindgen(js_namespace = lemonWeb, js_name = night)]
+    fn page_night() -> bool;
+}
+
+/// The look the page asks for at start (`app::wanted_night`).
+pub(crate) fn night() -> bool {
+    page_night()
 }
 
 /// Files the app wrote for the user to keep (an export): one path a line, each once.
@@ -103,6 +123,7 @@ pub(crate) fn run(app: &mut App, scale: f32) -> bool {
             Cmd::Open(path) => app.drop_file(path),
             Cmd::Save => save(app),
             Cmd::Export => app.open_export(false),
+            Cmd::Night(night) => app.set_metrobar_night(night),
         }
         app.invalidate();
     }
@@ -134,10 +155,13 @@ fn save(app: &mut App) {
 
 fn publish(app: &App) {
     let s = &app.state;
+    // The MetroBar theme's look, for the page's switch and colours (a theme picked in Settings counts too).
+    let th = s.fl_theme();
+    let look = if !th.metrobar { "other" } else if th.metrobar_night { "night" } else { "day" };
     let clips: Vec<String> = crate::playlist::clips(s).iter().map(|c| format!("{{\"track\":{},\"position\":{},\"length\":{}}}", c.track, c.position, c.length)).collect();
     let samples: Vec<String> = s.project.channels.iter().filter_map(|c| c.sample_path.as_deref()).map(|p| format!("\"{}\"", esc(p))).collect();
     let json = format!(
-        "{{\"path\":\"{}\",\"unsaved\":{},\"message\":\"{}\",\"clips\":[{}],\"samples\":[{}],\"channels\":{},\"exporting\":{}}}",
+        "{{\"path\":\"{}\",\"unsaved\":{},\"message\":\"{}\",\"clips\":[{}],\"samples\":[{}],\"channels\":{},\"exporting\":{},\"look\":\"{}\"}}",
         esc(&s.path.as_ref().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()),
         app.unsaved(),
         esc(s.message.as_deref().unwrap_or("")),
@@ -145,6 +169,7 @@ fn publish(app: &App) {
         samples.join(","),
         s.project.channels.len(),
         app.export.is_some(),
+        look,
     );
     STATE.with(|st| *st.borrow_mut() = json);
 }

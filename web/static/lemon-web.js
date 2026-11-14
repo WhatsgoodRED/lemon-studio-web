@@ -67,6 +67,7 @@ async function loadKept() {
 
 let lastVersion = -1;
 async function keep() {
+  if (!web.ready) return;   // a reload before the app has started: nothing of its files to keep yet
   const v = lemon.lemon_fs_version();
   if (v === lastVersion) return;
   lastVersion = v;
@@ -206,6 +207,41 @@ function pollDownloads() {
 
 web.state = () => JSON.parse(lemon.lemon_state() || '{}');
 
+// ---- day / night: MetroBar's own switch (the Highlight Zone's sun / moon toggle) and its choice, metrobar.bookDay in
+// localStorage (true or missing = day), shared with the MetroBar app on this site. Day = the MetroBar theme, night =
+// MetroBar Night; the app reads the choice at start (`lemonWeb.night`) and takes a flip live (`lemon_set_night`).
+
+const DAY_KEY = 'metrobar.bookDay';
+const isDay = () => { try { return JSON.parse(localStorage.getItem(DAY_KEY) || 'true') !== false; } catch (_) { return true; } };
+web.night = () => !isDay();
+function showLook(day) {
+  document.documentElement.classList.toggle('night', !day);
+  document.querySelector('meta[name="theme-color"]').content = day ? '#eef0ec' : '#111413';
+  const b = $('b-night');
+  b.title = day ? 'Night mode' : 'Day mode';
+  b.setAttribute('aria-label', 'Night mode');
+  b.setAttribute('aria-checked', String(!day));
+}
+function setLook(day, tellApp) {
+  try { localStorage.setItem(DAY_KEY, JSON.stringify(day)); } catch (_) {}
+  showLook(day);
+  if (tellApp && web.ready) lemon.lemon_set_night(!day);
+}
+web.setLook = setLook;
+showLook(isDay());
+$('b-night').onclick = () => setLook(!isDay(), true);
+// Flipped in the MetroBar app in another tab.
+window.addEventListener('storage', (e) => { if (e.key === DAY_KEY || e.key === null) { showLook(isDay()); if (web.ready) lemon.lemon_set_night(!isDay()); } });
+// The MetroBar or MetroBar Night theme picked in Settings ▸ Theme: the switch and the page follow it.
+let lastLook = null;
+function followApp() {
+  let look;
+  try { look = web.state().look; } catch (_) { return; }
+  if (look === lastLook) return;
+  lastLook = look;
+  if ((look === 'day' || look === 'night') && (look === 'day') !== isDay()) setLook(look === 'day', false);
+}
+
 // ---- page wiring ------------------------------------------------------------------------------------------------
 
 $('start-btn').onclick = async () => {
@@ -255,6 +291,7 @@ async function main() {
   $('loading').style.display = 'none';
   web.ready = true;
   setInterval(pollDownloads, 250);
+  setInterval(followApp, 250);
   setInterval(keep, 3000);
   window.addEventListener('pagehide', keep);
   document.addEventListener('visibilitychange', () => { if (document.hidden) keep(); });

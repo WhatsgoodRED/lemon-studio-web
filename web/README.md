@@ -15,7 +15,18 @@ web/build.sh [out-dir]                             # default ../studio-lemon; PR
 
 The output is plain static files (`index.html`, `lemon-web.js`, `lemon-worklets.js`, `pkg/`, the licence files and an
 `.htaccess` for Apache). No COOP/COEP headers are needed. Check it with `python3 web/test/serve.py <out-dir> 8765` and
-`node web/test/proof.js` (Playwright; writes screenshots and `results.json`). `node web/test/metrobar.js <url of studio-lemon/>` checks the "← MetroBar" link (to `../landing-beat-meter.html`, the leave prompt only with unsaved changes) and that a browser holding the first, dark MetroBar theme opens with the light one.
+`node web/test/proof.js` (Playwright; writes screenshots and `results.json`). `node web/test/metrobar.js <url of studio-lemon/>` checks the "← MetroBar" link (to `../landing-beat-meter.html`, the leave prompt only with unsaved changes) and that a browser holding the first, dark MetroBar theme opens with the light one. `node web/test/daynight.js <url> [Highlight Zone url]` checks the day / night switch.
+
+## Day and night
+
+Day (the built-in MetroBar theme, light) is the default; night is the built-in MetroBar Night theme (the first, dark
+MetroBar palette). The switch at the right of the bottom bar, before the credits, is MetroBar's own sun / moon switch
+(the Highlight Zone's `.smt`, CSS copied from `landing-beat-meter.html`). It flips the app's theme live
+(`lemon_set_night`) and the page's colours (`html.night`), and keeps the choice as `metrobar.bookDay` in localStorage
+(true or missing = day), the key the MetroBar app uses, so both share it. At start the app asks the page
+(`lemonWeb.night`): a kept MetroBar theme of the other look, or of the first dark look, is replaced by the built-in one
+the switch is on (`app::metrobar_current`); other themes are left alone. Picking MetroBar or MetroBar Night in
+Settings ▸ Theme moves the switch too (`look` in `lemon_state`).
 
 ## How it works
 

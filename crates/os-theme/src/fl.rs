@@ -107,8 +107,10 @@ pub struct FlTheme {
     /// theme (spec: ui/theme-presets.md §B).
     pub colors: Option<crate::Design>,
     /// `LemonStudioColors=MetroBar`: the MetroBar Studio theme, whose tokens are set outright over the skin
-    /// (`design::metrobar`).
+    /// (`design::metrobar`). Also `=MetroBarNight`, its night look.
     pub metrobar: bool,
+    /// `LemonStudioColors=MetroBarNight`: the MetroBar Studio theme's night look (`design::metrobar_night`).
+    pub metrobar_night: bool,
 }
 
 /// The key that makes a theme file a skin's own colours: `LemonStudioColors=Lemon` or `=Citrus`. FL ignores it and
@@ -175,7 +177,11 @@ impl FlTheme {
             back_color: col("backcolor"),
             back_picture: kv.get("backpicfilename").cloned().unwrap_or_default(),
             colors: kv.get(&COLORS_KEY.to_ascii_lowercase()).and_then(|v| crate::Design::parse(v)),
-            metrobar: kv.get(&COLORS_KEY.to_ascii_lowercase()).is_some_and(|v| v.trim().eq_ignore_ascii_case("metrobar")),
+            metrobar: kv.get(&COLORS_KEY.to_ascii_lowercase()).is_some_and(|v| {
+                let v = v.trim();
+                v.eq_ignore_ascii_case("metrobar") || v.eq_ignore_ascii_case("metrobarnight")
+            }),
+            metrobar_night: kv.get(&COLORS_KEY.to_ascii_lowercase()).is_some_and(|v| v.trim().eq_ignore_ascii_case("metrobarnight")),
         }
     }
 
