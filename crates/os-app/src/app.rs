@@ -6651,15 +6651,17 @@ impl App {
             self.state.lane_menu = false;
             return;
         }
-        // Any click outside an open menu closes it. VIEW's window entries are window toggles: one clicked in the menu
-        // closes the menu and toggles its window. Its open submenu takes its own clicks.
+        // Any click outside an open menu closes it. VIEW's window entries are window toggles that act on the release
+        // (`acts_on_release`): the menu stays open under the held button and closes when the entry runs (`release`).
+        // Closed at the press, a real click (held for a frame or more) released over what was under the menu and the
+        // window never toggled (Bennie 2026-11-15: "clicking wont help"). Its open submenu takes its own clicks.
+        let menu_toggle = matches!(action, Some(Action::ToggleWin(_))) && self.overlays.iter().any(|r| r.contains(x, y));
         if self.state.menu_open.is_some()
+            && !menu_toggle
             && !matches!(action, Some(Action::MenuItem(..) | Action::MenuSub(..) | Action::Menu(_) | Action::PlPopup(_) | Action::PlPopupSub(_) | Action::Scrollbar(Scroll::Popup | Scroll::PopupSub)))
         {
             self.state.menu_open = None;
-            if !(matches!(action, Some(Action::ToggleWin(_))) && self.overlays.iter().any(|r| r.contains(x, y))) {
-                return;
-            }
+            return;
         }
         // A button that acts on its release brings its window to the front then too: raised at the press, the window
         // showed in front of what the button was about to change for as long as the button was held (the channel
@@ -7186,6 +7188,10 @@ impl App {
         if let Some(a) = self.armed.take() {
             let (x, y) = self.mouse;
             if self.top_hit(x, y).is_some_and(|h| h.action == a) {
+                // A VIEW window entry: the menu it was pressed in closes as it runs (`mouse_down`).
+                if matches!(a, Action::ToggleWin(_)) {
+                    self.state.menu_open = None;
+                }
                 self.act(a);
                 self.rack_pending();
                 self.invalidate();
@@ -12605,6 +12611,36 @@ mod tests {
         assert_eq!(app.state.menu_open, Some(0), "the entry's press keeps the menu");
         app.mouse_up();
         assert_eq!(app.state.menu_open, None, "the entry's release runs it and closes the menu");
+    }
+
+    /// A real click holds the button for a frame or more (Bennie 2026-11-15: VIEW's entries "do pop up when I press the
+    /// shortcut button... but clicking wont help"): the menu painted while the button is down must still take the
+    /// release.
+    #[test]
+    fn a_held_click_runs_a_menu_entry() {
+        let Ok(mut c) = Canvas::new(1600, 900, 1.0) else { return };
+        let mut app = App::new(None);
+        frame(&mut app, &mut c, None);
+        let view = crate::views::menus::VIEW;
+        let m = hit_rect(&app, &Action::Menu(view));
+        app.mouse_move(m.cx(), m.cy());
+        app.mouse_down();
+        frame(&mut app, &mut c, None);
+        app.mouse_up();
+        frame(&mut app, &mut c, None);
+        assert_eq!(app.state.menu_open, Some(view));
+        let browser = app.state.show_browser;
+        // VIEW's window entries are window toggles, the last ones registered (over the toolbar's).
+        let item = app.hits.iter().rev().find(|h| h.action == Action::ToggleWin(Win::Browser)).map(|h| h.rect).expect("Browser entry");
+        assert!(app.overlays.iter().any(|r| r.contains(item.cx(), item.cy())), "the entry is in the menu");
+        app.mouse_move(item.cx(), item.cy());
+        app.mouse_down();
+        frame(&mut app, &mut c, None);
+        assert_eq!(app.state.menu_open, Some(view), "the menu stays under the held button");
+        app.mouse_up();
+        frame(&mut app, &mut c, None);
+        assert_eq!(app.state.menu_open, None, "the release ran the entry and closed the menu");
+        assert_ne!(app.state.show_browser, browser, "View > Browser toggled the browser");
     }
 
     /// A damage-region repaint must give the pixels of a full repaint (anti-aliased edges cut by
