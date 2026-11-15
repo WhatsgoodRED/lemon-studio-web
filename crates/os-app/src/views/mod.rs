@@ -165,6 +165,12 @@ pub fn browser_w(s: &State) -> f32 {
     s.browser_w.min(s.screen.0 / 2.0).max(BROWSER_W)
 }
 
+/// The room the browser takes from the workspace's left side: none while it is hidden or auto-hidden (it then slides
+/// out over the workspace, `browser::auto_hide`).
+pub fn browser_room(s: &State) -> f32 {
+    if s.show_browser && !browser::auto_hide(s) { browser_w(s) } else { 0.0 }
+}
+
 /// Paints the frame; returns the number of hits registered before the overlays (menus, popups, picker...), which cover
 /// docked plugin windows.
 pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
@@ -176,7 +182,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
     ui.c.set_cover(None);
 
     // Workspace (§9): the theme's picture or the watermark, then docked windows on top.
-    let left = if s.show_browser { browser_w(s) } else { 0.0 };
+    let left = browser_room(s);
     let top = work_y(s);
     let work = Rect::new(left, top, w - left, h - top);
     let docked = s.docked();
@@ -197,7 +203,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
     // fills the workspace, so windows below it are covered and not painted.
     let docked_at = s.z.iter().rposition(|&w| s.is_max(w));
     // Each part is skipped by a repaint that misses it (`Ui::part`).
-    if s.show_browser {
+    if s.show_browser && !browser::auto_hide(s) {
         let r = Rect::new(0.0, top, browser_w(s), h - top);
         ui.part(Seg::Browser, r, |ui| browser::paint(ui, s, r));
     }
@@ -249,6 +255,25 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
         }
         ui.c.pop_clip();
         ui.win = None;
+    }
+    // An auto-hidden browser (options ▸ View ▸ Auto-hide): over the windows while it peeks out, else a slim handle
+    // along the left edge that brings it out.
+    if browser::auto_hide(s) {
+        let bw = browser_w(s);
+        if browser::visible(s) {
+            let r = Rect::new(0.0, top, bw, h - top);
+            ui.part(Seg::Browser, r, |ui| {
+                browser::paint(ui, s, r);
+                for k in 0..6 {
+                    let a = (36 - 6 * k) as u8;
+                    ui.c.fill_rect(Rect::new(bw + k as f32, top, 1.0, h - top), os_ui::Color { r: 0, g: 0, b: 0, a });
+                }
+            });
+        } else {
+            let r = Rect::new(0.0, top, browser::EDGE - 2.0, h - top);
+            ui.c.fill_rect(r, ui.t.splitter);
+            ui.hit(Rect::new(0.0, top, browser::EDGE, h - top), Action::Swallow, "Browser (auto-hide): point at the left edge to show it");
+        }
     }
     if !s.toolbar.hidden {
         // At Toolbars scaling (spec: ui/ui-scaling.md §1): the band works in its own px, `k` of the window's each, so

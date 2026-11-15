@@ -1075,6 +1075,8 @@ pub struct State {
     /// spec: ui/close-windows.md §2).
     pub no_focus: bool,
     pub show_browser: bool,
+    /// An auto-hidden browser is out over the workspace (`views::browser::visible`).
+    pub browser_peek: bool,
     pub rack_pos: (f32, f32),
     pub rack_size: (f32, f32),
     /// Horizontal step scroll of the rack, pixels.
@@ -1282,7 +1284,7 @@ impl State {
 
     /// The workspace: right of the browser, below the toolbar.
     pub fn work_rect(&self) -> Rect {
-        let left = if self.show_browser { views::browser_w(self) } else { 0.0 };
+        let left = views::browser_room(self);
         let top = views::work_y(self);
         Rect::new(left, top, (self.screen.0 - left).max(0.0), (self.screen.1 - top).max(0.0))
     }
@@ -1565,6 +1567,7 @@ impl App {
                 z: vec![Win::Playlist, Win::ChannelRack],
                 no_focus: false,
                 show_browser: true,
+                browser_peek: false,
                 rack_pos: crate::arrange::RACK_POS,
                 rack_size: views::rack::DEFAULT_SIZE,
                 rack_scroll_x: 0.0,
@@ -5916,6 +5919,7 @@ impl App {
     /// Mouse moved; returns whether a repaint is needed.
     pub fn mouse_move(&mut self, x: f32, y: f32) -> bool {
         self.mouse = (x, y);
+        self.browser_peek_follow();
         self.hold_moved(x, y);
         // A drag between windows came onto another surface: its ghost leaves the one it was drawn on.
         if self.cross_drag() && self.state.drag_on != self.state.surface {
@@ -9038,7 +9042,11 @@ impl App {
             Action::MenuSub(m, i) => self.open_menu_sub(m, i),
             // Show a hidden window, bring a covered one to the front, hide one already in front
             // (spec: ui/channel-rack.md §5).
-            Action::ToggleWin(Win::Browser) => s.show_browser = !s.show_browser,
+            Action::ToggleWin(Win::Browser) => {
+                s.show_browser = !s.show_browser;
+                // Shown while auto-hidden: it comes out until the mouse leaves it.
+                s.browser_peek = s.show_browser;
+            }
             Action::ToggleWin(Win::Perf) => self.toggle_perf(),
             Action::ToggleWin(Win::Tapper) => self.toggle_tapper(),
             Action::ToggleWin(Win::Touch) => self.toggle_touch(),
@@ -16849,6 +16857,81 @@ mod tests {
     /// The arrows over the browser walk the tree (issue #169): Up / Down a row, Right opens a node and steps into it,
     /// Left closes it and goes to the parent. Held, Up / Down repeat; with a modifier or away from the browser the
     /// arrows are not the browser's.
+    /// The browser options' View section (Bennie 2026-11-15: in that panel "none of the functions work"): Auto-hide
+    /// gives the browser's room to the workspace and brings it out at the window's left edge, Hide while dragging
+    /// tucks it away for a drag out of it, Auto contrast text makes faint text readable, the tabs can carry names.
+    #[test]
+    fn browser_view_options_work() {
+        use crate::browser::{options_menu, BCmd};
+        use crate::views::browser as view;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.browser_opts = view::DEFAULT_OPTS.iter().copied().collect();
+        frame(&mut app, &mut c, None);
+        let docked = app.state.work_rect();
+        assert!(docked.x > 0.0);
+        let opts = options_menu(&app.state);
+        let on = |l: &str| opts.iter().find(|i| i.label == l).unwrap().enabled;
+        for l in ["Auto-hide", "Hide while dragging (when detached)", "Auto contrast text", "Show icons and text on tabs"] {
+            assert!(on(l), "{l} works");
+        }
+        let listed = |app: &App| app.hits.iter().any(|h| h.action == Action::BrowserList);
+        // Auto-hide: turned on from its menu it stays out until the mouse leaves it.
+        let mid = app.state.screen.1 / 2.0;
+        app.mouse_move(100.0, mid);
+        app.browser_cmd(BCmd::Toggle(view::OPT_AUTOHIDE));
+        assert_eq!(app.state.work_rect().x, 0.0, "the workspace takes the browser's room");
+        assert!(app.state.browser_peek);
+        app.mouse_move(800.0, mid);
+        assert!(!app.state.browser_peek && !app.over_browser());
+        frame(&mut app, &mut c, None);
+        assert!(!listed(&app), "tucked away");
+        app.mouse_move(2.0, mid);
+        assert!(app.state.browser_peek && app.over_browser());
+        frame(&mut app, &mut c, None);
+        assert!(listed(&app), "out over the workspace");
+        app.mouse_move(150.0, mid);
+        assert!(app.state.browser_peek, "stays out while the mouse is over it");
+        app.mouse_move(800.0, mid);
+        assert!(!app.state.browser_peek);
+        // Hide while dragging (on by default): a drag out of it tucks it away; off, it stays.
+        let drag = || Some(Drag::Browser { item: crate::views::browser::Item::Effect(0), label: "Effect".into(), m0: (0.0, 0.0), started: true });
+        app.mouse_move(2.0, mid);
+        app.drag = drag();
+        app.mouse_move(120.0, mid);
+        assert!(!app.state.browser_peek, "hidden while dragging");
+        app.drag = None;
+        app.browser_cmd(BCmd::Toggle(view::OPT_HIDEDRAG));
+        app.mouse_move(2.0, mid);
+        app.drag = drag();
+        app.mouse_move(120.0, mid);
+        assert!(app.state.browser_peek, "stays while dragging");
+        app.drag = None;
+        app.browser_cmd(BCmd::Toggle(view::OPT_HIDEDRAG));
+        // Off again: docked as before.
+        app.browser_cmd(BCmd::Toggle(view::OPT_AUTOHIDE));
+        assert_eq!(app.state.work_rect(), docked);
+        frame(&mut app, &mut c, None);
+        assert!(listed(&app));
+        // Auto contrast text: a faint colour moves just far enough to read at 4.5:1; a readable one stays.
+        let bg = os_ui::Color::rgb(0xf0f0f0);
+        let faint = os_ui::Color::rgb(0xb8c8f0);
+        assert!(view::contrast(faint, bg) < 4.5);
+        assert!(view::contrast(view::readable(faint, bg), bg) >= 4.5);
+        assert_eq!(view::readable(os_ui::Color::rgb(0x202020), bg), os_ui::Color::rgb(0x202020));
+        let dark = os_ui::Color::rgb(0x202428);
+        assert!(view::contrast(view::readable(os_ui::Color::rgb(0x505860), dark), dark) >= 4.5);
+        app.browser_cmd(BCmd::Toggle(view::OPT_CONTRAST));
+        frame(&mut app, &mut c, None);
+        app.browser_cmd(BCmd::Toggle(view::OPT_CONTRAST));
+        // Show icons and text on tabs: two radio items that set, not flip.
+        for (set, want) in [(true, true), (true, true), (false, false)] {
+            app.browser_cmd(BCmd::Set(view::OPT_TABTEXT, set));
+            assert_eq!(view::opt(&app.state, view::OPT_TABTEXT), want);
+            frame(&mut app, &mut c, None);
+        }
+    }
+
     #[test]
     fn browser_arrow_keys_walk_the_tree() {
         use crate::views::browser::{rows, Item};

@@ -164,12 +164,56 @@ pub const OPT_AUTOHIDE: &str = "autohide";
 pub const OPT_HIDEDRAG: &str = "hidedrag";
 pub const OPT_CONTRAST: &str = "contrast";
 pub const OPT_PREVIEW: &str = "preview";
+/// Show icons and text on tabs ▸ Icons and text: each tab's name under its icon.
+pub const OPT_TABTEXT: &str = "tabtext";
 pub const DEFAULT_OPTS: &[&str] = &[OPT_FOLDERS, OPT_TAGS, OPT_INDEX, OPT_REINDEX, OPT_HIDEDRAG];
 /// Every toggle, in menu order (`browser.txt` keeps the ones that are on).
-pub const ALL_OPTS: &[&str] = &[OPT_PARENTS, OPT_EXPAND, OPT_FOLDERS, OPT_TOP, OPT_TYPE, OPT_TAGS, OPT_INDEX, OPT_REINDEX, OPT_AUTOHIDE, OPT_HIDEDRAG, OPT_CONTRAST, OPT_PREVIEW];
+pub const ALL_OPTS: &[&str] = &[OPT_PARENTS, OPT_EXPAND, OPT_FOLDERS, OPT_TOP, OPT_TYPE, OPT_TAGS, OPT_INDEX, OPT_REINDEX, OPT_AUTOHIDE, OPT_HIDEDRAG, OPT_CONTRAST, OPT_PREVIEW, OPT_TABTEXT];
 
 pub fn opt(s: &State, k: &str) -> bool {
     s.browser_opts.contains(k)
+}
+
+/// Auto-hide (options ▸ View): the shown browser keeps no room in the workspace; it slides out over it while the
+/// mouse is at the window's left edge (`EDGE`) or over the browser, and tucks away when the mouse leaves.
+pub fn auto_hide(s: &State) -> bool {
+    s.show_browser && opt(s, OPT_AUTOHIDE)
+}
+
+/// Whether the browser is drawn: docked, or peeking out while auto-hidden.
+pub fn visible(s: &State) -> bool {
+    s.show_browser && (!opt(s, OPT_AUTOHIDE) || s.browser_peek)
+}
+
+/// How near the window's left edge (px) the mouse brings an auto-hidden browser out.
+pub const EDGE: f32 = 6.0;
+
+/// Relative luminance (WCAG 2) of an sRGB colour.
+fn luminance(c: Color) -> f32 {
+    let f = |v: u8| {
+        let v = f32::from(v) / 255.0;
+        if v <= 0.040_45 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+    };
+    0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b)
+}
+
+/// The WCAG contrast ratio of two colours (1 to 21).
+pub fn contrast(a: Color, b: Color) -> f32 {
+    let (x, y) = (luminance(a), luminance(b));
+    (x.max(y) + 0.05) / (x.min(y) + 0.05)
+}
+
+/// Auto contrast text (options ▸ View): `c` moved toward black or white (whichever `bg` is further from) just far
+/// enough to read at 4.5:1 on `bg`; already readable colours stay as they are.
+pub fn readable(c: Color, bg: Color) -> Color {
+    const MIN: f32 = 4.5;
+    if contrast(c, bg) >= MIN {
+        return c;
+    }
+    let (black, white) = (Color::rgb(0x000000), Color::rgb(0xffffff));
+    let to = if contrast(black, bg) > contrast(white, bg) { black } else { white };
+    let fixed = (1..=20).map(|k| c.mix(to, k as f32 / 20.0)).find(|m| contrast(*m, bg) >= MIN).unwrap_or(to);
+    Color { a: c.a, ..fixed }
 }
 
 /// Whether `row` matches the search text `q` (lower case), spec §5.
@@ -807,6 +851,9 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
     let dy = r.y - super::WORK_Y;
     // The panel left of the splitter: 201 px measured, wider as the splitter is dragged (§9).
     let bw = r.w - SPLITTER;
+    // Auto contrast text (options ▸ View): every text and glyph colour readable on what it sits on.
+    let auto = opt(s, OPT_CONTRAST);
+    let ink = |c: Color, bg: Color| if auto { readable(c, bg) } else { c };
     ui.hit(r, Action::Swallow, "");
     // Title bar.
     ui.c.fill_rect(Rect::span(0.0, bw - 1.0, 83.0 + dy, 105.0 + dy), t.browser_title);
@@ -816,7 +863,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
     if mhov || menu_open {
         ui.c.stroke_rrect(Rect::new(3.0, 86.0 + dy, 15.0, 16.0), 2.0, 1.2, t.browser_tab_outline);
     }
-    icons::draw(ui.c, Icon::ArrowRight, Rect::new(5.0, 87.0 + dy, 12.0, 14.0), if mhov || menu_open { t.glyph } else { t.text_dim });
+    icons::draw(ui.c, Icon::ArrowRight, Rect::new(5.0, 87.0 + dy, 12.0, 14.0), ink(if mhov || menu_open { t.glyph } else { t.text_dim }, t.browser_title));
     // Collapse structure and Reread structure (spec §4, "Title-bar icons"): outlined like the ▸ while hovered.
     for (r, icon, action, hint) in [
         (Rect::new(17.0, 85.0 + dy, 16.0, 18.0), Icon::ArrowUp, Action::BrowserCollapse, "Collapse structure (Ctrl+Up)"),
@@ -826,22 +873,30 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
         if hov {
             ui.c.stroke_rrect(Rect::new(r.x + 1.0, 86.0 + dy, r.w - 1.0, 16.0), 2.0, 1.2, t.browser_tab_outline);
         }
-        icons::draw(ui.c, icon, Rect::new(r.x + 1.0, 87.0 + dy, 12.0, 14.0), if hov { t.glyph } else { t.text_dim });
+        icons::draw(ui.c, icon, Rect::new(r.x + 1.0, 87.0 + dy, 12.0, 14.0), ink(if hov { t.glyph } else { t.text_dim }, t.browser_title));
     }
     // Level with the arrows before it (their middle is y 94).
-    ui.c.text_mid(os_ui::Font::new(14), 52.0, 94.0 + dy, t.text_dim, "Browser");
+    ui.c.text_mid(os_ui::Font::new(14), 52.0, 94.0 + dy, ink(t.text_dim, t.browser_title), "Browser");
     // Tabs (spec ui/browser.md §1): FL's five without Online content, sharing the strip.
     ui.c.fill_rect(Rect::span(0.0, bw - 1.0, 106.0 + dy, 141.0 + dy), t.browser_tabs);
     const TIPS: [&str; 4] = ["All", "Current project", "Plugin library", "Favorites"];
+    // Show icons and text on tabs ▸ Icons and text: a short name under a smaller icon.
+    const NAMES: [&str; 4] = ["All", "Project", "Plugins", "Favorites"];
+    let named = opt(s, OPT_TABTEXT);
     for (i, icon) in [Icon::Wave, Icon::Page, Icon::Speaker, Icon::Star].into_iter().enumerate() {
         let cx = 25.0 + 50.0 * i as f32;
-        let rr = Rect::new(cx - 18.0, 108.0 + dy, 36.0, 30.0);
+        let rr = if named { Rect::new(cx - 23.0, 108.0 + dy, 46.0, 31.0) } else { Rect::new(cx - 18.0, 108.0 + dy, 36.0, 30.0) };
         let hov = ui.hit(rr, Action::BrowserTab(i), TIPS[i]);
         if i == s.browser_tab {
             ui.c.stroke_rrect(rr, 4.0, 1.5, t.browser_tab_outline);
         }
-        let c = if hov || i == s.browser_tab { t.glyph } else { t.glyph.shade(-0.1) };
-        icons::draw(ui.c, icon, Rect::new(cx - 9.0, 114.0 + dy, 18.0, 18.0), c);
+        let c = ink(if hov || i == s.browser_tab { t.glyph } else { t.glyph.shade(-0.1) }, t.browser_tabs);
+        if named {
+            icons::draw(ui.c, icon, Rect::new(cx - 7.0, 110.0 + dy, 14.0, 14.0), c);
+            ui.c.text_center(os_ui::Font::condensed(11, 6), Rect::new(cx - 23.0, 125.0 + dy, 46.0, 12.0), c, NAMES[i]);
+        } else {
+            icons::draw(ui.c, icon, Rect::new(cx - 9.0, 114.0 + dy, 18.0, 18.0), c);
+        }
     }
     // List.
     let top = list_top(s);
@@ -885,6 +940,8 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
         };
         let c = if row.bright { base.shade(0.12) } else if row.depth > 0 { base.shade(-0.06) } else { base };
         let c = if matches!(row.item, Item::History(e) if s.history.undone(e)) { t.text_faint } else { c };
+        let bg = if sel == Some(row.key.as_str()) || hov { t.browser_row_hi } else { t.browser_list };
+        let c = ink(c, bg);
         // Expander: only an opened node shows its ▾ in the gutter (FL screenshots, spec §2).
         if row.open == Some(true) && s.browser_search.is_empty() {
             let (ax, cy) = (x - 9.0, y + ROW_H / 2.0);
@@ -899,11 +956,11 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
             Icon::PianoRoll if row.cat == FILE => t.cat_plugin_db,
             _ => c,
         };
-        icons::draw(ui.c, row.icon, Rect::new(x + 6.0, y + 3.0, 17.0, 17.0), ic);
+        icons::draw(ui.c, row.icon, Rect::new(x + 6.0, y + 3.0, 17.0, 17.0), ink(ic, bg));
         // A favorite's star at the row's right end (§10); the label stops before it.
         let fav = is_favorite(s, row);
         if fav {
-            let sc = if hov || sel == Some(row.key.as_str()) { t.glyph } else { t.text_dim };
+            let sc = ink(if hov || sel == Some(row.key.as_str()) { t.glyph } else { t.text_dim }, bg);
             icons::draw(ui.c, Icon::Star, Rect::new(bw - 19.0, y + 5.0, 13.0, 13.0), sc);
         }
         let (f, w) = (os_ui::Font::new(17), bw - 1.0 - x - 27.0 - if fav { 16.0 } else { 0.0 });
@@ -936,7 +993,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
     };
     if rows.is_empty() && (s.browser_tab == FAV_TAB || !s.browser_search.is_empty()) {
         for (k, line) in empty.iter().enumerate() {
-            ui.c.text(os_ui::Font::new(14).italic(), 22.0, top + 6.0 + 18.0 * k as f32, t.text_faint, line);
+            ui.c.text(os_ui::Font::new(14).italic(), 22.0, top + 6.0 + 18.0 * k as f32, ink(t.text_faint, t.browser_list), line);
         }
     }
     ui.c.pop_clip();

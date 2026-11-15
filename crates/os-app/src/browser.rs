@@ -98,9 +98,16 @@ impl App {
         let s = &mut self.state;
         match c {
             BCmd::Find(dir) => return find(s, dir),
-            BCmd::Toggle(k) => {
-                if !s.browser_opts.remove(k) {
+            BCmd::Toggle(k) | BCmd::Set(k, _) => {
+                let on = if let BCmd::Set(_, on) = c { on } else { !s.browser_opts.contains(k) };
+                if on {
                     s.browser_opts.insert(k);
+                } else {
+                    s.browser_opts.remove(k);
+                }
+                // Auto-hide turned on from its menu: the browser stays out until the mouse leaves it.
+                if k == view::OPT_AUTOHIDE {
+                    s.browser_peek = on;
                 }
                 save_opts(&s.browser_opts);
                 s.browser_scroll = s.browser_scroll.min(view::max_scroll(s));
@@ -270,13 +277,39 @@ impl App {
                 reveal(s);
             }
         }
+        // An auto-hidden browser comes out to show where it went.
+        self.state.browser_peek = self.state.show_browser;
         self.invalidate();
     }
 
-    /// Whether the mouse is over the docked browser.
+    /// Whether the mouse is over the browser (docked, or out while auto-hidden).
     pub(crate) fn over_browser(&self) -> bool {
         let (x, y) = self.mouse;
-        self.state.show_browser && x < crate::views::browser_w(&self.state) && y >= crate::views::work_y(&self.state)
+        view::visible(&self.state) && x < crate::views::browser_w(&self.state) && y >= crate::views::work_y(&self.state)
+    }
+
+    /// Auto-hide (options ▸ View): the browser comes out while the mouse is at the window's left edge, stays out while
+    /// the mouse is over it (or its menu, its search box has the keys, its splitter is dragged) and tucks away when the
+    /// mouse leaves. Hide while dragging (when detached): a drag out of it tucks it away so what is under it can take
+    /// the drop.
+    pub(crate) fn browser_peek_follow(&mut self) {
+        let s = &self.state;
+        let peek = if !view::auto_hide(s) {
+            false
+        } else {
+            let (x, y) = self.mouse;
+            match &self.drag {
+                Some(Drag::Browser { started: true, .. }) => s.browser_peek && !view::opt(s, view::OPT_HIDEDRAG),
+                Some(Drag::BrowserSplit { .. }) => true,
+                _ if s.browser_peek => x < crate::views::browser_w(s) + 2.0 || s.playlist.popup.is_some() || s.browser_search_focus,
+                None => x < view::EDGE && y >= crate::views::work_y(s),
+                Some(_) => false,
+            }
+        };
+        if peek != self.state.browser_peek {
+            self.state.browser_peek = peek;
+            self.invalidate();
+        }
     }
 
     /// Whether typed letters belong to the browser search (the typing keyboard leaves them alone).
@@ -980,6 +1013,8 @@ pub enum BCmd {
     /// Find previous (-1) / next (1).
     Find(isize),
     Toggle(&'static str),
+    /// An option set on or off (the radio items of Show icons and text on tabs).
+    Set(&'static str, bool),
     /// Navigation history back (-1) / forward (1).
     History(isize),
     /// Send previous (-1) / next (1) sample to the selected channel.
@@ -1122,6 +1157,7 @@ pub fn options_menu(s: &crate::app::State) -> Vec<PItem> {
     // Options with no effect yet: greyed out, showing their default tick.
     let dead = |label: &'static str, k: &'static str| PItem::not_yet(label).mark(Mark::Check(view::opt(s, k)));
     let searching = !s.browser_search.is_empty();
+    let tabtext = view::opt(s, view::OPT_TABTEXT);
     let find = |label, key, dir| {
         let it = b(label, BCmd::Find(dir)).key(key);
         if searching { it } else { it.off() }
@@ -1146,10 +1182,16 @@ pub fn options_menu(s: &crate::app::State) -> Vec<PItem> {
         b("Send previous to selected channel", BCmd::Send(-1)).key("Shift+Up"),
         b("Send next to selected channel", BCmd::Send(1)).key("Shift+Down"),
         PItem::head("View"),
-        dead("Auto-hide", view::OPT_AUTOHIDE),
-        dead("Hide while dragging (when detached)", view::OPT_HIDEDRAG),
-        dead("Auto contrast text", view::OPT_CONTRAST),
-        PItem::sub("Show icons and text on tabs", vec![PItem::not_yet("Contents not captured yet")]),
+        t("Auto-hide", view::OPT_AUTOHIDE),
+        t("Hide while dragging (when detached)", view::OPT_HIDEDRAG),
+        t("Auto contrast text", view::OPT_CONTRAST),
+        PItem::sub(
+            "Show icons and text on tabs",
+            vec![
+                b("Icons only", BCmd::Set(view::OPT_TABTEXT, false)).mark(Mark::Radio(!tabtext)),
+                b("Icons and text", BCmd::Set(view::OPT_TABTEXT, true)).mark(Mark::Radio(tabtext)),
+            ],
+        ),
         t("Full sample preview", view::OPT_PREVIEW),
         PItem::head("Structure"),
         b("Collapse structure", BCmd::Collapse).key("Ctrl+Up"),
